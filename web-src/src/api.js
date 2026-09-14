@@ -25,8 +25,8 @@ export function makeApi (ims) {
     settings: () => call('settings'),
     saveSettings: (patch) => call('settings', { method: 'PATCH', body: patch }),
     wipe: () => call('admin', { method: 'POST', path: '/wipe' }),
-    materials: () => call('materials'),
-    patchMaterial: (sku, patch) => call('materials', { method: 'PATCH', path: `/${encodeURIComponent(sku)}`, body: patch }),
+    products: () => call('products'),
+    patchProduct: (sku, patch) => call('products', { method: 'PATCH', path: `/${encodeURIComponent(sku)}`, body: patch }),
     partners: () => call('partners'),
     patchPartner: (id, patch) => call('partners', { method: 'PATCH', path: `/${encodeURIComponent(id)}`, body: patch }),
     conditions: () => call('pricing'),
@@ -36,6 +36,8 @@ export function makeApi (ims) {
     orders: () => call('orders'),
     order: (number) => call('orders', { path: `/${number}` }),
     moveOrder: (number, status) => call('orders', { method: 'POST', path: `/${number}/status`, body: { status } }),
-    outbox: () => call('outbox')
+    events: () => call('events'),
+    retryEvents: () => call('events', { method: 'POST', path: '/retry' }),
+    requeueEvents: () => call('events', { method: 'POST', path: '/requeue' })
   }
 }

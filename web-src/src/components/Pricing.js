@@ -4,13 +4,13 @@ import Frame from './Frame'
 import { useLoad } from './useLoad'
 
 const KINDS = [
-  { key: 'contractPrice', label: 'Contract price (partner + material)' },
-  { key: 'contractDiscount', label: 'Contract discount % (partner, optional material)' },
-  { key: 'maxDiscount', label: 'Max discount % ceiling (optional partner, optional material)' }
+  { key: 'contractPrice', label: 'Contract price (partner + product)' },
+  { key: 'contractDiscount', label: 'Contract discount % (partner, optional product)' },
+  { key: 'maxDiscount', label: 'Max discount % ceiling (optional partner, optional product)' }
 ]
 
 function describe (c) {
-  const scope = [c.partnerId ? `partner ${c.partnerId}` : 'all partners', c.sku ? `material ${c.sku}` : 'all materials'].join(', ')
+  const scope = [c.partnerId ? `partner ${c.partnerId}` : 'all partners', c.sku ? `product ${c.sku}` : 'all products'].join(', ')
   if (c.kind === 'contractPrice') return `Price ${c.price} for ${scope}`
   if (c.kind === 'contractDiscount') return `${c.percent}% discount for ${scope}`
   return `At most ${c.percent}% below list for ${scope}`
@@ -68,7 +68,7 @@ export default function Pricing ({ api, onChanged }) {
               {KINDS.map((k) => <Item key={k.key}>{k.label}</Item>)}
             </Picker>
             <TextField label='Partner id' value={form.partnerId} onChange={(v) => setForm({ ...form, partnerId: v })} isRequired={form.kind !== 'maxDiscount'} />
-            <TextField label='Material (SKU)' value={form.sku} onChange={(v) => setForm({ ...form, sku: v })} isRequired={isPrice} />
+            <TextField label='Product (SKU)' value={form.sku} onChange={(v) => setForm({ ...form, sku: v })} isRequired={isPrice} />
             {isPrice
               ? <NumberField label='Price' value={form.price} onChange={(v) => setForm({ ...form, price: v })} minValue={0} step={0.01} />
               : <NumberField label='Percent' value={form.percent} onChange={(v) => setForm({ ...form, percent: v })} minValue={0} maxValue={100} />}
@@ -77,14 +77,14 @@ export default function Pricing ({ api, onChanged }) {
           <Heading level={3}>Try a quote</Heading>
           <Form>
             <TextField label='Partner id (blank = default partner)' value={quoteIn.partnerId} onChange={(v) => setQuoteIn({ ...quoteIn, partnerId: v })} />
-            <TextField label='Material (SKU)' value={quoteIn.sku} onChange={(v) => setQuoteIn({ ...quoteIn, sku: v })} isRequired />
+            <TextField label='Product (SKU)' value={quoteIn.sku} onChange={(v) => setQuoteIn({ ...quoteIn, sku: v })} isRequired />
             <NumberField label='Quantity' value={quoteIn.qty} onChange={(v) => setQuoteIn({ ...quoteIn, qty: v })} minValue={1} />
             <Button variant='secondary' onPress={runQuote} isDisabled={!quoteIn.sku}>Quote</Button>
           </Form>
           {quoteOut && quoteOut.lines[0] && (
             <View marginTop='size-200'>
               {quoteOut.lines[0].unknown
-                ? <Text>Unknown material.</Text>
+                ? <Text>Unknown product.</Text>
                 : <Text>List {quoteOut.lines[0].listPrice}, contract {quoteOut.lines[0].contractPrice} ({quoteOut.lines[0].discountPercent}% off, from {quoteOut.lines[0].source}; ceiling {quoteOut.lines[0].maxDiscountPercent}%). Total {quoteOut.total} for partner {quoteOut.partnerId}.</Text>}
             </View>
           )}

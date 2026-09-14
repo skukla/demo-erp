@@ -7,7 +7,27 @@ application:
     packages:
       demo-erp:
         license: Apache-2.0
+        # Undelivered ERP events are retried every minute (a real ERP's outbound queue).
+        triggers:
+          events-retry-timer:
+            feed: /whisk.system/alarms/interval
+            inputs:
+              minutes: 1
+        rules:
+          events-retry-on-timer:
+            trigger: events-retry-timer
+            action: events-retry
         actions:
+          events-retry:
+            function: actions/events/retry.js
+            web: 'no'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              include-ims-credentials: true
+              final: true
           health:
             function: actions/health/index.js
             web: 'yes'
@@ -44,8 +64,8 @@ application:
               require-adobe-auth: true
               include-ims-credentials: true
               final: true
-          materials:
-            function: actions/materials/index.js
+          products:
+            function: actions/products/index.js
             web: 'yes'
             runtime: nodejs:22
             inputs:
@@ -91,8 +111,8 @@ application:
               require-adobe-auth: true
               include-ims-credentials: true
               final: true
-          outbox:
-            function: actions/outbox/index.js
+          events:
+            function: actions/events/index.js
             web: 'yes'
             runtime: nodejs:22
             inputs:

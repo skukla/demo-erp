@@ -4,7 +4,7 @@ const { ok } = require('../../lib/http')
 const { notFound } = require('../../lib/errors')
 const { listPartners, getPartner, patchPartner } = require('../../lib/partners')
 
-async function handler ({ cols, method, segments, body }) {
+async function handler ({ cols, method, segments, body, params }) {
   const id = segments[0] || null
   if (method === 'GET' && !id) return ok({ items: await listPartners(cols) })
   if (method === 'GET') {
@@ -13,7 +13,7 @@ async function handler ({ cols, method, segments, body }) {
     return ok(partner)
   }
   if ((method === 'PATCH' || method === 'POST') && id) {
-    const partner = await patchPartner(cols, id, body)
+    const partner = await patchPartner(cols, id, body, params)
     if (!partner) throw notFound(`Business partner ${id}`)
     return ok(partner)
   }

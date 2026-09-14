@@ -9,7 +9,7 @@ const { ok } = require('../../lib/http')
 const { notFound, badRequest } = require('../../lib/errors')
 const { createOrder, listOrders, getOrder, setStatus, nextStatuses } = require('../../lib/orders')
 
-async function handler ({ cols, method, segments, body }) {
+async function handler ({ cols, method, segments, body, params }) {
   const number = segments[0] || null
   if (method === 'GET' && !number) return ok({ items: await listOrders(cols) })
   if (method === 'GET') {
@@ -24,7 +24,7 @@ async function handler ({ cols, method, segments, body }) {
   }
   if (method === 'POST' && segments[1] === 'status') {
     if (!body.status) throw badRequest('status is required')
-    const order = await setStatus(cols, number, body.status)
+    const order = await setStatus(cols, number, body.status, params)
     if (!order) throw notFound(`Sales order ${number}`)
     return ok({ ...order, nextStatuses: nextStatuses(order.status) })
   }

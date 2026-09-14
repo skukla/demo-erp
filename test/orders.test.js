@@ -4,12 +4,12 @@ const { memoryCollections } = require('./helpers/memory-db')
 const { createOrder, setStatus, nextStatuses } = require('../lib/orders')
 const { importPartners, ensureDefaultPartner } = require('../lib/partners')
 const { wipe } = require('../lib/admin')
-const { pending } = require('../lib/outbox')
+const { pending } = require('../lib/events')
 
 let cols
 beforeEach(() => { cols = memoryCollections() })
 
-const input = { commerceOrderId: '42', commerceIncrementId: '000000042', partnerId: 'P1', lines: [{ sku: 'A1', qty: 2, price: 10 }] }
+const input = { commerceOrderId: '42', commerceIncrementId: '000000042', partnerId: 'P1', lines: [{ sku: 'A1', qty: 2, price: 10, commerceItemId: 5 }] }
 
 test('creates an SAP-style ten-digit number and totals the lines', async () => {
   const order = await createOrder(cols, input)
@@ -45,15 +45,17 @@ test('the order number never rewinds, not even across a wipe', async () => {
   assert.equal(after.number, '0000001002')
 })
 
-test('status moves follow the machine and each move lands in the outbox', async () => {
+test('status moves follow the machine and each move raises the ERP event for that status', async () => {
   const order = await createOrder(cols, input)
   await setStatus(cols, order.number, 'confirmed')
   const shipped = await setStatus(cols, order.number, 'shipped')
   assert.equal(shipped.status, 'shipped')
   assert.deepEqual(shipped.history.map((h) => h.status), ['created', 'confirmed', 'shipped'])
   const entries = await pending(cols)
-  assert.deepEqual(entries.map((e) => [e.kind, e.status]), [['order.status', 'confirmed'], ['order.status', 'shipped']])
-  assert.equal(entries[0].commerceOrderId, '42')
+  assert.deepEqual(entries.map((e) => e.event), ['be-observer.sales_order_status_update', 'be-observer.sales_order_shipment_create'])
+  assert.equal(entries[1].value.orderId, 42)
+  assert.equal(entries[1].value.erpNumber, '0000001000')
+  assert.deepEqual(entries[1].value.items, [{ orderItemId: 5, qty: 2, sku: 'A1' }])
 })
 
 test('a move the machine does not allow is refused as a bad request', async () => {

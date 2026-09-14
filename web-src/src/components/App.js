@@ -7,18 +7,20 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Provider, defaultTheme, Grid, View, Heading, Text, Flex, ActionGroup, Item, InlineAlert, Content, Badge } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import Dashboard from './Dashboard'
-import Materials from './Materials'
+import Products from './Products'
 import Partners from './Partners'
 import Orders from './Orders'
 import Pricing from './Pricing'
 import Settings from './Settings'
+import Events from './Events'
 
 const PAGES = [
   { key: 'dashboard', label: 'Dashboard', Component: Dashboard },
-  { key: 'materials', label: 'Materials', Component: Materials },
+  { key: 'products', label: 'Products', Component: Products },
   { key: 'partners', label: 'Business partners', Component: Partners },
   { key: 'orders', label: 'Sales orders', Component: Orders },
   { key: 'pricing', label: 'Pricing', Component: Pricing },
+  { key: 'events', label: 'Events', Component: Events },
   { key: 'settings', label: 'Settings', Component: Settings }
 ]
 

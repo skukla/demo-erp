@@ -32,15 +32,15 @@ export default function Dashboard ({ api, health, onChanged }) {
       {health && (
         <>
           <Flex gap='size-200' wrap marginBottom='size-300'>
-            <Stat label='Materials' value={counts.materials ?? 0} />
+            <Stat label='Products' value={counts.products ?? 0} />
             <Stat label='Business partners' value={counts.businessPartners ?? 0} />
             <Stat label='Sales orders' value={counts.salesOrders ?? 0} />
             <Stat label='Pricing conditions' value={counts.pricingConditions ?? 0} />
-            <Stat label='Outbox pending' value={counts.outbox ?? 0} />
+            <Stat label='Events pending' value={counts.events ?? 0} />
           </Flex>
           <Flex direction='column' gap='size-100' marginBottom='size-300'>
             <StatusLight variant={health.offline ? 'negative' : 'positive'}>
-              {health.offline ? 'Offline: the API refuses every record request with 503, the way an ERP outage looks to an integration.' : 'Online'}
+              {health.offline ? 'Offline: the API refuses every record request with 503, the way an unavailable ERP looks to an integration (a test control).' : 'Online'}
             </StatusLight>
             <Text>Last import: {health.lastImportAt || 'never'}. Last wipe: {health.lastWipeAt || 'never'}.</Text>
           </Flex>
@@ -49,7 +49,7 @@ export default function Dashboard ({ api, health, onChanged }) {
             <DialogTrigger>
               <Button variant='negative' isDisabled={busy}>Wipe all records</Button>
               <AlertDialog title='Wipe all records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
-                Every material, business partner, pricing condition, sales order and outbox entry is removed. The order counter and the settings stay. Demo Builder's reset does this and then re-imports from Commerce; on its own this leaves the ERP empty.
+                Every product, business partner, pricing condition, sales order and event is removed. The order counter and the settings stay. Demo Builder's reset does this and then re-imports from Commerce; on its own this leaves the ERP empty.
               </AlertDialog>
             </DialogTrigger>
           </Flex>

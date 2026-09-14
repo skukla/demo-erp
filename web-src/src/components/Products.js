@@ -6,17 +6,17 @@ import { useLoad } from './useLoad'
 
 const money = { style: 'currency', currency: 'USD' }
 
-export default function Materials ({ api, onChanged }) {
-  const { rows, error, reload } = useLoad(() => api.materials(), [api])
+export default function Products ({ api, onChanged }) {
+  const { rows, error, reload } = useLoad(() => api.products(), [api])
   const [saveError, setSaveError] = useState(null)
   async function save (sku, patch) {
-    try { await api.patchMaterial(sku, patch); setSaveError(null); await reload(); onChanged() } catch (e) { setSaveError(e) }
+    try { await api.patchProduct(sku, patch); setSaveError(null); await reload(); onChanged() } catch (e) { setSaveError(e) }
   }
   return (
-    <Frame title='Materials' error={saveError || error} loading={!rows}>
-      <TableView aria-label='Materials' density='compact' overflowMode='wrap'>
+    <Frame title='Products' error={saveError || error} loading={!rows}>
+      <TableView aria-label='Products' density='compact' overflowMode='wrap'>
         <TableHeader>
-          <Column key='sku' width={180}>Material</Column>
+          <Column key='sku' width={180}>SKU</Column>
           <Column key='name'>Description</Column>
           <Column key='plant' width={80}>Plant</Column>
           <Column key='listPrice' width={160} align='end'>List price</Column>
