@@ -7,3 +7,4 @@ console.json
 .DS_Store
 .parcel-cache
 .aws.tmp.creds.json
+web-src/src/config.json

@@ -32,7 +32,7 @@ screen uses the signed-in user's token from the Experience Cloud shell).
 | `settings` | `GET`, `PATCH { displayName?, offline? }` |
 | `admin` | `POST /wipe`, `POST /import { materials[], partners[], projectName? }` |
 | `materials` | `GET`, `GET /:sku`, `PATCH /:sku { listPrice?, stock? }` |
-| `partners` | `GET`, `GET /:id`, `PATCH /:id { creditLimit?, blocked?, paymentTerms? }` |
+| `partners` | `GET`, `GET /:id`, `PATCH /:id { creditLimit?, blocked?, paymentTerms? }` (import rows may carry `emailDomain`; quotes resolve the partner by id, company, email domain, then customer group) |
 | `pricing` | `GET` conditions, `POST` a condition, `DELETE /:id`, `POST /quote { partnerId? \| commerceCompanyId? \| customerGroupId?, lines:[{sku, qty}] }` |
 | `orders` | `GET`, `GET /:number`, `POST { commerceOrderId, commerceIncrementId?, partnerId?, lines, currency?, total? }` (idempotent), `POST /:number/status { status }` |
 | `outbox` | `GET` pending, `POST /ack { ids[] }` |

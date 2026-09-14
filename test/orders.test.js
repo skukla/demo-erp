@@ -2,6 +2,7 @@ const { test, beforeEach } = require('node:test')
 const assert = require('node:assert/strict')
 const { memoryCollections } = require('./helpers/memory-db')
 const { createOrder, setStatus, nextStatuses } = require('../lib/orders')
+const { importPartners, ensureDefaultPartner } = require('../lib/partners')
 const { wipe } = require('../lib/admin')
 const { pending } = require('../lib/outbox')
 
@@ -15,6 +16,17 @@ test('creates an SAP-style ten-digit number and totals the lines', async () => {
   assert.equal(order.number, '0000001000')
   assert.equal(order.total, 20)
   assert.equal(order.status, 'created')
+})
+
+test('the partner is resolved from the buyer hints when no partner id is given', async () => {
+  await importPartners(cols, [{ id: 'C2', name: 'Kukla Studios', commerceCompanyId: '2', emailDomain: 'kuklastudios.example' }])
+  await ensureDefaultPartner(cols, 'Demo')
+  const byEmail = await createOrder(cols, { commerceOrderId: '1', email: 'buyer@kuklastudios.example', lines: [] })
+  assert.equal(byEmail.partnerId, 'C2')
+  const unknown = await createOrder(cols, { commerceOrderId: '2', email: 'x@nowhere.example', lines: [] })
+  assert.equal(unknown.partnerId, 'P000000')
+  const none = await createOrder(memoryCollections(), { commerceOrderId: '3', lines: [] })
+  assert.equal(none.partnerId, null)
 })
 
 test('the same Commerce order posted twice answers the same ERP order', async () => {

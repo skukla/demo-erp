@@ -40,11 +40,12 @@ test('bad material values are refused', async () => {
   assert.equal(await patchMaterial(cols, 'ZZ', { stock: 1 }), null)
 })
 
-test('partners resolve by id, Commerce company, customer group, then the default', async () => {
-  await importPartners(cols, [{ id: 'P1', name: 'Acme', commerceCompanyId: '7', customerGroupId: '3' }])
+test('partners resolve by id, Commerce company, email domain, customer group, then the default', async () => {
+  await importPartners(cols, [{ id: 'P1', name: 'Acme', commerceCompanyId: '7', customerGroupId: '3', emailDomain: 'Acme.example' }])
   await ensureDefaultPartner(cols, 'Demo')
   assert.equal((await resolvePartner(cols, { partnerId: 'P1' })).id, 'P1')
   assert.equal((await resolvePartner(cols, { commerceCompanyId: 7 })).id, 'P1')
+  assert.equal((await resolvePartner(cols, { email: 'buyer@acme.example', customerGroupId: '9' })).id, 'P1')
   assert.equal((await resolvePartner(cols, { customerGroupId: '3' })).id, 'P1')
   const fallback = await resolvePartner(cols, { commerceCompanyId: '99' })
   assert.equal(fallback.id, DEFAULT_PARTNER_ID)
