@@ -1,0 +1,104 @@
+application:
+  web: web-src
+  runtimeManifest:
+    database:
+      auto-provision: true
+      region: amer
+    packages:
+      demo-erp:
+        license: Apache-2.0
+        actions:
+          health:
+            function: actions/health/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          settings:
+            function: actions/settings/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          admin:
+            function: actions/admin/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            limits:
+              timeout: 120000
+              memorySize: 512
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          materials:
+            function: actions/materials/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          partners:
+            function: actions/partners/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          pricing:
+            function: actions/pricing/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            limits:
+              timeout: 30000
+              concurrency: 200
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          orders:
+            function: actions/orders/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          outbox:
+            function: actions/outbox/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true

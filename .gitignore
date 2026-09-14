@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.aio
+.env
+console.json
+*.log
+.DS_Store
+.parcel-cache
+.aws.tmp.creds.json

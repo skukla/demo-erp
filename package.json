@@ -1,0 +1,31 @@
+{
+  "name": "demo-erp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A mock SAP-style ERP as an App Builder app: materials, business partners, pricing conditions, sales orders, an outbox for what changed, and its own screen. A Demo Builder system component; it knows nothing about Commerce.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "deploy": "aio app deploy",
+    "undeploy": "aio app undeploy"
+  },
+  "dependencies": {
+    "@adobe/aio-lib-db": "^1",
+    "@adobe/aio-sdk": "^6",
+    "@adobe/exc-app": "^1.4.0",
+    "@adobe/react-spectrum": "^3.35.0",
+    "@spectrum-icons/workflow": "^4.2.0",
+    "core-js": "^3.36.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "regenerator-runtime": "^0.14.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/plugin-transform-react-jsx": "^7.23.4",
+    "@babel/preset-env": "^7.24.0"
+  }
+}

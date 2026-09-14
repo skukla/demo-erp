@@ -1,0 +1,9 @@
+demo-erp
+Copyright 2026 Steve Kukla
+
+Portions of lib/http.js (web-action request parsing and response envelopes) are adapted from
+agilent-erp-mock by Nishant Kapoor (repository jogosset/agilent-erp-mock), which declares the
+Apache License, Version 2.0 in its package.json.
+
+web-src/src/exc-runtime.js is Adobe's Experience Cloud shell loader, taken unchanged from
+@adobe/generator-add-web-assets-exc-react (Apache License, Version 2.0, Copyright 2022 Adobe).
