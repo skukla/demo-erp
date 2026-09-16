@@ -138,3 +138,14 @@ test('an event that keeps failing is marked failed after ten attempts, leaves th
     global.fetch = realFetch
   }
 })
+
+test('only an import with products moves the last-import time; the partner refresh does not', async () => {
+  const before = (await invoke(health, cols)).body.lastImportAt
+  await new Promise((resolve) => setTimeout(resolve, 5))
+
+  await invoke(admin, cols, { method: 'POST', path: '/import', body: { partners: [{ id: 'P2', name: 'Beta', commerceCompanyId: '8' }] } })
+  assert.equal((await invoke(health, cols)).body.lastImportAt, before)
+
+  await invoke(admin, cols, { method: 'POST', path: '/import', body: { products: [], partners: [] } })
+  assert.notEqual((await invoke(health, cols)).body.lastImportAt, before)
+})

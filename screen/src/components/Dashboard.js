@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Flex, View, Heading, Text, Button, StatusLight, DialogTrigger, AlertDialog } from '@adobe/react-spectrum'
+import React from 'react'
+import { Flex, View, Heading, Text, StatusLight } from '@adobe/react-spectrum'
 import Frame from './Frame'
 
 function Stat ({ label, value }) {
@@ -11,24 +11,13 @@ function Stat ({ label, value }) {
   )
 }
 
-export default function Dashboard ({ api, health, onChanged }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(null)
+export default function Dashboard ({ health }) {
   const counts = (health && health.counts) || {}
 
-  async function toggleOffline () {
-    setBusy(true)
-    try { await api.saveSettings({ offline: !health.offline }); setError(null); await onChanged() } catch (e) { setError(e) }
-    setBusy(false)
-  }
-  async function wipe () {
-    setBusy(true)
-    try { await api.wipe(); setError(null); await onChanged() } catch (e) { setError(e) }
-    setBusy(false)
-  }
-
+  // What a prospect sees first: the ERP's size and state. The controls for
+  // rehearsing and presenting are on Settings.
   return (
-    <Frame title='Dashboard' error={error} loading={!health}>
+    <Frame title='Dashboard' loading={!health}>
       {health && (
         <>
           <Flex gap='size-200' wrap marginBottom='size-300'>
@@ -38,21 +27,9 @@ export default function Dashboard ({ api, health, onChanged }) {
             <Stat label='Pricing conditions' value={counts.pricingConditions ?? 0} />
             <Stat label='Events pending' value={counts.events ?? 0} />
           </Flex>
-          <Flex direction='column' gap='size-100' marginBottom='size-300'>
-            <StatusLight variant={health.offline ? 'negative' : 'positive'}>
-              {health.offline ? 'Offline: the API refuses every record request with 503, the way an unavailable ERP looks to an integration (a test control).' : 'Online'}
-            </StatusLight>
-            <Text>Last import: {health.lastImportAt || 'never'}. Last wipe: {health.lastWipeAt || 'never'}.</Text>
-          </Flex>
-          <Flex gap='size-150'>
-            <Button variant='primary' onPress={toggleOffline} isDisabled={busy}>{health.offline ? 'Bring online' : 'Take offline'}</Button>
-            <DialogTrigger>
-              <Button variant='negative' isDisabled={busy}>Wipe all records</Button>
-              <AlertDialog title='Wipe all records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
-                Every product, business partner, pricing condition, sales order and event is removed. The order counter and the settings stay. Demo Builder's reset does this and then re-imports from Commerce; on its own this leaves the ERP empty.
-              </AlertDialog>
-            </DialogTrigger>
-          </Flex>
+          <StatusLight variant={health.offline ? 'negative' : 'positive'}>
+            {health.offline ? 'Offline' : 'Online'}
+          </StatusLight>
         </>
       )}
     </Frame>

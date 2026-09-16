@@ -4,7 +4,7 @@
  * is the only credential, so opened without one it says where to go instead.
  */
 import React, { useEffect, useState, useCallback } from 'react'
-import { Provider, defaultTheme, Grid, View, Heading, Text, Flex, ActionGroup, Item, InlineAlert, Content, Badge } from '@adobe/react-spectrum'
+import { Provider, defaultTheme, Grid, View, Heading, ActionGroup, Item, InlineAlert, Content, Badge } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import Dashboard from './Dashboard'
 import Products from './Products'
@@ -71,7 +71,6 @@ export default function App ({ screenKey }) {
             </InlineAlert>
           )}
           {screenKey && <active.Component api={api} health={health} onChanged={refreshHealth} />}
-          <Flex marginTop='size-400'><Text UNSAFE_style={{ color: 'var(--spectrum-global-color-gray-600)' }}>Demo Builder system component. Records here are transitory: reset from Demo Builder wipes and re-mirrors them.</Text></Flex>
         </View>
       </Grid>
     </Provider>

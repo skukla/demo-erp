@@ -42,6 +42,7 @@ export function makeApi (screenKey, base = screenBase()) {
     moveOrder: (number, status) => call('orders', { method: 'POST', path: `/${number}/status`, body: { status } }),
     events: () => call('events'),
     retryEvents: () => call('events', { method: 'POST', path: '/retry' }),
-    requeueEvents: () => call('events', { method: 'POST', path: '/requeue' })
+    requeueEvents: () => call('events', { method: 'POST', path: '/requeue' }),
+    sync: () => call('sync', { method: 'POST' })
   }
 }
