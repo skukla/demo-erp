@@ -111,6 +111,9 @@ test('Sync records asks the subscriber and answers 202, only with the key and on
   assert.deepEqual(res.body, { started: true })
   assert.equal(asked.length, 1)
 
+  // Recorded before asking, so a screen can say "waiting" at once.
+  assert.equal((await invoke(require('../actions/health'), cols)).body.sync.state, 'requested')
+
   assert.equal((await screen({ method: 'POST', path: '/api/sync', sync })).statusCode, 401)
   assert.equal((await screen({ path: '/api/sync', key: KEY, sync })).statusCode, 404)
   assert.equal(asked.length, 1)
@@ -124,4 +127,8 @@ test('a sync the subscriber refuses comes back as the ERP\'s own error', async (
 
   assert.equal(res.statusCode, 502)
   assert.equal(res.body.errorCode, 'SYNC_REFUSED')
+  // ...and recorded, so a screen opened later still says why.
+  const recorded = (await invoke(require('../actions/health'), cols)).body.sync
+  assert.equal(recorded.state, 'failed')
+  assert.equal(recorded.error, 'The connected integration answered 401.')
 })

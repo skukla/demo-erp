@@ -9,7 +9,7 @@ async function handler ({ cols, settings }) {
     if (name === 'settings' || name === 'counters') continue
     counts[name] = await cols[name].countDocuments({})
   }
-  return ok({ ok: true, displayName: settings.displayName, offline: settings.offline, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, counts })
+  return ok({ ok: true, displayName: settings.displayName, offline: settings.offline, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, sync: settings.sync || null, counts })
 }
 
 exports.handler = handler

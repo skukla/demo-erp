@@ -1,6 +1,7 @@
 /*
  * POST admin/wipe                       remove every record (counters and settings stay)
  * POST admin/import { products, partners, projectName }   bulk upsert from the integration
+ * POST admin/sync { state, phase?, partners?, products?, error? }   the integration reports a sync
  *
  * "Last import" means a full mirror, the one Sync records waits for. A partners-only
  * import (the integration refreshes partners every minute) leaves it alone, or the
@@ -13,10 +14,12 @@ const { wipe } = require('../../lib/admin')
 const { importProducts } = require('../../lib/products')
 const { importPartners, ensureDefaultPartner } = require('../../lib/partners')
 const { stamp } = require('../../lib/settings')
+const { recordSync } = require('../../lib/sync-status')
 
 async function handler ({ cols, method, segments, body }) {
   if (method !== 'POST') return
   if (segments[0] === 'wipe') return ok({ wiped: await wipe(cols) })
+  if (segments[0] === 'sync') return ok(await recordSync(cols, body))
   if (segments[0] === 'import') {
     if (!Array.isArray(body.products) && !Array.isArray(body.partners)) {
       throw badRequest('import needs a products array, a partners array, or both')

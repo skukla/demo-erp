@@ -3,13 +3,15 @@
  * levers live here rather than on the Dashboard so a prospect looking at the ERP
  * does not see them.
  */
-import React, { useEffect, useState } from 'react'
-import { Form, TextField, Switch, Button, Text, Heading, Divider, Flex, DialogTrigger, AlertDialog, ProgressCircle } from '@adobe/react-spectrum'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
+import { Form, TextField, Switch, Button, Text, Heading, Divider, Flex, DialogTrigger, AlertDialog } from '@adobe/react-spectrum'
 import Frame from './Frame'
+import SyncProgress from './SyncProgress'
 
-const POLL_MS = 3000
-const SYNC_WAIT_MS = 5 * 60 * 1000
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const POLL_MS = 2000
+// No word from the integration for this long reads as stalled (it may still be working).
+const STALL_MS = 60 * 1000
+const ACTIVE = new Set(['requested', 'running'])
 
 function Section ({ title, children }) {
   return (
@@ -23,10 +25,40 @@ function Section ({ title, children }) {
 
 export default function Settings ({ api, onChanged }) {
   const [settings, setSettings] = useState(null)
+  const [sync, setSync] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [syncNote, setSyncNote] = useState(null)
-  useEffect(() => { api.settings().then(setSettings).catch(setError) }, [api])
+  const [stalled, setStalled] = useState(false)
+  const timer = useRef(null)
+
+  // Follow the sync record until it ends. Also resumes a sync already running when
+  // the page is opened.
+  const follow = useCallback(async () => {
+    clearTimeout(timer.current)
+    try {
+      const health = await api.health()
+      const next = health.sync || null
+      setSync(next)
+      setStalled(Boolean(next && ACTIVE.has(next.state) && Date.now() - Date.parse(next.updatedAt) > STALL_MS))
+      if (next && ACTIVE.has(next.state)) {
+        timer.current = setTimeout(follow, POLL_MS)
+      } else {
+        setSettings((current) => current && ({ ...current, lastImportAt: health.lastImportAt, sync: next }))
+        await onChanged()
+      }
+    } catch (e) {
+      setError(e)
+    }
+  }, [api, onChanged])
+
+  useEffect(() => {
+    api.settings().then((loaded) => {
+      setSettings(loaded)
+      setSync(loaded.sync || null)
+      if (loaded.sync && ACTIVE.has(loaded.sync.state)) follow()
+    }).catch(setError)
+    return () => clearTimeout(timer.current)
+  }, [api, follow])
 
   async function saveName () {
     try { setSettings(await api.saveSettings({ displayName: settings.displayName })); setError(null); onChanged() } catch (e) { setError(e) }
@@ -40,41 +72,22 @@ export default function Settings ({ api, onChanged }) {
 
   async function wipe () {
     setBusy(true)
-    try { await api.wipe(); setSettings(await api.settings()); setError(null); setSyncNote(null); await onChanged() } catch (e) { setError(e) }
+    try { await api.wipe(); setSettings(await api.settings()); setError(null); await onChanged() } catch (e) { setError(e) }
     setBusy(false)
   }
 
-  // The integration does the work in the background (a web request is cut off after a
-  // minute), so this asks, then watches the ERP's own last-import time move.
-  async function sync () {
-    setBusy(true)
+  async function startSync () {
     setError(null)
-    const before = settings.lastImportAt || null
+    setSync({ state: 'requested', updatedAt: new Date().toISOString() })
     try {
-      setSyncNote('Asking the connected integration for its records…')
       await api.sync()
-      setSyncNote('Syncing records…')
-      const deadline = Date.now() + SYNC_WAIT_MS
-      while (Date.now() < deadline) {
-        await wait(POLL_MS)
-        const health = await api.health()
-        if (health.lastImportAt && health.lastImportAt !== before) {
-          const counts = health.counts || {}
-          setSyncNote(`Synced: ${counts.products ?? 0} products and ${counts.businessPartners ?? 0} business partners.`)
-          setSettings((current) => ({ ...current, lastImportAt: health.lastImportAt }))
-          await onChanged()
-          return
-        }
-      }
-      setSyncNote('Still syncing after five minutes. The Dashboard counts update when it finishes.')
     } catch (e) {
-      setSyncNote(null)
-      setError(e)
-    } finally {
-      setBusy(false)
+      // The ERP recorded the refusal; the record says why.
     }
+    await follow()
   }
 
+  const syncing = Boolean(sync && ACTIVE.has(sync.state))
   return (
     <Frame title='Settings' error={error} loading={!settings}>
       {settings && (
@@ -85,16 +98,13 @@ export default function Settings ({ api, onChanged }) {
           </Form>
 
           <Section title='Records'>
-            <Flex direction='column' gap='size-150' maxWidth='size-6000'>
+            <Flex direction='column' gap='size-200' maxWidth='size-6000'>
               <Text>Brings the ERP's products and business partners up to date with the connected store. Existing records are updated; nothing is removed.</Text>
-              <Flex gap='size-150' alignItems='center'>
-                <Button variant='accent' onPress={sync} isDisabled={busy}>Sync records</Button>
-                {busy && syncNote && <ProgressCircle size='S' aria-label='Syncing' isIndeterminate />}
-                {syncNote && <Text>{syncNote}</Text>}
-              </Flex>
+              <Button variant='accent' onPress={startSync} isDisabled={busy || syncing} width='size-2000'>Sync records</Button>
+              <SyncProgress sync={sync} stalled={stalled} />
               <Text>Last sync: {settings.lastImportAt || 'never'}. Last wipe: {settings.lastWipeAt || 'never'}.</Text>
               <DialogTrigger>
-                <Button variant='negative' isDisabled={busy} width='size-2400'>Wipe all records</Button>
+                <Button variant='negative' isDisabled={busy || syncing} width='size-2400'>Wipe all records</Button>
                 <AlertDialog title='Wipe all records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
                   Every product, business partner, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
                 </AlertDialog>
