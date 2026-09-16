@@ -1,8 +1,15 @@
 application:
-  # No `web:` and no web-src/ folder: the ERP shares a Runtime namespace with its
-  # integration, a namespace has ONE static site, and `aio app deploy` empties it
-  # before uploading. The screen is served by the `screen` action instead, built
-  # from screen/ by this hook.
+  # No static site: the ERP shares a Runtime namespace with its integration, a
+  # namespace has ONE static site, and `aio app deploy` empties it before
+  # uploading. The screen is served by the `screen` action instead, built from
+  # screen/ by the hook below.
+  #
+  # `aio` decides an app has a front end by whether its web folder EXISTS, and
+  # the default folder is web-src/. A copy of this repo cloned before the move
+  # can still hold an ignored web-src/src/config.json after pulling, which would
+  # quietly turn the front end back on. Naming a folder that never exists rules
+  # that out.
+  web: no-static-site
   hooks:
     pre-app-build: node scripts/build-screen.js
   runtimeManifest:
