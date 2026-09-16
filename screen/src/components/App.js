@@ -1,7 +1,7 @@
 /*
  * The ERP's screen: one Spectrum app with a side rail. Every page loads through
- * the same `api` and shows the same error banner; the shell's IMS token is the
- * only credential, so opened outside the shell it says where to go instead.
+ * the same `api` and shows the same error banner; the key from Demo Builder's link
+ * is the only credential, so opened without one it says where to go instead.
  */
 import React, { useEffect, useState, useCallback } from 'react'
 import { Provider, defaultTheme, Grid, View, Heading, Text, Flex, ActionGroup, Item, InlineAlert, Content, Badge } from '@adobe/react-spectrum'
@@ -24,11 +24,11 @@ const PAGES = [
   { key: 'settings', label: 'Settings', Component: Settings }
 ]
 
-export default function App ({ ims }) {
+export default function App ({ screenKey }) {
   const [page, setPage] = useState('dashboard')
   const [health, setHealth] = useState(null)
   const [error, setError] = useState(null)
-  const api = React.useMemo(() => makeApi(ims), [ims])
+  const api = React.useMemo(() => makeApi(screenKey), [screenKey])
 
   const refreshHealth = useCallback(async () => {
     try {
@@ -39,7 +39,7 @@ export default function App ({ ims }) {
     }
   }, [api])
 
-  useEffect(() => { if (ims) refreshHealth() }, [ims, refreshHealth])
+  useEffect(() => { if (screenKey) refreshHealth() }, [screenKey, refreshHealth])
 
   const active = PAGES.find((p) => p.key === page) || PAGES[0]
   return (
@@ -58,19 +58,19 @@ export default function App ({ ims }) {
           </ActionGroup>
         </View>
         <View gridArea='content' padding='size-400' overflow='auto'>
-          {!ims && (
+          {!screenKey && (
             <InlineAlert variant='info'>
-              <Heading>Open this app from Experience Cloud</Heading>
-              <Content>The ERP signs you in through the Experience Cloud shell. Use the link Demo Builder shows for it rather than this address.</Content>
+              <Heading>Open the ERP from Demo Builder</Heading>
+              <Content>This address needs the key in the link Demo Builder opens. On the project's Integrations page, choose Open ERP.</Content>
             </InlineAlert>
           )}
-          {ims && error && (
+          {screenKey && error && (
             <InlineAlert variant='negative' marginBottom='size-300'>
               <Heading>The ERP did not answer</Heading>
               <Content>{error.message}</Content>
             </InlineAlert>
           )}
-          {ims && <active.Component api={api} health={health} onChanged={refreshHealth} />}
+          {screenKey && <active.Component api={api} health={health} onChanged={refreshHealth} />}
           <Flex marginTop='size-400'><Text UNSAFE_style={{ color: 'var(--spectrum-global-color-gray-600)' }}>Demo Builder system component. Records here are transitory: reset from Demo Builder wipes and re-mirrors them.</Text></Flex>
         </View>
       </Grid>

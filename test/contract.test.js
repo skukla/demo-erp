@@ -48,8 +48,12 @@ test('the payload of each raised event carries exactly the contract keys', async
   assert.deepEqual([...seen].sort(), Object.keys(contract.events).sort(), 'every contract event was raised in this test')
 })
 
+// Actions no subscriber calls. The screen serves the ERP's own page to a person
+// holding Demo Builder's link; it promises a subscriber nothing.
+const NOT_FOR_SUBSCRIBERS = new Set(['screen'])
+
 test('every route in the contract has an action, and every action is in the contract', () => {
-  const actions = fs.readdirSync(path.join(__dirname, '..', 'actions')).sort()
+  const actions = fs.readdirSync(path.join(__dirname, '..', 'actions')).filter((a) => !NOT_FOR_SUBSCRIBERS.has(a)).sort()
   assert.deepEqual(actions, Object.keys(contract.routes).sort())
 })
 

@@ -1,5 +1,10 @@
 application:
-  web: web-src
+  # No `web:` and no web-src/ folder: the ERP shares a Runtime namespace with its
+  # integration, a namespace has ONE static site, and `aio app deploy` empties it
+  # before uploading. The screen is served by the `screen` action instead, built
+  # from screen/ by this hook.
+  hooks:
+    pre-app-build: node scripts/build-screen.js
   runtimeManifest:
     database:
       auto-provision: true
@@ -109,6 +114,23 @@ application:
               ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
             annotations:
               require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          # The screen and its data calls. No Adobe sign-in: the key Demo Builder puts in
+          # the link it opens is this action's access control (lib/screen.js).
+          screen:
+            function: actions/screen/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            limits:
+              timeout: 120000
+              memorySize: 512
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+              ERP_SCREEN_KEY: $ERP_SCREEN_KEY
+            annotations:
+              require-adobe-auth: false
               include-ims-credentials: true
               final: true
           events:

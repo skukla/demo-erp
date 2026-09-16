@@ -1,14 +1,18 @@
-/* Calls into this app's own actions, with the shell's IMS token. */
-/* global fetch */
-import actions from './config.json'
+/*
+ * Calls into the ERP through the `screen` action that served this page: the page
+ * lives at `…/screen/`, its data at `…/screen/api/<action>/<path>`.
+ */
+/* global fetch, window */
 
-export function makeApi (ims) {
+/** The `screen` action's own address, always ending in a slash. */
+export function screenBase (pathname = window.location.pathname) {
+  return pathname.endsWith('/') ? pathname : `${pathname}/`
+}
+
+export function makeApi (screenKey, base = screenBase()) {
   async function call (action, { method = 'GET', path = '', body } = {}) {
-    const url = actions[action] + path
-    const headers = { 'Content-Type': 'application/json' }
-    if (ims && ims.token) headers.Authorization = `Bearer ${ims.token}`
-    if (ims && ims.org) headers['x-gw-ims-org-id'] = ims.org
-    const res = await fetch(url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
+    const headers = { 'Content-Type': 'application/json', 'x-erp-screen-key': screenKey || '' }
+    const res = await fetch(`${base}api/${action}${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
     const text = await res.text()
     let data = {}
     try { data = text ? JSON.parse(text) : {} } catch (e) { data = { errorMessage: text } }

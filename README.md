@@ -25,8 +25,8 @@ rewinds, so an order number a Commerce order carries from before a reset cannot 
 ## API
 
 Web actions under one runtime package, all `require-adobe-auth` (a caller presents an IMS token
-from the same org; the integration uses the server-to-server credential Demo Builder injects, the
-screen uses the signed-in user's token from the Experience Cloud shell).
+from the same org; the integration uses the server-to-server credential Demo Builder injects). The
+one exception is `screen`, below, which serves the ERP's own page.
 
 | Action | Routes |
 |---|---|
@@ -83,12 +83,84 @@ npm test            # node --test: pricing, orders, records, actions against an 
 aio app deploy      # into the workspace `aio app use` points at
 ```
 
-The one deploy-time input is `ERP_DISPLAY_NAME`, what the ERP calls itself (default "Acme ERP").
-Demo Builder writes it from the name the SC enters; by hand, set it in the app's env file before
-deploying. A redeploy with a new name renames the ERP unless someone renamed it on its screen.
+Two deploy-time inputs: `ERP_DISPLAY_NAME`, what the ERP calls itself (default "Acme ERP"), and
+`ERP_SCREEN_KEY`, the key that opens the screen. Demo Builder writes the name from what the SC
+enters and generates the key; by hand, set both in the app's env file before deploying. A redeploy with a new name renames the ERP unless someone renamed it on its screen.
 
-The screen (`web-src/`) is React Spectrum and opens inside the Experience Cloud shell, which
-supplies the sign-in. Demo Builder links to that shell URL.
+## The screen
+
+How the ERP and its integration fit together:
+
+```
+ ONE Adobe Developer Console workspace  =  ONE Runtime namespace  =  ONE static site
+ ═══════════════════════════════════════════════════════════════════════════════════
+
+ demo-erp repo (Demo Builder component: "ERP", kind system)
+ ┌──────────────────────────────────────────────────────────────────────────────┐
+ │ screen/            React UI source ──build──┐                                  │
+ │                                             ▼                                  │
+ │ actions/screen/    serves page + app.js + app.css      ◄── key-protected door  │
+ │                    and /api/<name> ─────────┐              (no Adobe sign-in)  │
+ │                                             │ same handler, in-process         │
+ │ actions/health, products, partners, …  ◄────┘          ◄── IMS-protected door │
+ │                                                             (require-adobe-auth)│
+ │ lib/               ALL business logic (pricing, orders, events, ledger)        │
+ │                         │                                                      │
+ │                         ▼                                                      │
+ │                  App Builder Database (the ERP's records)                      │
+ └──────────────────────────────────────────────────────────────────────────────┘
+        ▲ key in link                                  ▲ server-to-server token
+        │                                              │ (ERP_BASE_URL)
+  ┌─────┴───────────────┐                              │
+  │ SC's browser tab    │                              │
+  │ "Open ERP" in       │                              │
+  │ Demo Builder        │                              │
+  └─────────────────────┘                              │
+                                                       │
+ commerce-erp-integration repo (Demo Builder component: "ERP integration")
+ ┌─────────────────────────────────────────────────────┼────────────────────────┐
+ │ src/commerce-backend-ui-2/web-src/  Admin UI SDK React UI                     │
+ │        │ build + deploy                             │                         │
+ │        ▼                                            │                         │
+ │   STATIC SITE  <namespace>.adobeio-static.net       │  (only this app uses it)│
+ │                                                     │                         │
+ │ src/commerce-extensibility-1/actions/               │                         │
+ │   erp/status, mirror, reset, …  ────────────────────┘                         │
+ │   webhooks (prices, discounts, order create) ◄── Commerce calls these         │
+ │   app-management/* (install, config)        ◄── Commerce App Management       │
+ │ src/lib/erp.js      the ERP client                                            │
+ └──────────────────────────────────────────────────────────────────────────────┘
+        ▲ loads the page from the static site; hands it the user's token
+        │                               page ──calls──► erp/* actions
+  ┌─────┴──────────────────────────────┐
+  │ Commerce Admin                     │
+  │  System ▸ ERP integration  (iframe)│
+  └────────────────────────────────────┘
+```
+
+React only draws the pages; every rule lives in `lib/` and runs in Adobe I/O Runtime. The page
+runs in the browser of whoever opened it.
+
+The screen (`screen/`) is React Spectrum, served by the `screen` action rather than App Builder's
+static site:
+
+| Path | Answers |
+|---|---|
+| `screen/` | the page |
+| `screen/app.js`, `screen/app.css` | the built screen |
+| `screen/api/<action>/…` | that action's own handler, run in-process, behind the key |
+
+Why not the static site: the ERP deploys into the same Runtime namespace as its integration, a
+namespace has one static site, and `aio app deploy` empties it before uploading. Two apps with web
+assets delete each other's screens. That is also why the folder is not called `web-src/`: `aio`
+treats a folder with that name as a front end even when the config does not mention it.
+
+`screen` has no Adobe sign-in. Its data calls need the key, sent as the `x-erp-screen-key` header;
+the page takes it from the `?key=` in the link Demo Builder opens, keeps it for the tab, and removes
+it from the address bar. With no key configured, every data call is refused.
+
+The `pre-app-build` hook builds `screen/` with esbuild (`npm run build:screen`). Runtime answers at
+most 1 MB per result, so the build refuses a script or stylesheet near that size.
 
 ## Licence
 
