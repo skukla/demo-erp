@@ -73,7 +73,7 @@ export default function App ({ screenKey }) {
           {screenKey && <active.Component key={active.key} api={api} health={health} onChanged={refreshHealth} onNavigate={setPage} />}
         </View>
       </Grid>
-      <ToastContainer placement='bottom end' />
+      <ToastContainer placement='top' />
     </Provider>
   )
 }

@@ -17,14 +17,30 @@ import ChevronLeft from '@spectrum-icons/workflow/ChevronLeft'
 import LockClosed from '@spectrum-icons/workflow/LockClosed'
 import PageLoading from './PageLoading'
 import { toastSaved } from './toast'
+import { saveInPlace, savingField } from './saveInPlace'
 import StockStatus from './StockStatus'
-import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
+import { useColumnWidths } from './columnWidths'
 import EditToggle from './EditToggle'
 import { PriceCell, StockCell } from './ProductCells'
-import { kindText, priceText, variantText } from './productFormat'
+import { kindText, priceText, variantText, withEdit, withVariantTotals } from './productFormat'
 
 const MONEY = { style: 'currency', currency: 'USD' }
 const SUBTLE = { color: 'var(--spectrum-global-color-gray-700)' }
+
+const VARIANT_COLUMNS = [
+  { key: 'values' },
+  { key: 'sku', width: 220 },
+  { key: 'price', width: 130 },
+  { key: 'stock', width: 100 },
+  { key: 'status', width: 150 }
+]
+
+const WAREHOUSE_COLUMNS = [
+  { key: 'name' },
+  { key: 'code', width: 180 },
+  { key: 'quantity', width: 180 },
+  { key: 'status', width: 160 }
+]
 
 function Card ({ title, aside, children, gridColumn }) {
   return (
@@ -63,7 +79,7 @@ export function changesOf (saved, draft) {
 }
 
 function VariantsCard ({ product, onOpen, onSaveVariant }) {
-  const widths = useColumnWidths('variants')
+  const widths = useColumnWidths('variants', VARIANT_COLUMNS)
   const [editing, setEditing] = useState(false)
   // The table redraws a row only when its item changes, so each row carries the mode.
   const rows = useMemo(() => product.variants.map((v) => ({ ...v, editing })), [product.variants, editing])
@@ -87,14 +103,14 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
             density='spacious'
             selectionMode='none'
             onAction={(key) => onOpen(String(key))}
-            onResizeEnd={widths.onResizeEnd}
+            {...widths.tableProps}
           >
             <TableHeader>
-              <Column key='values' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('values')}>{labels.join(' · ') || 'Variant'}</Column>
-              <Column key='sku' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('sku', 220)}>SKU</Column>
-              <Column key='price' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('price', 130)} align='end'>Price</Column>
-              <Column key='stock' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('stock', 100)} align='end'>Stock</Column>
-              <Column key='status' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('status', 150)}>Status</Column>
+              <Column key='values' {...widths.columnProps('values')}>{labels.join(' · ') || 'Variant'}</Column>
+              <Column key='sku' {...widths.columnProps('sku')}>SKU</Column>
+              <Column key='price' {...widths.columnProps('price')} align='end'>Price</Column>
+              <Column key='stock' {...widths.columnProps('stock')} align='end'>Stock</Column>
+              <Column key='status' {...widths.columnProps('status')}>Status</Column>
             </TableHeader>
             <TableBody items={rows}>
               {(v) => (
@@ -114,18 +130,18 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
 }
 
 function InventoryCard ({ draft, total, onQuantity }) {
-  const widths = useColumnWidths('warehouses')
+  const widths = useColumnWidths('warehouses', WAREHOUSE_COLUMNS)
   return (
     <Card title='Inventory' gridColumn='1 / span 2' aside={<Text>Total {total}</Text>}>
       {draft.warehouses.length === 0
         ? <Text>Commerce reports no stock for this product in any warehouse.</Text>
         : (
-          <TableView onResizeEnd={widths.onResizeEnd} aria-label='Stock by warehouse' density='spacious' selectionMode='none'>
+          <TableView {...widths.tableProps} aria-label='Stock by warehouse' density='spacious' selectionMode='none'>
             <TableHeader>
-              <Column key='name' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('name')}>Warehouse</Column>
-              <Column key='code' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('code', 180)}>Code</Column>
-              <Column key='quantity' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('quantity', 180)}>Quantity</Column>
-              <Column key='status' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('status', 160)}>Status</Column>
+              <Column key='name' {...widths.columnProps('name')}>Warehouse</Column>
+              <Column key='code' {...widths.columnProps('code')}>Code</Column>
+              <Column key='quantity' {...widths.columnProps('quantity')}>Quantity</Column>
+              <Column key='status' {...widths.columnProps('status')}>Status</Column>
             </TableHeader>
             <TableBody items={draft.warehouses.map((w) => ({ ...w, key: w.code }))}>
               {(w) => (
@@ -181,20 +197,20 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
     setDraft((d) => ({ ...d, warehouses: d.warehouses.map((w) => (w.code === code ? { ...w, quantity } : w)) }))
   }
 
-  // A variant changed from the parent's table: the page re-reads, because the
-  // parent's total stock and price range move with it.
-  async function saveVariant (variantSku, variantPatch) {
-    try {
-      await api.patchProduct(variantSku, variantPatch)
-      const fresh = await api.product(sku)
-      setSaved(fresh)
-      setDraft((d) => ({ ...fresh, name: d.name }))
-      setError(null)
-      toastSaved('Variant saved')
-      onChanged()
-    } catch (e) {
-      setError(e)
-    }
+  // A variant changed from the parent's table; the parent's total stock and price
+  // range are worked out again from its variants.
+  function saveVariant (variantSku, variantPatch) {
+    const before = saved.variants.find((v) => v.sku === variantSku)
+    const setVariant = (change) => setSaved((parent) => withVariantTotals(
+      parent, parent.variants.map((v) => (v.sku === variantSku ? change(v) : v))
+    ))
+    return saveInPlace({
+      show: () => setVariant((v) => ({ ...withEdit(v, variantPatch), saving: savingField(variantPatch) })),
+      send: () => api.patchProduct(variantSku, variantPatch),
+      settle: (answer) => { setVariant((v) => ({ ...v, ...answer, saving: undefined })); onChanged() },
+      undo: () => setVariant(() => before),
+      saved: 'Variant saved'
+    })
   }
 
   async function save () {

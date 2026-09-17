@@ -21,3 +21,32 @@ export function kindText (product) {
   }
   return product.parentSku ? 'Variant' : 'Simple'
 }
+
+/** A product row with an edit applied before the ERP answers; quantities merge by warehouse. */
+export function withEdit (product, patch) {
+  if (!patch.warehouses) return { ...product, ...patch }
+  const quantities = new Map(patch.warehouses.map((w) => [w.code, w.quantity]))
+  const warehouses = product.warehouses.map((w) => (quantities.has(w.code) ? { ...w, quantity: quantities.get(w.code) } : w))
+  return { ...product, warehouses, stock: warehouses.reduce((sum, w) => sum + w.quantity, 0) }
+}
+
+/**
+ * A row after the ERP answered its save. The answer is the product alone, so a parent
+ * keeps the totals it was listed with.
+ */
+export function withAnswer (row, answer) {
+  if (row.type !== 'configurable') return { ...row, ...answer, saving: undefined }
+  return { ...row, name: answer.name, updatedAt: answer.updatedAt, saving: undefined }
+}
+
+/** A parent's totals from its variants, as the ERP lists them (lib/products withVariants). */
+export function withVariantTotals (parent, variants) {
+  const prices = variants.map((v) => v.listPrice)
+  return {
+    ...parent,
+    variants,
+    stock: variants.reduce((sum, v) => sum + v.stock, 0),
+    variantCount: variants.length,
+    priceRange: prices.length ? { min: Math.min(...prices), max: Math.max(...prices) } : null
+  }
+}

@@ -3,12 +3,18 @@ import { Flex, Form, Picker, Item, TextField, NumberField, Button, TableView, Ta
 import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { toastSaved } from './toast'
-import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
+import { useColumnWidths } from './columnWidths'
 
 const KINDS = [
   { key: 'contractPrice', label: 'Contract price (partner + product)' },
   { key: 'contractDiscount', label: 'Contract discount % (partner, optional product)' },
   { key: 'maxDiscount', label: 'Max discount % ceiling (optional partner, optional product)' }
+]
+
+const CONDITION_COLUMNS = [
+  { key: 'kind', width: 160 },
+  { key: 'text' },
+  { key: 'remove', width: 90 }
 ]
 
 function describe (c) {
@@ -19,7 +25,7 @@ function describe (c) {
 }
 
 export default function Pricing ({ api, onChanged }) {
-  const widths = useColumnWidths('pricing')
+  const widths = useColumnWidths('pricing', CONDITION_COLUMNS)
   const { rows, error, reload } = useLoad(() => api.conditions(), [api])
   const [form, setForm] = useState({ kind: 'contractDiscount', partnerId: '', sku: '', price: 0, percent: 10 })
   const [quoteIn, setQuoteIn] = useState({ partnerId: '', sku: '', qty: 1 })
@@ -47,11 +53,11 @@ export default function Pricing ({ api, onChanged }) {
     <Frame title='Pricing' error={actionError || error} loading={!rows}>
       <Flex gap='size-400' wrap alignItems='start'>
         <View flex='1 1 480px'>
-          <TableView onResizeEnd={widths.onResizeEnd} aria-label='Pricing conditions' density='compact' overflowMode='wrap'>
+          <TableView {...widths.tableProps} aria-label='Pricing conditions' density='compact' overflowMode='wrap'>
             <TableHeader>
-              <Column key='kind' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('kind', 160)}>Condition</Column>
-              <Column key='text' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('text')}>Rule</Column>
-              <Column key='remove' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('remove', 90)}>Remove</Column>
+              <Column key='kind' {...widths.columnProps('kind')}>Condition</Column>
+              <Column key='text' {...widths.columnProps('text')}>Rule</Column>
+              <Column key='remove' {...widths.columnProps('remove')}>Remove</Column>
             </TableHeader>
             <TableBody items={rows || []}>
               {(c) => (

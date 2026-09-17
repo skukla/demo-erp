@@ -7,14 +7,17 @@
  */
 import React, { useState } from 'react'
 import { NumberField, ActionButton } from '@adobe/react-spectrum'
+import SavingValue from './SavingValue'
 
-export default function EditableNumber ({ value, onSave, formatOptions, step = 1, minValue = 0, label = 'Value' }) {
+export default function EditableNumber ({ value, onSave, formatOptions, step = 1, minValue = 0, label = 'Value', isSaving = false }) {
   const [editing, setEditing] = useState(false)
   if (!editing) {
     return (
-      <ActionButton isQuiet onPress={() => setEditing(true)} aria-label={`Edit ${label.toLowerCase()}`}>
-        {formatOptions ? new Intl.NumberFormat(undefined, formatOptions).format(value) : String(value)}
-      </ActionButton>
+      <SavingValue isSaving={isSaving}>
+        <ActionButton isQuiet onPress={() => setEditing(true)} aria-label={`Edit ${label.toLowerCase()}`}>
+          {formatOptions ? new Intl.NumberFormat(undefined, formatOptions).format(value) : String(value)}
+        </ActionButton>
+      </SavingValue>
     )
   }
   function commit (next) {

@@ -1,4 +1,7 @@
-/* Load a list from the api once and after each change; hand back rows, a reload, an error. */
+/*
+ * Load a list from the api once and after each change; hand back rows, a reload, an
+ * error, and a way to change one row in place.
+ */
 import { useEffect, useState, useCallback } from 'react'
 
 export function useLoad (loader, deps = []) {
@@ -14,5 +17,8 @@ export function useLoad (loader, deps = []) {
     }
   }, deps) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { reload() }, [reload])
-  return { rows, error, reload }
+  const updateRow = useCallback((isRow, change) => {
+    setRows((current) => current && current.map((row) => (isRow(row) ? change(row) : row)))
+  }, [])
+  return { rows, error, reload, updateRow }
 }

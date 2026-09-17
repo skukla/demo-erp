@@ -9,21 +9,29 @@ import Frame from './Frame'
 import ProductDetail from './ProductDetail'
 import StockStatus from './StockStatus'
 import { useLoad } from './useLoad'
-import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
+import { useColumnWidths } from './columnWidths'
 import EditToggle from './EditToggle'
-import { toastSaved } from './toast'
+import { saveInPlace, savingField } from './saveInPlace'
 import { NameCell, PriceCell, StockCell } from './ProductCells'
-import { kindText } from './productFormat'
+import { kindText, withAnswer, withEdit } from './productFormat'
 
 // Room for a product name to read whole, even as an edit button.
 const NAME_MIN_WIDTH = 220
 
+const PRODUCT_COLUMNS = [
+  { key: 'sku', width: 170 },
+  { key: 'name', width: '1fr', minWidth: NAME_MIN_WIDTH },
+  { key: 'kind', width: 190 },
+  { key: 'listPrice', width: 170 },
+  { key: 'stock', width: 90 },
+  { key: 'status', width: 130 }
+]
+
 export default function Products ({ api, onChanged, onNavigate }) {
-  const widths = useColumnWidths('products')
-  const { rows, error, reload } = useLoad(() => api.products(), [api])
+  const widths = useColumnWidths('products', PRODUCT_COLUMNS)
+  const { rows, error, reload, updateRow } = useLoad(() => api.products(), [api])
   // The pages opened from here, newest last: Back returns to the one before.
   const [trail, setTrail] = useState([])
-  const [saveError, setSaveError] = useState(null)
   const [editing, setEditing] = useState(false)
   // Variants are reached from their parent, as in SAP's generic articles. Each row
   // carries the mode: the table redraws a row only when its item changes.
@@ -32,16 +40,16 @@ export default function Products ({ api, onChanged, onNavigate }) {
     [rows, editing]
   )
 
-  async function save (sku, patch) {
-    try {
-      await api.patchProduct(sku, patch)
-      setSaveError(null)
-      toastSaved('Product saved')
-      await reload()
-      onChanged()
-    } catch (e) {
-      setSaveError(e)
-    }
+  function save (sku, patch) {
+    const isRow = (row) => row.sku === sku
+    const before = rows.find(isRow)
+    return saveInPlace({
+      show: () => updateRow(isRow, (row) => ({ ...withEdit(row, patch), saving: savingField(patch) })),
+      send: () => api.patchProduct(sku, patch),
+      settle: (answer) => { updateRow(isRow, (row) => withAnswer(row, answer)); onChanged() },
+      undo: () => updateRow(isRow, () => before),
+      saved: 'Product saved'
+    })
   }
 
   if (trail.length > 0) {
@@ -64,13 +72,13 @@ export default function Products ({ api, onChanged, onNavigate }) {
   }
 
   return (
-    <Frame title='Products' error={saveError || error} loading={!rows} actions={<EditToggle editing={editing} onChange={setEditing} />}>
+    <Frame title='Products' error={error} loading={!rows} actions={<EditToggle editing={editing} onChange={setEditing} />}>
       <Text>
         {editing
           ? 'Click a name, price or stock figure to change it. Stock held in several warehouses, and a configurable product\'s price and stock, are changed on the product\'s page.'
           : 'Choose a product to open it, or Edit to change names, prices and stock here. A configurable product lists its variants, which hold the price and stock.'}
       </Text>
-      <TableView onResizeEnd={widths.onResizeEnd}
+      <TableView {...widths.tableProps}
         aria-label='Products'
         density='spacious'
         overflowMode='wrap'
@@ -79,12 +87,12 @@ export default function Products ({ api, onChanged, onNavigate }) {
         onAction={(key) => setTrail([String(key)])}
       >
         <TableHeader>
-          <Column key='sku' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('sku', 170)}>SKU</Column>
-          <Column key='name' allowsResizing minWidth={NAME_MIN_WIDTH} defaultWidth={widths.widthOf('name', '1fr')}>Name</Column>
-          <Column key='kind' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('kind', 190)}>Type</Column>
-          <Column key='listPrice' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('listPrice', 170)} align='end'>List price</Column>
-          <Column key='stock' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('stock', 90)} align='end'>Stock</Column>
-          <Column key='status' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('status', 130)}>Status</Column>
+          <Column key='sku' {...widths.columnProps('sku')}>SKU</Column>
+          <Column key='name' {...widths.columnProps('name')}>Name</Column>
+          <Column key='kind' {...widths.columnProps('kind')}>Type</Column>
+          <Column key='listPrice' {...widths.columnProps('listPrice')} align='end'>List price</Column>
+          <Column key='stock' {...widths.columnProps('stock')} align='end'>Stock</Column>
+          <Column key='status' {...widths.columnProps('status')}>Status</Column>
         </TableHeader>
         <TableBody items={listed}>
           {(p) => (

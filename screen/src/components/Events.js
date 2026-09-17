@@ -2,11 +2,18 @@ import React, { useState } from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Button, Text } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import { useLoad } from './useLoad'
-import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
+import { useColumnWidths } from './columnWidths'
+
+const EVENT_COLUMNS = [
+  { key: 'at', width: 200 },
+  { key: 'event' },
+  { key: 'state', width: 160 },
+  { key: 'detail' }
+]
 
 /** The ERP's outbound event log: what it published, to whom, and whether it arrived. */
 export default function Events ({ api }) {
-  const widths = useColumnWidths('events')
+  const widths = useColumnWidths('events', EVENT_COLUMNS)
   const [meta, setMeta] = useState({})
   const { rows, error, reload } = useLoad(async () => {
     const data = await api.events()
@@ -29,12 +36,12 @@ export default function Events ({ api }) {
     <Frame title='Events' error={actionError || error} loading={!rows}
       actions={<><Button variant='secondary' onPress={retry} isDisabled={!meta.pending}>Retry pending</Button><Button variant='secondary' onPress={requeue} isDisabled={!meta.failed} marginStart='size-100'>Requeue failed</Button></>}>
       <Text>Published to {meta.webhookUrl || 'no subscriber (no namespace)'}; {meta.pending ?? 0} pending, {meta.failed ?? 0} failed (an event is failed after ten attempts).</Text>
-      <TableView onResizeEnd={widths.onResizeEnd} aria-label='Events' density='compact' overflowMode='wrap' marginTop='size-200'>
+      <TableView {...widths.tableProps} aria-label='Events' density='compact' overflowMode='wrap' marginTop='size-200'>
         <TableHeader>
-          <Column key='at' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('at', 200)}>When</Column>
-          <Column key='event' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('event')}>Event</Column>
-          <Column key='state' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('state', 160)}>Delivered</Column>
-          <Column key='detail' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('detail')}>Detail</Column>
+          <Column key='at' {...widths.columnProps('at')}>When</Column>
+          <Column key='event' {...widths.columnProps('event')}>Event</Column>
+          <Column key='state' {...widths.columnProps('state')}>Delivered</Column>
+          <Column key='detail' {...widths.columnProps('detail')}>Detail</Column>
         </TableHeader>
         <TableBody items={rows || []}>
           {(e) => (
