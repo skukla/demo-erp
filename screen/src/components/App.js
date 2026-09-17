@@ -41,6 +41,17 @@ export default function App ({ screenKey }) {
 
   useEffect(() => { if (screenKey) refreshHealth() }, [screenKey, refreshHealth])
 
+  // While a sync runs, keep reading health: the Dashboard's counters are the
+  // ERP's contents, so they should climb as the integration imports rather than
+  // jump when the SC next opens the page. Re-armed after each read (health is a
+  // dependency), so it stops by itself when the sync ends.
+  const syncing = Boolean(health && health.sync && (health.sync.state === 'requested' || health.sync.state === 'running'))
+  useEffect(() => {
+    if (!screenKey || !syncing) return undefined
+    const id = setTimeout(refreshHealth, 2000)
+    return () => clearTimeout(id)
+  }, [screenKey, syncing, refreshHealth, health])
+
   const active = PAGES.find((p) => p.key === page) || PAGES[0]
   return (
     <Provider theme={defaultTheme} colorScheme='light' height='100vh'>

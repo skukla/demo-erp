@@ -4,9 +4,11 @@
  * does not see them.
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { Form, TextField, Switch, Button, Text, Heading, Divider, Flex, DialogTrigger, AlertDialog } from '@adobe/react-spectrum'
+import { Form, TextField, Switch, Button, Text, Heading, Divider, Flex, DialogTrigger, AlertDialog, ProgressCircle } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import SyncProgress from './SyncProgress'
+import { formatStamp } from '../formatStamp'
+import { wipeSummary } from '../wipeSummary'
 import { toastSaved } from './toast'
 
 const POLL_MS = 2000
@@ -29,6 +31,10 @@ export default function Settings ({ api, onChanged }) {
   const [sync, setSync] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  // What the last wipe removed, until a sync makes it stale.
+  const [wiped, setWiped] = useState(null)
+  // Its own flag: `busy` also covers the offline switch, which is not a wipe.
+  const [wiping, setWiping] = useState(false)
   const [stalled, setStalled] = useState(false)
   const timer = useRef(null)
 
@@ -73,12 +79,24 @@ export default function Settings ({ api, onChanged }) {
 
   async function wipe () {
     setBusy(true)
-    try { await api.wipe(); setSettings(await api.settings()); setError(null); await onChanged() } catch (e) { setError(e) }
+    setWiping(true)
+    try {
+      const result = await api.wipe()
+      setWiped(result.wiped || {})
+      // The ERP drops the sync record on a wipe; the screen follows at once
+      // rather than waiting for the next read.
+      setSync(null)
+      setSettings(await api.settings())
+      setError(null)
+      await onChanged()
+    } catch (e) { setError(e) }
+    setWiping(false)
     setBusy(false)
   }
 
   async function startSync () {
     setError(null)
+    setWiped(null)
     setSync({ state: 'requested', updatedAt: new Date().toISOString() })
     try {
       await api.sync()
@@ -93,23 +111,40 @@ export default function Settings ({ api, onChanged }) {
     <Frame title='Settings' error={error} loading={!settings}>
       {settings && (
         <>
+          {/* The button sits OUTSIDE the Form: a Spectrum Form stretches its
+              children to the field width, which made Save a 460px bar. */}
           <Form maxWidth='size-4600'>
             <TextField label='Display name' value={settings.displayName} onChange={(v) => setSettings({ ...settings, displayName: v })} description='What this ERP is called on its screen and in Demo Builder.' />
-            <Button variant='primary' onPress={saveName} isDisabled={busy}>Save</Button>
           </Form>
+          <Flex marginTop='size-200'>
+            <Button variant='primary' onPress={saveName} isDisabled={busy}>Save</Button>
+          </Flex>
 
           <Section title='Records'>
             <Flex direction='column' gap='size-200' maxWidth='size-6000'>
               <Text>Brings the ERP's products and business partners up to date with the connected store. Existing records are updated; nothing is removed.</Text>
-              <Button variant='accent' onPress={startSync} isDisabled={busy || syncing} width='size-2000'>Sync records</Button>
+              {/* Each button as wide as its label, in one row; the destructive
+                  one set apart rather than sized differently. */}
+              <Flex gap='size-300' alignItems='center'>
+                <Button variant='accent' onPress={startSync} isDisabled={busy || syncing}>Sync records</Button>
+                <DialogTrigger>
+                  <Button variant='negative' isDisabled={busy || syncing}>Wipe all records</Button>
+                  <AlertDialog title='Wipe all records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
+                    Every product, business partner, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
+                  </AlertDialog>
+                </DialogTrigger>
+              </Flex>
+              {wiping && (
+                <Flex gap='size-100' alignItems='center'>
+                  <ProgressCircle size='S' aria-label='Wiping' isIndeterminate />
+                  <Text>Wiping records…</Text>
+                </Flex>
+              )}
               <SyncProgress sync={sync} stalled={stalled} />
-              <Text>Last sync: {settings.lastImportAt || 'never'}. Last wipe: {settings.lastWipeAt || 'never'}.</Text>
-              <DialogTrigger>
-                <Button variant='negative' isDisabled={busy || syncing} width='size-2400'>Wipe all records</Button>
-                <AlertDialog title='Wipe all records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
-                  Every product, business partner, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
-                </AlertDialog>
-              </DialogTrigger>
+              {wiped && <Text>{wipeSummary(wiped)}</Text>}
+              <Text UNSAFE_style={{ color: 'var(--spectrum-global-color-gray-700)', fontSize: '12px' }}>
+                Last sync: {formatStamp(settings.lastImportAt)}. Last wipe: {formatStamp(settings.lastWipeAt)}.
+              </Text>
             </Flex>
           </Section>
 

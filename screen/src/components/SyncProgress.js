@@ -6,6 +6,8 @@
 import React from 'react'
 import { Flex, Text, ProgressBar, ProgressCircle, InlineAlert, Heading, Content } from '@adobe/react-spectrum'
 
+const BAR_LABEL = { partners: 'Business partners', products: 'Products' }
+
 const PHASE_TEXT = {
   reading: 'Reading products and companies from the connected store…',
   partners: 'Importing business partners…',
@@ -29,7 +31,13 @@ function Bar ({ label, value }) {
 export function syncHeadline (sync) {
   if (!sync) return null
   if (sync.state === 'requested') return 'Waiting for the connected integration to start…'
-  if (sync.state === 'running') return PHASE_TEXT[sync.phase] || 'Syncing records…'
+  if (sync.state === 'running') {
+    // The phase's own count, so the line moves with the bar instead of sitting
+    // on one sentence for the whole import.
+    const value = sync[sync.phase]
+    const of = value && value.total ? ` — ${value.done} of ${value.total}` : ''
+    return `${PHASE_TEXT[sync.phase] || 'Syncing records…'}${of}`
+  }
   if (sync.state === 'done') {
     const products = sync.products ? sync.products.total : 0
     const partners = sync.partners ? sync.partners.total : 0
@@ -56,8 +64,11 @@ export default function SyncProgress ({ sync, stalled }) {
         <Text>{syncHeadline(sync)}</Text>
       </Flex>
       {stalled && <Text>The integration has not reported for a while. It may still be working; this page keeps checking.</Text>}
-      <Bar label='Business partners' value={sync.partners} />
-      <Bar label='Products' value={sync.products} />
+      {/* ONE bar: the thing being imported right now. Two bars stayed on screen
+          after the sync finished, describing work that was over — and after a
+          wipe they described records that no longer existed. The Dashboard's
+          counters are where the ERP's contents live. */}
+      {active && <Bar label={BAR_LABEL[sync.phase]} value={sync[sync.phase]} />}
     </Flex>
   )
 }

@@ -6,7 +6,8 @@ const { importPartners, ensureDefaultPartner, resolvePartner, patchPartner, getP
 const { upsertCondition, deleteCondition, listConditions } = require('../lib/conditions')
 const { pending } = require('../lib/events')
 const { wipe } = require('../lib/admin')
-const { getSettings, updateSettings } = require('../lib/settings')
+const { getSettings, updateSettings, stamp } = require('../lib/settings')
+const { recordSync } = require('../lib/sync-status')
 
 let cols
 beforeEach(() => { cols = memoryCollections() })
@@ -92,6 +93,24 @@ test('wipe clears records, keeps settings and counters, stamps the time', async 
   const settings = await getSettings(cols)
   assert.equal(settings.displayName, 'Contoso ERP')
   assert.ok(settings.lastWipeAt)
+})
+
+test('wipe keeps the last sync time and drops the sync record it described', async () => {
+  await importProducts(cols, [{ sku: 'A1' }])
+  // What a finished import leaves behind: the stamp and the record.
+  await stamp(cols, { lastImportAt: '2026-09-17T18:33:23.836Z' })
+  await recordSync(cols, { state: 'done', products: { done: 1, total: 1 } })
+  const synced = (await getSettings(cols)).lastImportAt
+  assert.equal(synced, '2026-09-17T18:33:23.836Z')
+  assert.ok((await getSettings(cols)).sync)
+
+  await wipe(cols)
+
+  const settings = await getSettings(cols)
+  // The SC did sync; blanking this read as "Last sync: never" beside the wipe time.
+  assert.equal(settings.lastImportAt, synced)
+  // The record describes records that no longer exist.
+  assert.equal(settings.sync, null)
 })
 
 test('the display name defaults from the deploy input, then from Acme', async () => {
