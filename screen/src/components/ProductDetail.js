@@ -18,6 +18,7 @@ import LockClosed from '@spectrum-icons/workflow/LockClosed'
 import PageLoading from './PageLoading'
 import StockStatus from './StockStatus'
 import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
+import EditToggle from './EditToggle'
 import { PriceCell, StockCell } from './ProductCells'
 import { kindText, priceText, variantText } from './productFormat'
 
@@ -62,9 +63,21 @@ export function changesOf (saved, draft) {
 
 function VariantsCard ({ product, onOpen, onSaveVariant }) {
   const widths = useColumnWidths('variants')
+  const [editing, setEditing] = useState(false)
+  // The table redraws a row only when its item changes, so each row carries the mode.
+  const rows = useMemo(() => product.variants.map((v) => ({ ...v, editing })), [product.variants, editing])
   const labels = (product.variants[0] && product.variants[0].variantAttributes || []).map((a) => a.label).filter(Boolean)
   return (
-    <Card title='Variants' gridColumn='1 / span 2' aside={<Text>Total stock {product.stock}</Text>}>
+    <Card
+      title='Variants'
+      gridColumn='1 / span 2'
+      aside={(
+        <Flex alignItems='center' gap='size-200'>
+          <Text>Total stock {product.stock}</Text>
+          {product.variants.length > 0 && <EditToggle editing={editing} onChange={setEditing} />}
+        </Flex>
+      )}
+    >
       {product.variants.length === 0
         ? <Text>Commerce lists no variants for this product.</Text>
         : (
@@ -82,13 +95,13 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
               <Column key='stock' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('stock', 100)} align='end'>Stock</Column>
               <Column key='status' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('status', 150)}>Status</Column>
             </TableHeader>
-            <TableBody items={product.variants}>
+            <TableBody items={rows}>
               {(v) => (
                 <Row key={v.sku}>
                   <Cell>{variantText(v.variantAttributes) || v.name}</Cell>
                   <Cell>{v.sku}</Cell>
-                  <Cell><PriceCell product={v} onSave={(patch) => onSaveVariant(v.sku, patch)} /></Cell>
-                  <Cell><StockCell product={v} onSave={(patch) => onSaveVariant(v.sku, patch)} /></Cell>
+                  <Cell><PriceCell product={v} editing={v.editing} onSave={(patch) => onSaveVariant(v.sku, patch)} /></Cell>
+                  <Cell><StockCell product={v} editing={v.editing} onSave={(patch) => onSaveVariant(v.sku, patch)} /></Cell>
                   <Cell><StockStatus quantity={v.stock} /></Cell>
                 </Row>
               )}
