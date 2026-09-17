@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, Switch } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import EditableNumber from './EditableNumber'
+import { toastSaved } from './toast'
 import { useLoad } from './useLoad'
 import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
 
@@ -12,7 +13,7 @@ export default function Partners ({ api, onChanged }) {
   const { rows, error, reload } = useLoad(() => api.partners(), [api])
   const [saveError, setSaveError] = useState(null)
   async function save (id, patch) {
-    try { await api.patchPartner(id, patch); setSaveError(null); await reload(); onChanged() } catch (e) { setSaveError(e) }
+    try { await api.patchPartner(id, patch); setSaveError(null); toastSaved('Business partner saved'); await reload(); onChanged() } catch (e) { setSaveError(e) }
   }
   return (
     <Frame title='Business partners' error={saveError || error} loading={!rows}>

@@ -4,7 +4,7 @@
  * is the only credential, so opened without one it says where to go instead.
  */
 import React, { useEffect, useState, useCallback } from 'react'
-import { Provider, defaultTheme, Grid, View, Heading, ActionGroup, Item, InlineAlert, Content, Badge } from '@adobe/react-spectrum'
+import { Provider, defaultTheme, Grid, View, Heading, ActionGroup, Item, InlineAlert, Content, Badge, ToastContainer } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import Dashboard from './Dashboard'
 import Products from './Products'
@@ -73,6 +73,7 @@ export default function App ({ screenKey }) {
           {screenKey && <active.Component key={active.key} api={api} health={health} onChanged={refreshHealth} onNavigate={setPage} />}
         </View>
       </Grid>
+      <ToastContainer placement='bottom end' />
     </Provider>
   )
 }

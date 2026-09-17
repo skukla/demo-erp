@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Form, TextField, Switch, Button, Text, Heading, Divider, Flex, DialogTrigger, AlertDialog } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import SyncProgress from './SyncProgress'
+import { toastSaved } from './toast'
 
 const POLL_MS = 2000
 // No word from the integration for this long reads as stalled (it may still be working).
@@ -61,7 +62,7 @@ export default function Settings ({ api, onChanged }) {
   }, [api, follow])
 
   async function saveName () {
-    try { setSettings(await api.saveSettings({ displayName: settings.displayName })); setError(null); onChanged() } catch (e) { setError(e) }
+    try { setSettings(await api.saveSettings({ displayName: settings.displayName })); setError(null); toastSaved('Name saved'); onChanged() } catch (e) { setError(e) }
   }
 
   async function setOffline (offline) {

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Flex, Form, Picker, Item, TextField, NumberField, Button, TableView, TableHeader, Column, TableBody, Row, Cell, ActionButton, Heading, Text, View } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import { useLoad } from './useLoad'
+import { toastSaved } from './toast'
 import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
 
 const KINDS = [
@@ -28,11 +29,11 @@ export default function Pricing ({ api, onChanged }) {
   async function add () {
     try {
       await api.saveCondition({ kind: form.kind, partnerId: form.partnerId || null, sku: form.sku || null, price: form.price, percent: form.percent })
-      setActionError(null); await reload(); onChanged()
+      setActionError(null); toastSaved('Pricing condition added'); await reload(); onChanged()
     } catch (e) { setActionError(e) }
   }
   async function remove (id) {
-    try { await api.deleteCondition(id); setActionError(null); await reload(); onChanged() } catch (e) { setActionError(e) }
+    try { await api.deleteCondition(id); setActionError(null); toastSaved('Pricing condition deleted'); await reload(); onChanged() } catch (e) { setActionError(e) }
   }
   async function runQuote () {
     try {

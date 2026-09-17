@@ -11,6 +11,7 @@ import StockStatus from './StockStatus'
 import { useLoad } from './useLoad'
 import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
 import EditToggle from './EditToggle'
+import { toastSaved } from './toast'
 import { NameCell, PriceCell, StockCell } from './ProductCells'
 import { kindText } from './productFormat'
 
@@ -35,6 +36,7 @@ export default function Products ({ api, onChanged, onNavigate }) {
     try {
       await api.patchProduct(sku, patch)
       setSaveError(null)
+      toastSaved('Product saved')
       await reload()
       onChanged()
     } catch (e) {

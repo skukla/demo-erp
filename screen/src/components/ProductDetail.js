@@ -16,6 +16,7 @@ import {
 import ChevronLeft from '@spectrum-icons/workflow/ChevronLeft'
 import LockClosed from '@spectrum-icons/workflow/LockClosed'
 import PageLoading from './PageLoading'
+import { toastSaved } from './toast'
 import StockStatus from './StockStatus'
 import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
 import EditToggle from './EditToggle'
@@ -158,7 +159,6 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
   const [contractPrices, setContractPrices] = useState(null)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [notice, setNotice] = useState(null)
 
   useEffect(() => {
     api.product(sku).then((p) => { setSaved(p); setDraft(p) }).catch(setError)
@@ -174,12 +174,10 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
   const total = draft ? (isParent ? saved.stock : draft.warehouses.reduce((sum, w) => sum + w.quantity, 0)) : 0
 
   function edit (changes) {
-    setNotice(null)
     setDraft((d) => ({ ...d, ...changes }))
   }
 
   function setQuantity (code, quantity) {
-    setNotice(null)
     setDraft((d) => ({ ...d, warehouses: d.warehouses.map((w) => (w.code === code ? { ...w, quantity } : w)) }))
   }
 
@@ -192,7 +190,7 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
       setSaved(fresh)
       setDraft((d) => ({ ...fresh, name: d.name }))
       setError(null)
-      setNotice('Saved. The change is on its way to Commerce.')
+      toastSaved('Variant saved')
       onChanged()
     } catch (e) {
       setError(e)
@@ -208,7 +206,7 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
       setSaved(merged)
       setDraft(merged)
       setError(null)
-      setNotice('Saved. The change is on its way to Commerce.')
+      toastSaved('Product saved')
       onChanged()
     } catch (e) {
       setError(e)
@@ -313,11 +311,11 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
           </Grid>
 
           <Flex justifyContent='end' alignItems='center' gap='size-200' marginTop='size-300' UNSAFE_style={{ maxWidth: 960 }}>
-            {notice && <Text>{notice}</Text>}
             {dirty && (
               <ButtonGroup>
                 <Button variant='secondary' onPress={() => setDraft(saved)} isDisabled={saving}>Cancel</Button>
-                <Button variant='accent' onPress={save} isPending={saving} isDisabled={nameMissing}>Save</Button>
+                {/* The label changes at once; Spectrum shows its spinner only after a second. */}
+                <Button variant='accent' onPress={save} isPending={saving} isDisabled={nameMissing}>{saving ? 'Saving…' : 'Save'}</Button>
               </ButtonGroup>
             )}
           </Flex>
