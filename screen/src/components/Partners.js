@@ -3,10 +3,12 @@ import { TableView, TableHeader, Column, TableBody, Row, Cell, Switch } from '@a
 import Frame from './Frame'
 import EditableNumber from './EditableNumber'
 import { useLoad } from './useLoad'
+import { MIN_COLUMN_WIDTH, useColumnWidths } from './columnWidths'
 
 const money = { style: 'currency', currency: 'USD' }
 
 export default function Partners ({ api, onChanged }) {
+  const widths = useColumnWidths('partners')
   const { rows, error, reload } = useLoad(() => api.partners(), [api])
   const [saveError, setSaveError] = useState(null)
   async function save (id, patch) {
@@ -14,15 +16,15 @@ export default function Partners ({ api, onChanged }) {
   }
   return (
     <Frame title='Business partners' error={saveError || error} loading={!rows}>
-      <TableView aria-label='Business partners' density='compact' overflowMode='wrap'>
+      <TableView onResizeEnd={widths.onResizeEnd} aria-label='Business partners' density='compact' overflowMode='wrap'>
         <TableHeader>
-          <Column key='id' width={120}>Partner</Column>
-          <Column key='name'>Name</Column>
-          <Column key='commerce' width={150}>Commerce company</Column>
-          <Column key='terms' width={100}>Terms</Column>
-          <Column key='creditLimit' width={170} align='end'>Credit limit</Column>
-          <Column key='creditUsed' width={140} align='end'>Credit used</Column>
-          <Column key='blocked' width={110}>Blocked</Column>
+          <Column key='id' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('id', 120)}>Partner</Column>
+          <Column key='name' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('name')}>Name</Column>
+          <Column key='commerce' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('commerce', 150)}>Commerce company</Column>
+          <Column key='terms' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('terms', 100)}>Terms</Column>
+          <Column key='creditLimit' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('creditLimit', 170)} align='end'>Credit limit</Column>
+          <Column key='creditUsed' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('creditUsed', 140)} align='end'>Credit used</Column>
+          <Column key='blocked' allowsResizing minWidth={MIN_COLUMN_WIDTH} defaultWidth={widths.widthOf('blocked', 110)}>Blocked</Column>
         </TableHeader>
         <TableBody items={rows || []}>
           {(p) => (

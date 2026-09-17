@@ -70,7 +70,7 @@ export default function App ({ screenKey }) {
               <Content>{error.message}</Content>
             </InlineAlert>
           )}
-          {screenKey && <active.Component api={api} health={health} onChanged={refreshHealth} />}
+          {screenKey && <active.Component key={active.key} api={api} health={health} onChanged={refreshHealth} onNavigate={setPage} />}
         </View>
       </Grid>
     </Provider>

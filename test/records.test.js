@@ -12,9 +12,9 @@ let cols
 beforeEach(() => { cols = memoryCollections() })
 
 test('import creates then updates; what Commerce sends wins, what it omits keeps its ERP value', async () => {
-  const first = await importProducts(cols, [{ sku: 'A1', name: 'Widget', listPrice: 10, stock: 5 }])
+  const first = await importProducts(cols, [{ sku: 'A1', name: 'Widget', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
   assert.deepEqual(first, { created: 1, updated: 0 })
-  await patchProduct(cols, 'A1', { listPrice: 12, stock: 9 })
+  await patchProduct(cols, 'A1', { listPrice: 12, warehouses: [{ code: 'default', quantity: 9 }] })
   const second = await importProducts(cols, [{ sku: 'A1', name: 'Widget v2', listPrice: 10 }])
   assert.deepEqual(second, { created: 0, updated: 1 })
   const [product] = await listProducts(cols)
@@ -35,8 +35,8 @@ test('a partner re-import takes the credit limit and block Commerce reports', as
 })
 
 test('a price or stock edit raises exactly one ERP event per changed field', async () => {
-  await importProducts(cols, [{ sku: 'A1', listPrice: 10, stock: 5 }])
-  await patchProduct(cols, 'A1', { listPrice: 10, stock: 7 })
+  await importProducts(cols, [{ sku: 'A1', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
+  await patchProduct(cols, 'A1', { listPrice: 10, warehouses: [{ code: 'default', quantity: 7 }] })
   const entries = await pending(cols)
   assert.equal(entries.length, 1)
   assert.equal(entries[0].event, 'be-observer.catalog_stock_update')
@@ -44,10 +44,10 @@ test('a price or stock edit raises exactly one ERP event per changed field', asy
 })
 
 test('bad product values are refused', async () => {
-  await importProducts(cols, [{ sku: 'A1' }])
+  await importProducts(cols, [{ sku: 'A1', warehouses: [{ code: 'default', name: 'Default Source', quantity: 0 }] }])
   await assert.rejects(patchProduct(cols, 'A1', { listPrice: -1 }), { statusCode: 400 })
-  await assert.rejects(patchProduct(cols, 'A1', { stock: 1.5 }), { statusCode: 400 })
-  assert.equal(await patchProduct(cols, 'ZZ', { stock: 1 }), null)
+  await assert.rejects(patchProduct(cols, 'A1', { warehouses: [{ code: 'default', quantity: 1.5 }] }), { statusCode: 400 })
+  assert.equal(await patchProduct(cols, 'ZZ', { warehouses: [{ code: 'default', quantity: 1 }] }), null)
 })
 
 test('partners resolve by id, Commerce company, email domain, customer group, then the default', async () => {
@@ -104,4 +104,64 @@ test('a redeploy with a new name renames the ERP unless it was renamed on screen
   assert.equal((await getSettings(cols, 'Second ERP')).displayName, 'Second ERP')
   await updateSettings(cols, { displayName: 'Mine' })
   assert.equal((await getSettings(cols, 'Third ERP')).displayName, 'Mine')
+})
+
+test('stock is per warehouse: each edit goes to its own source, and the total adds up', async () => {
+  await importProducts(cols, [{
+    sku: 'T1',
+    name: 'Tote',
+    listPrice: 189,
+    warehouses: [
+      { code: 'default', name: 'Default Source', quantity: 120 },
+      { code: 'austin_dc', name: 'Austin DC', quantity: 25 },
+      { code: 'denver_dc', name: 'Denver DC', quantity: 3 }
+    ]
+  }])
+  const edited = await patchProduct(cols, 'T1', { warehouses: [{ code: 'austin_dc', quantity: 20 }, { code: 'denver_dc', quantity: 0 }, { code: 'default', quantity: 120 }] })
+  assert.equal(edited.stock, 140)
+  assert.deepEqual(edited.warehouses.map((w) => [w.code, w.name, w.quantity]), [['default', 'Default Source', 120], ['austin_dc', 'Austin DC', 20], ['denver_dc', 'Denver DC', 0]])
+  const [event] = await pending(cols)
+  assert.equal(event.event, 'be-observer.catalog_stock_update')
+  // Only the changed sources, each named.
+  assert.deepEqual(event.value, [
+    { sku: 'T1', source: 'austin_dc', quantity: 20, outOfStock: false },
+    { sku: 'T1', source: 'denver_dc', quantity: 0, outOfStock: true }
+  ])
+})
+
+test('a name edit raises one product update carrying the new name and the price', async () => {
+  await importProducts(cols, [{ sku: 'T1', name: 'Tote', listPrice: 189, warehouses: [] }])
+  const edited = await patchProduct(cols, 'T1', { name: '  Aurora Tote ', listPrice: 199 })
+  assert.equal(edited.name, 'Aurora Tote')
+  const entries = await pending(cols)
+  assert.equal(entries.length, 1)
+  assert.deepEqual(entries[0].value, { sku: 'T1', name: 'Aurora Tote', price: 199, description: '' })
+})
+
+test('the SKU, a single stock number, an unknown warehouse, an empty name and unknown fields are refused', async () => {
+  await importProducts(cols, [{ sku: 'T1', name: 'Tote', warehouses: [{ code: 'default', quantity: 1 }] }])
+  await assert.rejects(patchProduct(cols, 'T1', { sku: 'T2' }), (e) => e.statusCode === 400 && /cannot be changed here/.test(e.message))
+  await assert.rejects(patchProduct(cols, 'T1', { stock: 5 }), (e) => e.statusCode === 400 && /per warehouse/.test(e.message))
+  await assert.rejects(patchProduct(cols, 'T1', { warehouses: [{ code: 'nowhere', quantity: 1 }] }), (e) => e.statusCode === 400 && /nowhere/.test(e.message))
+  await assert.rejects(patchProduct(cols, 'T1', { name: '   ' }), { statusCode: 400 })
+  await assert.rejects(patchProduct(cols, 'T1', { plant: '2000' }), { statusCode: 400 })
+  assert.equal((await pending(cols)).length, 0)
+})
+
+test('a product stored before warehouses reads as the default source, and saves in the new shape', async () => {
+  await cols.products.replaceOne({ _id: 'OLD' }, { _id: 'OLD', sku: 'OLD', name: 'Old', plant: '1000', listPrice: 5, stock: 7 }, { upsert: true })
+  const [product] = await listProducts(cols)
+  assert.deepEqual(product.warehouses, [{ code: 'default', name: 'Default Source', quantity: 7 }])
+  assert.equal(product.stock, 7)
+  assert.equal('plant' in product, false)
+  await patchProduct(cols, 'OLD', { warehouses: [{ code: 'default', quantity: 8 }] })
+  const raw = await cols.products.findOne({ _id: 'OLD' })
+  assert.equal('stock' in raw, false)
+  assert.equal('plant' in raw, false)
+  assert.equal(raw.warehouses[0].quantity, 8)
+})
+
+test('an import with a malformed warehouse is refused', async () => {
+  await assert.rejects(importProducts(cols, [{ sku: 'X', warehouses: [{ quantity: 1 }] }]), { statusCode: 400 })
+  await assert.rejects(importProducts(cols, [{ sku: 'X', warehouses: [{ code: 'default', quantity: -2 }] }]), { statusCode: 400 })
 })

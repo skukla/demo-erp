@@ -18,7 +18,7 @@ beforeEach(async () => {
     path: '/import',
     body: {
       projectName: 'Demo',
-      products: [{ sku: 'A1', name: 'Widget', listPrice: 100, stock: 10 }, { sku: 'B2', name: 'Gadget', listPrice: 50, stock: 0 }],
+      products: [{ sku: 'A1', name: 'Widget', listPrice: 100, warehouses: [{ code: 'default', name: 'Default Source', quantity: 10 }] }, { sku: 'B2', name: 'Gadget', listPrice: 50, warehouses: [{ code: 'default', name: 'Default Source', quantity: 0 }] }],
       partners: [{ id: 'P1', name: 'Acme', commerceCompanyId: '7' }]
     }
   })
@@ -36,10 +36,10 @@ test('health reports the name, the offline flag and the counts', async () => {
 test('products list, read, patch and 404', async () => {
   assert.equal((await invoke(products, cols)).body.items.length, 2)
   assert.equal((await invoke(products, cols, { path: '/A1' })).body.name, 'Widget')
-  const patched = await invoke(products, cols, { method: 'PATCH', path: '/A1', body: { stock: 3 } })
+  const patched = await invoke(products, cols, { method: 'PATCH', path: '/A1', body: { warehouses: [{ code: 'default', quantity: 3 }] } })
   assert.equal(patched.body.stock, 3)
   assert.equal((await invoke(products, cols, { path: '/ZZ' })).statusCode, 404)
-  assert.equal((await invoke(products, cols, { method: 'PATCH', path: '/A1', body: { stock: -1 } })).statusCode, 400)
+  assert.equal((await invoke(products, cols, { method: 'PATCH', path: '/A1', body: { warehouses: [{ code: 'default', quantity: -1 }] } })).statusCode, 400)
 })
 
 test('partners list and patch', async () => {
@@ -99,7 +99,7 @@ test('events are delivered to the ingestion webhook with the journal id, and ret
   global.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body), auth: init.headers.Authorization }); return { ok: calls.length > 1, status: calls.length > 1 ? 200 : 503, text: async () => 'busy' } }
   try {
     const params = { EVENTS_WEBHOOK_URL: 'https://example.test/api/v1/web/ingestion/webhook' }
-    await invoke(products, cols, { method: 'PATCH', path: '/A1', body: { stock: 1 }, params })
+    await invoke(products, cols, { method: 'PATCH', path: '/A1', body: { warehouses: [{ code: 'default', quantity: 1 }] }, params })
     let log = await invoke(events, cols, { params })
     assert.equal(log.body.pending, 1)
     assert.equal(log.body.items[0].lastError, 'busy')
@@ -121,7 +121,7 @@ test('an event that keeps failing is marked failed after ten attempts, leaves th
   global.fetch = async () => ({ ok: false, status: 500, text: async () => 'down' })
   try {
     const params = { EVENTS_WEBHOOK_URL: 'https://example.test/api/v1/web/ingestion/webhook' }
-    await invoke(products, cols, { method: 'PATCH', path: '/A1', body: { stock: 2 }, params })
+    await invoke(products, cols, { method: 'PATCH', path: '/A1', body: { warehouses: [{ code: 'default', quantity: 2 }] }, params })
     for (let i = 0; i < 9; i += 1) await invoke(events, cols, { method: 'POST', path: '/retry', params })
     let log = await invoke(events, cols, { params })
     assert.equal(log.body.pending, 0)

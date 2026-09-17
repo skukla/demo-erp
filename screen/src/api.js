@@ -30,6 +30,7 @@ export function makeApi (screenKey, base = screenBase()) {
     saveSettings: (patch) => call('settings', { method: 'PATCH', body: patch }),
     wipe: () => call('admin', { method: 'POST', path: '/wipe' }),
     products: () => call('products'),
+    product: (sku) => call('products', { path: `/${encodeURIComponent(sku)}` }),
     patchProduct: (sku, patch) => call('products', { method: 'PATCH', path: `/${encodeURIComponent(sku)}`, body: patch }),
     partners: () => call('partners'),
     patchPartner: (id, patch) => call('partners', { method: 'PATCH', path: `/${encodeURIComponent(id)}`, body: patch }),

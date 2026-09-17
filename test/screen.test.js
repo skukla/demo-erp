@@ -19,7 +19,7 @@ beforeEach(async () => {
   await invoke(admin, cols, {
     method: 'POST',
     path: '/import',
-    body: { projectName: 'Demo', products: [{ sku: 'A1', name: 'Widget', listPrice: 100, stock: 10 }], partners: [] }
+    body: { projectName: 'Demo', products: [{ sku: 'A1', name: 'Widget', listPrice: 100, warehouses: [{ code: 'default', name: 'Default Source', quantity: 10 }] }], partners: [] }
   })
 })
 
@@ -80,7 +80,7 @@ test('with the key, a data call runs that action\'s handler on its own path', as
   const product = await screen({ path: '/api/products/A1', key: KEY })
   assert.equal(product.body.name, 'Widget')
 
-  const patched = await screen({ method: 'PATCH', path: '/api/products/A1', key: KEY, body: { stock: 4 } })
+  const patched = await screen({ method: 'PATCH', path: '/api/products/A1', key: KEY, body: { warehouses: [{ code: 'default', quantity: 4 }] } })
   assert.equal(patched.body.stock, 4)
 })
 

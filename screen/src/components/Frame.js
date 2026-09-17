@@ -1,6 +1,7 @@
 /* A page's heading, its error banner, and its body. */
 import React from 'react'
-import { Heading, InlineAlert, Content, ProgressCircle, Flex } from '@adobe/react-spectrum'
+import { Heading, InlineAlert, Content, Flex } from '@adobe/react-spectrum'
+import PageLoading from './PageLoading'
 
 export default function Frame ({ title, error, loading, children, actions }) {
   return (
@@ -15,7 +16,7 @@ export default function Frame ({ title, error, loading, children, actions }) {
           <Content>{error.message}</Content>
         </InlineAlert>
       )}
-      {loading ? <ProgressCircle aria-label='Loading' isIndeterminate /> : children}
+      {loading ? <PageLoading /> : children}
     </>
   )
 }
