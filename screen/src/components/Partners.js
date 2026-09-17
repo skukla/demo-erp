@@ -33,7 +33,7 @@ export default function Partners ({ api, onChanged }) {
               <Cell>{p.name}{p.isDefault ? ' (default)' : ''}</Cell>
               <Cell>{p.commerceCompanyId || '—'}</Cell>
               <Cell>{p.paymentTerms}</Cell>
-              <Cell><EditableNumber value={p.creditLimit} step={100} formatOptions={money} onSave={(v) => save(p.id, { creditLimit: v })} /></Cell>
+              <Cell><EditableNumber label='Credit limit' value={p.creditLimit} step={100} formatOptions={money} onSave={(v) => save(p.id, { creditLimit: v })} /></Cell>
               <Cell>{new Intl.NumberFormat(undefined, money).format(p.creditUsed || 0)}</Cell>
               <Cell><Switch aria-label='Blocked' isSelected={Boolean(p.blocked)} onChange={(v) => save(p.id, { blocked: v })} /></Cell>
             </Row>

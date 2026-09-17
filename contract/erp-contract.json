@@ -13,7 +13,9 @@
     "events": ["GET", "POST /retry", "POST /requeue"]
   },
   "import": {
-    "products": ["sku", "name", "listPrice", "warehouses"],
+    "products": ["sku", "name", "listPrice", "warehouses", "type", "parentSku", "variantAttributes"],
+    "productTypes": ["simple", "configurable"],
+    "variantAttribute": ["label", "value"],
     "warehouse": ["code", "name", "quantity"],
     "partners": ["id", "name", "commerceCompanyId", "customerGroupId", "emailDomain", "creditLimit", "blocked"],
     "projectName": "optional"

@@ -1,23 +1,29 @@
-/* A number in a table cell that becomes a field on click and saves on Enter or blur. */
+/*
+ * A number in a table cell that becomes a field on click and saves on Enter or blur.
+ *
+ * Spectrum's NumberField reports a value only when it is committed (Enter or blur),
+ * not per keystroke, so the save happens in onChange. Closing on blur alone is safe:
+ * React applies the close after the event, and the field commits during it.
+ */
 import React, { useState } from 'react'
 import { NumberField, ActionButton } from '@adobe/react-spectrum'
 
-export default function EditableNumber ({ value, onSave, formatOptions, step = 1, minValue = 0 }) {
+export default function EditableNumber ({ value, onSave, formatOptions, step = 1, minValue = 0, label = 'Value' }) {
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
   if (!editing) {
     return (
-      <ActionButton isQuiet onPress={() => { setDraft(value); setEditing(true) }} aria-label='Edit'>
+      <ActionButton isQuiet onPress={() => setEditing(true)} aria-label={`Edit ${label.toLowerCase()}`}>
         {formatOptions ? new Intl.NumberFormat(undefined, formatOptions).format(value) : String(value)}
       </ActionButton>
     )
   }
-  async function commit () {
+  function commit (next) {
     setEditing(false)
-    if (draft !== value && Number.isFinite(draft)) await onSave(draft)
+    if (next !== value && Number.isFinite(next)) onSave(next)
   }
   return (
-    <NumberField aria-label='Value' value={draft} onChange={setDraft} step={step} minValue={minValue} width='size-1600'
-      autoFocus onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }} />
+    <NumberField aria-label={label} defaultValue={value} onChange={commit} step={step} minValue={minValue}
+      formatOptions={formatOptions} width='size-1600' autoFocus
+      onBlur={() => setEditing(false)} onKeyDown={(e) => { if (e.key === 'Escape') setEditing(false) }} />
   )
 }

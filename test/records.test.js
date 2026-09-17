@@ -1,7 +1,7 @@
 const { test, beforeEach } = require('node:test')
 const assert = require('node:assert/strict')
 const { memoryCollections } = require('./helpers/memory-db')
-const { importProducts, patchProduct, listProducts } = require('../lib/products')
+const { importProducts, patchProduct, listProducts, getProduct } = require('../lib/products')
 const { importPartners, ensureDefaultPartner, resolvePartner, patchPartner, getPartner, DEFAULT_PARTNER_ID } = require('../lib/partners')
 const { upsertCondition, deleteCondition, listConditions } = require('../lib/conditions')
 const { pending } = require('../lib/events')
@@ -164,4 +164,50 @@ test('a product stored before warehouses reads as the default source, and saves 
 test('an import with a malformed warehouse is refused', async () => {
   await assert.rejects(importProducts(cols, [{ sku: 'X', warehouses: [{ quantity: 1 }] }]), { statusCode: 400 })
   await assert.rejects(importProducts(cols, [{ sku: 'X', warehouses: [{ code: 'default', quantity: -2 }] }]), { statusCode: 400 })
+})
+
+async function importOrchard () {
+  await importProducts(cols, [
+    { sku: 'Orchard2', name: 'Orchard 2', type: 'configurable', listPrice: 0, warehouses: [] },
+    { sku: 'Orchard2-Silver-128GB', name: 'Orchard 2-Silver-128GB', type: 'simple', parentSku: 'Orchard2', variantAttributes: [{ label: 'Color', value: 'Silver' }, { label: 'Memory', value: '128GB' }], listPrice: 799.99, warehouses: [{ code: 'default', name: 'Default Source', quantity: 10 }] },
+    { sku: 'Orchard2-Black-1TB', name: 'Orchard 2-Black-1TB', type: 'simple', parentSku: 'Orchard2', variantAttributes: [{ label: 'Color', value: 'Black' }, { label: 'Memory', value: '1TB' }], listPrice: 1099, warehouses: [{ code: 'default', name: 'Default Source', quantity: 0 }] },
+    { sku: 'Case', name: 'Case', listPrice: 20, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }
+  ])
+}
+
+test('a configurable parent lists with its variants\' total stock, count and price range', async () => {
+  await importOrchard()
+  const rows = await listProducts(cols)
+  const parent = rows.find((r) => r.sku === 'Orchard2')
+  assert.deepEqual(
+    { type: parent.type, stock: parent.stock, variantCount: parent.variantCount, priceRange: parent.priceRange, warehouses: parent.warehouses },
+    { type: 'configurable', stock: 10, variantCount: 2, priceRange: { min: 799.99, max: 1099 }, warehouses: [] }
+  )
+  const standalone = rows.find((r) => r.sku === 'Case')
+  assert.equal(standalone.type, 'simple')
+  assert.equal(standalone.parentSku, undefined)
+})
+
+test('a parent\'s page carries its variants, and a variant\'s page names its parent and values', async () => {
+  await importOrchard()
+  const parent = await getProduct(cols, 'Orchard2')
+  assert.deepEqual(parent.variants.map((v) => v.sku), ['Orchard2-Black-1TB', 'Orchard2-Silver-128GB'])
+  const variant = await getProduct(cols, 'Orchard2-Silver-128GB')
+  assert.deepEqual(variant.parent, { sku: 'Orchard2', name: 'Orchard 2' })
+  assert.deepEqual(variant.variantAttributes, [{ label: 'Color', value: 'Silver' }, { label: 'Memory', value: '128GB' }])
+})
+
+test('a parent takes a name but not a price or stock; a variant takes all three', async () => {
+  await importOrchard()
+  await assert.rejects(patchProduct(cols, 'Orchard2', { listPrice: 5 }), (e) => e.statusCode === 400 && /belong to its variants/.test(e.message))
+  await assert.rejects(patchProduct(cols, 'Orchard2', { warehouses: [] }), { statusCode: 400 })
+  const renamed = await patchProduct(cols, 'Orchard2', { name: 'Orchard Two' })
+  assert.equal(renamed.name, 'Orchard Two')
+  const variant = await patchProduct(cols, 'Orchard2-Black-1TB', { listPrice: 999, warehouses: [{ code: 'default', quantity: 4 }] })
+  assert.equal(variant.stock, 4)
+  assert.equal((await getProduct(cols, 'Orchard2')).stock, 14)
+})
+
+test('an unknown product type is refused', async () => {
+  await assert.rejects(importProducts(cols, [{ sku: 'K', type: 'bundle' }]), { statusCode: 400 })
 })
