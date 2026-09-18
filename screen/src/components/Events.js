@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Button, Text } from '@adobe/react-spectrum'
 import Frame from './Frame'
+import EventDetail from './EventDetail'
+import { formatStamp } from '../formatStamp'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
 
@@ -29,6 +31,8 @@ export default function Events ({ api }) {
     return data.items
   }, [api])
   const [actionError, setActionError] = useState(null)
+  // The event opened from the table, as Products opens a product.
+  const [openId, setOpenId] = useState(null)
   async function retry () {
     try { await api.retryEvents(); setActionError(null); await reload() } catch (e) { setActionError(e) }
   }
@@ -41,11 +45,15 @@ export default function Events ({ api }) {
     if (e.failed) return { variant: 'negative', text: `failed after ${e.attempts} tries` }
     return { variant: 'notice', text: `pending (${e.attempts || 0} tries)` }
   }
+  const opened = openId && (rows || []).find((e) => e._id === openId)
+  if (opened) return <EventDetail entry={opened} state={state(opened)} onBack={() => setOpenId(null)} />
+
   return (
     <Frame title='Events' error={actionError || error} loading={!rows}
       actions={<><Button variant='secondary' onPress={retry} isDisabled={!meta.pending}>Retry pending</Button><Button variant='secondary' onPress={requeue} isDisabled={!meta.failed} marginStart='size-100'>Requeue failed</Button></>}>
       <Text>Changes from Commerce, and what this ERP published to {meta.webhookUrl || 'no subscriber (no namespace)'}: {meta.pending ?? 0} waiting to be delivered, {meta.failed ?? 0} failed (an event is failed after ten attempts).</Text>
-      <TableView {...widths.tableProps} aria-label='Events' density='compact' overflowMode='wrap' marginTop='size-200'>
+      <TableView {...widths.tableProps} aria-label='Events' density='compact' overflowMode='wrap' marginTop='size-200'
+        selectionMode='none' onAction={(key) => setOpenId(String(key))}>
         <TableHeader>
           <Column key='at' {...widths.columnProps('at')}>When</Column>
           <Column key='direction' {...widths.columnProps('direction')}>Direction</Column>
@@ -56,7 +64,7 @@ export default function Events ({ api }) {
         <TableBody items={rows || []}>
           {(e) => (
             <Row key={e._id}>
-              <Cell>{e.at}</Cell>
+              <Cell>{formatStamp(e.at)}</Cell>
               <Cell>{isIncoming(e) ? '← From Commerce' : '→ To Commerce'}</Cell>
               <Cell>{e.event}</Cell>
               <Cell><StatusLight variant={state(e).variant}>{state(e).text}</StatusLight></Cell>

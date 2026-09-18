@@ -123,3 +123,28 @@ test('incoming entries never join the retry queue, and the Dashboard counts only
   assert.equal(res.body.eventsPending, 0)
   assert.equal(res.body.counts.events, 1)
 })
+
+test("the delivered event's own id is kept, so the row can be found in I/O Events", async () => {
+  await invoke(admin, cols, {
+    method: 'POST',
+    path: '/import',
+    body: {
+      products: [{ sku: 'A1', name: 'Widget' }],
+      origin: { event: PRODUCT_EVENT, eventId: 'ca67f792-f56e-45f3-ba7c-7c97302bcc00' },
+    },
+  })
+
+  const [entry] = await recent(cols)
+  assert.equal(entry.eventId, 'ca67f792-f56e-45f3-ba7c-7c97302bcc00')
+})
+
+test('an origin without an id is journaled without one, rather than failing', async () => {
+  await invoke(admin, cols, {
+    method: 'POST',
+    path: '/import',
+    body: { products: [{ sku: 'A1', name: 'Widget' }], origin: { event: PRODUCT_EVENT } },
+  })
+
+  const [entry] = await recent(cols)
+  assert.equal('eventId' in entry, false)
+})
