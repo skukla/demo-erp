@@ -1,6 +1,7 @@
 /*
  * POST admin/wipe                       remove every record (counters and settings stay)
- * POST admin/import { products, partners, projectName }   bulk upsert from the integration
+ * POST admin/import { products, partners, projectName, origin? }   bulk upsert from the integration;
+ *      `origin: { event }` names the Commerce event behind it, and journals it
  * POST admin/sync { state, phase?, partners?, products?, error? }   the integration reports a sync
  *
  * "Last import" means a full mirror, the one Sync records waits for. A partners-only
@@ -15,6 +16,7 @@ const { importProducts } = require('../../lib/products')
 const { importPartners, ensureDefaultPartner } = require('../../lib/partners')
 const { stamp } = require('../../lib/settings')
 const { recordSync } = require('../../lib/sync-status')
+const { journalImport } = require('../../lib/inbound')
 
 async function handler ({ cols, method, segments, body }) {
   if (method !== 'POST') return
@@ -28,6 +30,8 @@ async function handler ({ cols, method, segments, body }) {
     const partners = await importPartners(cols, body.partners || [])
     await ensureDefaultPartner(cols, body.projectName)
     if (Array.isArray(body.products)) await stamp(cols, { lastImportAt: new Date().toISOString() })
+    // A write a Commerce event brought is journaled, so the Events log shows it arrived.
+    await journalImport(cols, body, { products, partners })
     return ok({ products, partners })
   }
 }

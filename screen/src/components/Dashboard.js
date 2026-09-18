@@ -25,7 +25,9 @@ export default function Dashboard ({ health }) {
             <Stat label='Business partners' value={counts.businessPartners ?? 0} />
             <Stat label='Sales orders' value={counts.salesOrders ?? 0} />
             <Stat label='Pricing conditions' value={counts.pricingConditions ?? 0} />
-            <Stat label='Events pending' value={counts.events ?? 0} />
+            {/* Waiting to be delivered, not the journal's size: it also holds
+                delivered and incoming entries. */}
+            <Stat label='Events pending' value={health.eventsPending ?? 0} />
           </Flex>
         </>
       )}

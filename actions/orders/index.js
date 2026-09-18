@@ -1,13 +1,15 @@
 /*
  * GET  orders                       list, newest first
  * GET  orders/:number               one order
- * POST orders                       create from a Commerce order (idempotent on commerceOrderId)
+ * POST orders                       create from a Commerce order (idempotent on commerceOrderId;
+ *                                   `origin: { event }` journals it the first time)
  * POST orders/:number/status        { status } move it
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound, badRequest } = require('../../lib/errors')
 const { createOrder, listOrders, getOrder, setStatus, nextStatuses } = require('../../lib/orders')
+const { journalOrder } = require('../../lib/inbound')
 
 async function handler ({ cols, method, segments, body, params }) {
   const number = segments[0] || null
@@ -20,6 +22,8 @@ async function handler ({ cols, method, segments, body, params }) {
   if (method === 'POST' && !number) {
     const existed = await cols.salesOrders.findOne({ commerceOrderId: String(body.commerceOrderId || '') })
     const order = await createOrder(cols, body)
+    // Journaled the first time only: a redelivered event is the same order.
+    if (!existed) await journalOrder(cols, body, order)
     return ok(order, existed ? 200 : 201)
   }
   if (method === 'POST' && segments[1] === 'status') {
