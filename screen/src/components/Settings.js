@@ -4,7 +4,7 @@
  * does not see them.
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { Form, TextField, Switch, Button, Text, Heading, Divider, Flex, DialogTrigger, AlertDialog, ProgressCircle } from '@adobe/react-spectrum'
+import { Form, TextField, Button, Text, Heading, Divider, Flex, DialogTrigger, AlertDialog, ProgressCircle } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import SyncProgress from './SyncProgress'
 import { formatStamp } from '../formatStamp'
@@ -33,7 +33,7 @@ export default function Settings ({ api, onChanged }) {
   const [busy, setBusy] = useState(false)
   // What the last wipe removed, until a sync makes it stale.
   const [wiped, setWiped] = useState(null)
-  // Its own flag: `busy` also covers the offline switch, which is not a wipe.
+  // Its own flag: `busy` also covers the name save, which is not a wipe.
   const [wiping, setWiping] = useState(false)
   const [stalled, setStalled] = useState(false)
   const timer = useRef(null)
@@ -69,12 +69,6 @@ export default function Settings ({ api, onChanged }) {
 
   async function saveName () {
     try { setSettings(await api.saveSettings({ displayName: settings.displayName })); setError(null); toastSaved('Name saved'); onChanged() } catch (e) { setError(e) }
-  }
-
-  async function setOffline (offline) {
-    setBusy(true)
-    try { setSettings(await api.saveSettings({ offline })); setError(null); await onChanged() } catch (e) { setError(e) }
-    setBusy(false)
   }
 
   async function wipe () {
@@ -148,11 +142,6 @@ export default function Settings ({ api, onChanged }) {
             </Flex>
           </Section>
 
-          <Section title='Availability'>
-            <Switch isSelected={Boolean(settings.offline)} onChange={setOffline} isDisabled={busy}>
-              Offline: every record request answers 503, the way an unavailable ERP looks to the integration
-            </Switch>
-          </Section>
         </>
       )}
     </Frame>

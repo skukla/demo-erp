@@ -8,5 +8,4 @@ async function handler ({ cols, params }) {
 }
 
 exports.handler = handler
-exports.allowOffline = true
-exports.main = (params) => run(params, handler, { allowOffline: true })
+exports.main = (params) => run(params, handler)

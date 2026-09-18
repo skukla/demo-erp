@@ -1,4 +1,4 @@
-/* GET settings; PATCH/POST settings { displayName?, offline? }. */
+/* GET settings; PATCH/POST settings { displayName? }. */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { updateSettings } = require('../../lib/settings')
@@ -11,5 +11,4 @@ async function handler ({ cols, params, method, body, settings }) {
 }
 
 exports.handler = handler
-exports.main = (params) => run(params, handler, { allowOffline: true })
-exports.allowOffline = true
+exports.main = (params) => run(params, handler)

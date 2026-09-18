@@ -79,7 +79,7 @@ function invoke (action, cols, { method = 'GET', path = '', body, params = {} } 
   const { run } = require('../../lib/action')
   const p = { ...params, __ow_method: method.toLowerCase(), __ow_path: path }
   if (body !== undefined) p.__ow_body = JSON.stringify(body)
-  return run(p, action.handler, { allowOffline: action.allowOffline, collections: async () => cols })
+  return run(p, action.handler, { collections: async () => cols })
 }
 
 module.exports = { memoryCollections, invoke }

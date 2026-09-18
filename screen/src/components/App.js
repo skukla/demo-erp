@@ -4,7 +4,7 @@
  * is the only credential, so opened without one it says where to go instead.
  */
 import React, { useEffect, useState, useCallback } from 'react'
-import { Provider, defaultTheme, Grid, View, Heading, ActionGroup, Item, InlineAlert, Content, Badge, ToastContainer } from '@adobe/react-spectrum'
+import { Provider, defaultTheme, Grid, View, Heading, ActionGroup, Item, InlineAlert, Content, ToastContainer } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import Dashboard from './Dashboard'
 import Products from './Products'
@@ -58,11 +58,6 @@ export default function App ({ screenKey }) {
       <Grid areas={['rail content']} columns={['size-3000', '1fr']} rows={['auto']} height='100%'>
         <View gridArea='rail' backgroundColor='gray-100' padding='size-300' borderEndWidth='thin' borderEndColor='gray-300'>
           <Heading level={2} marginTop={0}>{health ? health.displayName : 'ERP'}</Heading>
-          {health && (
-            <Badge variant={health.offline ? 'negative' : 'positive'} marginBottom='size-200'>
-              {health.offline ? 'Offline' : 'Online'}
-            </Badge>
-          )}
           <ActionGroup orientation='vertical' isQuiet selectionMode='single' selectedKeys={[page]}
             onSelectionChange={(keys) => setPage([...keys][0] || 'dashboard')} width='100%'>
             {PAGES.map((p) => <Item key={p.key}>{p.label}</Item>)}

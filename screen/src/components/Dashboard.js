@@ -1,5 +1,5 @@
 import React from 'react'
-import { Flex, View, Heading, Text, StatusLight } from '@adobe/react-spectrum'
+import { Flex, View, Heading, Text } from '@adobe/react-spectrum'
 import Frame from './Frame'
 
 function Stat ({ label, value }) {
@@ -27,9 +27,6 @@ export default function Dashboard ({ health }) {
             <Stat label='Pricing conditions' value={counts.pricingConditions ?? 0} />
             <Stat label='Events pending' value={counts.events ?? 0} />
           </Flex>
-          <StatusLight variant={health.offline ? 'negative' : 'positive'}>
-            {health.offline ? 'Offline' : 'Online'}
-          </StatusLight>
         </>
       )}
     </Frame>

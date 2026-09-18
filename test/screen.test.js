@@ -89,9 +89,8 @@ test('the key never reaches a handler as data', async () => {
   assert.doesNotMatch(JSON.stringify(res.body), new RegExp(KEY))
 })
 
-test('an offline ERP still refuses what its own action refuses, and allows what it allows', async () => {
-  await screen({ method: 'PATCH', path: '/api/settings', key: KEY, body: { offline: true } })
-  assert.equal((await screen({ path: '/api/products', key: KEY })).statusCode, 503)
+test('every ERP action is reachable through the screen with the key', async () => {
+  assert.equal((await screen({ path: '/api/products', key: KEY })).statusCode, 200)
   assert.equal((await screen({ path: '/api/health', key: KEY })).statusCode, 200)
 })
 

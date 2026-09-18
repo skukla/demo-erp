@@ -14,7 +14,7 @@ What it holds, in SAP's words:
 | Pricing conditions | contract prices, contract discounts, max-discount ceilings | created here |
 | Sales orders | created by the integration from Commerce orders; **status** moved here (created → confirmed → shipped → invoiced, or cancelled) | number is the ERP's, never reused |
 | Events | the ERP's outbound event log: every change it publishes (price, stock, credit limit, block, order status), delivered or pending | |
-| Settings | display name, **offline** switch (every record request answers 503, the way an unavailable system looks; a test control, not a demo scene) | |
+| Settings | display name; Sync records and Wipe all records | |
 
 Records are transitory, and Commerce is the master the demo is prepared in: the ERP only
 looks like the system of record. Every import (at install, on a Commerce change, on reset)
@@ -30,8 +30,8 @@ one exception is `screen`, below, which serves the ERP's own page.
 
 | Action | Routes |
 |---|---|
-| `health` | `GET` name, offline, counts, last import/wipe |
-| `settings` | `GET`, `PATCH { displayName?, offline? }` |
+| `health` | `GET` name, counts, last import/wipe |
+| `settings` | `GET`, `PATCH { displayName? }` |
 | `admin` | `POST /wipe`, `POST /import { products[], partners[], projectName? }` |
 | `products` | `GET`, `GET /:sku`, `PATCH /:sku { listPrice?, stock? }` |
 | `partners` | `GET`, `GET /:id`, `PATCH /:id { creditLimit?, blocked?, paymentTerms? }` (import rows may carry `emailDomain`; quotes resolve the partner by id, company, email domain, then customer group) |
