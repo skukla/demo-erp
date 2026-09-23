@@ -8,3 +8,4 @@ console.json
 .parcel-cache
 .aws.tmp.creds.json
 actions/screen/assets.generated.js
+preview/dist/

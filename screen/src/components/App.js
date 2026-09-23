@@ -24,11 +24,17 @@ const PAGES = [
   { key: 'settings', label: 'Settings', Component: Settings }
 ]
 
-export default function App ({ screenKey }) {
+/**
+ * @param {object} props `screenKey` from Demo Builder's link, and `api` — an override
+ *   the local preview hands in so the whole screen can be looked at without a deployed
+ *   action, a key, or any records. Nothing in production passes it.
+ */
+export default function App ({ screenKey, api: given }) {
   const [page, setPage] = useState('dashboard')
   const [health, setHealth] = useState(null)
   const [error, setError] = useState(null)
-  const api = React.useMemo(() => makeApi(screenKey), [screenKey])
+  const api = React.useMemo(() => given || makeApi(screenKey), [given, screenKey])
+  const ready = Boolean(screenKey || given)
 
   const refreshHealth = useCallback(async () => {
     try {
@@ -39,7 +45,7 @@ export default function App ({ screenKey }) {
     }
   }, [api])
 
-  useEffect(() => { if (screenKey) refreshHealth() }, [screenKey, refreshHealth])
+  useEffect(() => { if (ready) refreshHealth() }, [ready, refreshHealth])
 
   // While a sync runs, keep reading health: the Dashboard's counters are the
   // ERP's contents, so they should climb as the integration imports rather than
@@ -47,10 +53,10 @@ export default function App ({ screenKey }) {
   // dependency), so it stops by itself when the sync ends.
   const syncing = Boolean(health && health.sync && (health.sync.state === 'requested' || health.sync.state === 'running'))
   useEffect(() => {
-    if (!screenKey || !syncing) return undefined
+    if (!ready || !syncing) return undefined
     const id = setTimeout(refreshHealth, 2000)
     return () => clearTimeout(id)
-  }, [screenKey, syncing, refreshHealth, health])
+  }, [ready, syncing, refreshHealth, health])
 
   const active = PAGES.find((p) => p.key === page) || PAGES[0]
   return (
@@ -64,19 +70,19 @@ export default function App ({ screenKey }) {
           </ActionGroup>
         </View>
         <View gridArea='content' padding='size-400' overflow='auto'>
-          {!screenKey && (
+          {!ready && (
             <InlineAlert variant='info'>
               <Heading>Open the ERP from Demo Builder</Heading>
               <Content>This address needs the key in the link Demo Builder opens. On the project's Integrations page, choose Open ERP.</Content>
             </InlineAlert>
           )}
-          {screenKey && error && (
+          {ready && error && (
             <InlineAlert variant='negative' marginBottom='size-300'>
               <Heading>The ERP did not answer</Heading>
               <Content>{error.message}</Content>
             </InlineAlert>
           )}
-          {screenKey && <active.Component key={active.key} api={api} health={health} onChanged={refreshHealth} onNavigate={setPage} />}
+          {ready && <active.Component key={active.key} api={api} health={health} onChanged={refreshHealth} onNavigate={setPage} />}
         </View>
       </Grid>
       <ToastContainer placement='top' />

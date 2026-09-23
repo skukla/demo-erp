@@ -27,14 +27,16 @@ const money = (o) => new Intl.NumberFormat(undefined, { style: 'currency', curre
    reference for the order, which is exactly what the Commerce increment id is. */
 const reference = (o) => o.commerceIncrementId || o.commerceOrderId || '—'
 
+/* Each sortable header carries a chevron, which eats about 24px of its width: a
+   column sized to its title alone truncates the title. */
 const ORDER_COLUMNS = [
-  { key: 'number', width: 140 },
-  { key: 'date', width: 130 },
+  { key: 'number', width: 165 },
+  { key: 'date', width: 140 },
   { key: 'reference', width: 150 },
-  { key: 'partner', width: 120 },
+  { key: 'partner', width: 130 },
   { key: 'lines', width: 80 },
   { key: 'total', width: 130 },
-  { key: 'status', width: 130 },
+  { key: 'status', width: 140 },
   { key: 'actions' }
 ]
 
@@ -67,7 +69,11 @@ export default function Orders ({ api, onChanged }) {
         <TableHeader>
           <Column key='number' {...widths.columnProps('number')} allowsSorting>Sales order</Column>
           <Column key='date' {...widths.columnProps('date')} allowsSorting>Order date</Column>
-          <Column key='reference' {...widths.columnProps('reference')} allowsSorting>Customer reference</Column>
+          {/* "Reference", not "Customer reference": the full phrase plus its sort
+              chevron does not fit beside the Move to buttons, and the reference()
+              comment above says what it is. Business Central heads the same field
+              External Document No., which is longer still. */}
+          <Column key='reference' {...widths.columnProps('reference')} allowsSorting>Reference</Column>
           <Column key='partner' {...widths.columnProps('partner')} allowsSorting>Sold-to</Column>
           <Column key='lines' {...widths.columnProps('lines')} align='end' allowsSorting>Lines</Column>
           <Column key='total' {...widths.columnProps('total')} align='end' allowsSorting>Net amount</Column>

@@ -9,7 +9,7 @@ import { useGridView, GridSearch } from './GridView'
 
 const EVENT_COLUMNS = [
   { key: 'at', width: 200 },
-  { key: 'direction', width: 150 },
+  { key: 'direction', width: 180 },
   { key: 'event' },
   { key: 'state', width: 160 },
   { key: 'detail' }

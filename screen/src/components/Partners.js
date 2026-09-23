@@ -23,12 +23,13 @@ import { useGridView, GridSearch } from './GridView'
 
 const money = { style: 'currency', currency: 'USD' }
 
+/* Wide enough for the header plus its sort chevron; see Orders.js. */
 const PARTNER_COLUMNS = [
-  { key: 'id', width: 120 },
+  { key: 'id', width: 150 },
   { key: 'name' },
-  { key: 'commerce', width: 150 },
-  { key: 'salesOrg', width: 150 },
-  { key: 'terms', width: 130 },
+  { key: 'commerce', width: 195 },
+  { key: 'salesOrg', width: 190 },
+  { key: 'terms', width: 165 },
   { key: 'creditLimit', width: 170 },
   { key: 'blocked', width: 110 }
 ]

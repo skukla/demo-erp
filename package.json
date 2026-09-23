@@ -11,7 +11,8 @@
     "test": "node --test test/",
     "deploy": "aio app deploy",
     "undeploy": "aio app undeploy",
-    "build:screen": "node scripts/build-screen.js"
+    "build:screen": "node scripts/build-screen.js",
+    "preview": "node scripts/preview.js"
   },
   "dependencies": {
     "@adobe/aio-lib-db": "^1",
