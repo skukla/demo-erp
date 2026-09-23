@@ -51,8 +51,17 @@ const PAGES = AREAS.flatMap((area) => area.items)
 
 /* Which shape the menu takes, while the two are being compared. 'rail' is Fiori's Side
    Navigation; 'top' is Business Central's navigation menu — root items along a band,
-   each opening its group. One of these is going away once it is chosen. */
+   each opening its group. One of these is going away once it is chosen.
+ *
+ * `?menu=top` in the address overrides it, so the two can be put side by side in two
+ * tabs without editing anything. The screen key survives that: takeScreenKey strips
+ * only `?key=` and keeps the rest of the query (key.js). */
 const MENU_SHAPE = 'rail'
+
+function menuShape () {
+  const asked = new URLSearchParams(window.location.search).get('menu')
+  return asked === 'top' || asked === 'rail' ? asked : MENU_SHAPE
+}
 
 /**
  * @param {object} props `screenKey` from Demo Builder's link, and `api` — an override
@@ -66,6 +75,7 @@ export default function App ({ screenKey, api: given }) {
   // The open area comes from the address bar, so reloading the browser stays where it
   // was. Before this it lived only in memory and every reload landed on the Dashboard.
   const [page, setPage] = useState(() => pageFromHash(window.location.hash, PAGE_KEYS) || DEFAULT_PAGE)
+  const shape = menuShape()
   // Bumped on every rail click and carried in the active page's key, so choosing an
   // area re-mounts it and it reads its records again — including when the area chosen
   // is the one already open, which is what someone clicking it again is asking for.
@@ -134,7 +144,7 @@ export default function App ({ screenKey, api: given }) {
         <header className='erp-shellbar'>
           <span className='erp-shellbar-name'>{health ? health.displayName : 'ERP'}</span>
         </header>
-        {MENU_SHAPE === 'top' && (
+        {shape === 'top' && (
           <nav className='erp-topnav' aria-label='Areas'>
             {AREAS.map((area) => (area.group === null
               /* A group of one, and the home, are links rather than menus: an audience
@@ -177,7 +187,7 @@ export default function App ({ screenKey, api: given }) {
               already selected, so clicking the open area sent the user to the Dashboard.
             `aria-current="page"` is also what a navigation list should say; aria-checked
             described these as radio buttons, which they are not. */}
-        {MENU_SHAPE === 'rail' && (
+        {shape === 'rail' && (
         <nav className='erp-rail' aria-label='Areas'>
           {AREAS.map((area) => (
             <div
