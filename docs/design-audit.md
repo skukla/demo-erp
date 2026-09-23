@@ -164,3 +164,47 @@ value is needed that the tokens do not have, **the missing thing is the token**.
 The 17 `UNSAFE_style` escapes in the components are the remaining debt. They are where
 the system can leak back in, and they are why the product detail page still reads
 slightly apart from the rest.
+
+
+---
+
+# The contrast floor, and why it had to become a measurement
+
+**2026-09-23.** Colour was being chosen by reasoning about hex values and judged by
+somebody looking at it. That is how the same class of fault kept surviving: each round
+fixed the thing that had been named, and the value next to it was still under.
+
+There are now two rules, and both are checked the same way the stray-colour sweep is
+checked — by walking every visible element on every page.
+
+## The rules
+
+| | Measure | Floor |
+|---|---|---|
+| Text against whatever it sits on | WCAG contrast ratio | **4.5:1**, or 3:1 if large |
+| Two surfaces meeting each other | **L\*** — perceptual lightness | a step of **3**, comfortably 5 |
+
+The second one matters as much as the first and is easy to get wrong: contrast ratio is
+a TEXT measure, and two light surfaces sit near 1.1 on it however different they look.
+Judging a card against its canvas by contrast ratio says "1.10" whether the step is
+invisible or obvious. L\* says which.
+
+## What the first run found
+
+Nine failures, on every page, and all of them one token: `--ink-2` measured 4.22:1 on
+white and was being used for field labels, help text, table headings, the neutral status
+badge and the Dashboard's own labels. Darkening that single value cleared all of them —
+which is the point of having a system rather than a patch list.
+
+The top navigation failed separately and for a structural reason: it was built out of
+the rail's tokens. Those are made to sit BESIDE white cards; a horizontal band sits
+ABOVE a canvas and under a dark bar. Its labels measured 3.85:1 and the current item's
+tint measured 1.05 against the band it sat on — invisible. The band is a white surface
+now, and the current item is marked with a rule rather than a tint.
+
+## The result
+
+Both menu shapes, all seven pages: **no text under the floor.** The one hit left is the
+disabled "Price it" button at 1.73, which WCAG exempts and the sweep now exempts too.
+
+Every sweep plants a failing control so a clean result means the check ran.

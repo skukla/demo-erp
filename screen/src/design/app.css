@@ -41,38 +41,47 @@
 
 /* Business Central's shape: a band of root items under the shell bar, each opening its
    group. The current area's root stays marked, so the band still says where you are
-   once the menu closes. */
+   once the menu closes.
+ *
+ * The band is a SURFACE, not the rail's tint. Using the rail token here measured 1.10
+ * against the canvas and its labels 3.85:1 — the rail's colours are built to sit BESIDE
+ * white cards, and a horizontal band sits ABOVE a canvas, under a dark bar. Different
+ * job, different values. */
 .erp-topnav {
   display: flex;
   flex: 0 0 auto;
   flex-wrap: wrap;
   gap: var(--space-1);
   align-items: center;
-  padding: var(--space-1) var(--space-4);
-  background: var(--surface-rail);
+  padding: 0 var(--space-4);
+  background: var(--surface-card);
   border-block-end: 1px solid var(--line);
 }
 
 .erp-topnav-item {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-3);
   font-size: var(--type-body-size);
-  color: var(--ink-2);
+  color: var(--grey-700);
   background: transparent;
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: 0;
   cursor: pointer;
 }
 
 .erp-topnav-item:hover {
   color: var(--ink);
-  background: var(--surface-card);
+  background: var(--surface-hover);
 }
 
+/* A rule under the current item rather than a tint behind it. A tint on a light band
+   measured 1.05 against it — invisible — where a 2px accent line reads at any size, and
+   it is how both reference systems mark a current item in a horizontal menu. */
 .erp-topnav button[aria-current="page"],
 .erp-topnav-item[aria-current="page"] {
   font-weight: var(--type-section-weight);
-  color: var(--accent-ink);
-  background: var(--accent-tint);
+  color: var(--accent);
+  background: transparent;
+  box-shadow: inset 0 -2px 0 0 var(--accent);
 }
 
 .erp-app {
@@ -113,12 +122,14 @@
 }
 
 .erp-rail-group-name {
+  /* ink-2, not ink-3: a group heading is small text on the rail's tint, which is the
+     hardest place on the screen to reach the floor. */
   padding: 0 var(--space-2);
   margin: 0 0 var(--space-2);
   font-size: var(--type-micro-size);
   font-weight: var(--type-micro-weight);
   line-height: 1.3;
-  color: var(--ink-3);
+  color: var(--ink-2);
   letter-spacing: var(--type-micro-spacing);
   text-transform: uppercase;
 }

@@ -50,10 +50,20 @@
   --surface-head: var(--grey-50);
   --surface-hover: var(--grey-50);
 
-  /* ---- Ink ------------------------------------------------------------------ */
+  /* ---- Ink ------------------------------------------------------------------
+   * THE FLOOR: every piece of text on the screen must reach 4.5:1 against whatever it
+   * actually sits on (3:1 if it is large). --ink-2 was grey-600 and measured 4.22 on
+   * white — which is why field labels, help text, table heads, the neutral badge and
+   * the Dashboard's own labels all failed at once on every page. One token, nine
+   * symptoms; darkening it fixed all of them.
+   *
+   * Surfaces are judged differently. Contrast ratio is a TEXT measure and two light
+   * surfaces sit near 1.1 on it however different they look, so adjacent surfaces are
+   * judged on L* — perceptual lightness — where a step of 3 is visible and 5 is
+   * comfortable. */
   --ink: var(--grey-900);
-  --ink-2: var(--grey-600);
-  --ink-3: var(--grey-500);
+  --ink-2: var(--grey-700);
+  --ink-3: var(--grey-600);
 
   /* ---- Line -----------------------------------------------------------------
    * One colour. Card edges, table rules, dividers and field borders all draw in it. */
