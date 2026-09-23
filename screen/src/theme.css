@@ -1,7 +1,11 @@
 /*
  * A house style over Spectrum. The components stay Spectrum — their behaviour,
- * keyboard handling and accessibility are the reason to use it — but the chrome reads
- * as business software rather than as an Adobe product.
+ * keyboard handling and accessibility are the reason to use it — but the surface reads
+ * as current business software rather than as an Adobe product OR as a 2010 ERP.
+ *
+ * The structure is the ERP part: documents, dense tables, labelled header fields, one
+ * short text per product. The TREATMENT is not: no heavy chrome, no boxed panels, no
+ * hard borders penning everything in. Space and weight do the separating instead.
  *
  * Every selector and variable here was read off the rendered page before it was
  * written, not guessed. Two things make that necessary:
@@ -16,29 +20,64 @@
  * If a rule here stops working, check both of those before assuming Spectrum changed.
  */
 
-/* ---- The single loudest tell: the pill ---------------------------------------
- * Spectrum buttons are 16px-radius capsules. No ERP has ever shipped a capsule
- * button; SAP Fiori and Business Central both use a small rectangle. The variable is
- * declared on the button, so the override has to be too.
+:root {
+  --erp-accent: #1f6feb;
+  --erp-accent-tint: #eaf2fe;
+  --erp-ink: #1f2328;
+  --erp-ink-soft: #5b636b;
+  --erp-ink-faint: #848d97;
+  --erp-hairline: #e6e8ea;
+  --erp-hover: #f5f6f7;
+}
+
+/* ---- Buttons ------------------------------------------------------------------
+ * Spectrum draws 16px capsules. No ERP has ever shipped a capsule button, and no
+ * current product does either — a 6px rectangle is what both ends of the reference
+ * range use. The variable is declared on the button, so the override has to be too.
  */
 button[class*="spectrum-Button"],
 button[class*="spectrum-ActionButton"],
 button[class*="spectrum-BaseButton"] {
-  --spectrum-button-border-radius: 4px;
-  --spectrum-focus-ring-border-radius: 5px;
+  --spectrum-button-border-radius: 6px;
+  --spectrum-focus-ring-border-radius: 7px;
 }
 
-/* ---- The accent ---------------------------------------------------------------
- * Spectrum's #0265dc is a vivid product blue. These four are declared at the theme
- * root, so they can be re-pointed there. A deeper, less saturated blue reads as
- * enterprise software and keeps white text well clear of the contrast floor
- * (measured in the browser at 7.36:1 against white, where 4.5:1 is the requirement).
+input,
+div[class*="spectrum-Textfield"],
+button[class*="spectrum-Picker"] {
+  --spectrum-textfield-border-radius: 6px;
+}
+
+/* ---- Colour -------------------------------------------------------------------
+ * A clean blue rather than Spectrum's vivid product blue or the navy that replaced it
+ * first — that one read as dated, which is the thing being fixed. Measured in the
+ * browser against white; the figure is in the commit rather than here, because a
+ * number in a comment is the kind that rots.
  */
 [class*="spectrum--light"] {
-  --spectrum-accent-background-color-default: #13598f;
-  --spectrum-accent-background-color-hover: #0f4a78;
-  --spectrum-accent-background-color-key-focus: #0f4a78;
-  --spectrum-accent-background-color-down: #0d3f66;
+  --spectrum-accent-background-color-default: #1f6feb;
+  --spectrum-accent-background-color-hover: #1a5fcc;
+  --spectrum-accent-background-color-key-focus: #1a5fcc;
+  --spectrum-accent-background-color-down: #164fa8;
+}
+
+/* ---- Type ---------------------------------------------------------------------
+ * Spectrum's h1 is 28px/700 near-black. That weight is what makes a screen look
+ * heavy. Current software sets a title in a medium weight and lets size carry it.
+ */
+.erp-content h1 {
+  margin-bottom: 4px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--erp-ink);
+}
+
+.erp-content h2,
+.erp-content h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--erp-ink);
 }
 
 /* ---- The shell ----------------------------------------------------------------
@@ -49,37 +88,41 @@ button[class*="spectrum-BaseButton"] {
   display: flex;
   height: 100%;
   min-height: 0;
+  background: #fff;
 }
 
+/* The rail is white and separated by a hairline, not a panel in its own grey box. */
 .erp-rail {
-  flex: 0 0 240px;
+  flex: 0 0 232px;
   box-sizing: border-box;
-  padding: 20px 12px;
+  padding: 24px 16px;
   overflow-y: auto;
-  background: var(--spectrum-global-color-gray-75, #f8f8f8);
-  border-inline-end: 1px solid var(--spectrum-global-color-gray-300, #e1e1e1);
+  background: #fff;
+  border-inline-end: 1px solid var(--erp-hairline);
 }
 
 .erp-rail-name {
-  padding: 0 8px;
-  margin: 0 0 16px;
-  font-size: 16px;
-  font-weight: 700;
+  padding: 0 10px;
+  margin: 0 0 20px;
+  font-size: 13px;
+  font-weight: 600;
   line-height: 1.3;
+  color: var(--erp-ink-faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .erp-content {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 24px 28px 48px;
+  padding: 28px 32px 64px;
   overflow: auto;
 }
 
-/* ---- The rail's selected item -------------------------------------------------
- * Spectrum marks a selected quiet action as a dark filled block. Every ERP marks the
- * page you are on with a bar down the side and a light tint, so the nav reads as a
- * place rather than as a pressed button. `aria-checked` is the hook because it is
- * semantic — the class names are hashed.
+/* ---- The rail's current page --------------------------------------------------
+ * Spectrum marks a selected quiet action with a dark filled block. A tint in the
+ * accent colour and the accent's own text is how current software marks it — the bar
+ * down the side that replaced the dark block first was the dated half.
  */
 .erp-rail [class*="spectrum-ActionGroup"] {
   gap: 2px;
@@ -88,15 +131,21 @@ button[class*="spectrum-BaseButton"] {
 .erp-rail button[class*="spectrum-ActionButton"] {
   justify-content: flex-start;
   width: 100%;
-  border-radius: 3px;
+  font-weight: 400;
+  color: var(--erp-ink-soft);
+  border-radius: 6px;
 }
 
-.erp-rail button[aria-checked="true"] {
-  font-weight: 700;
-  color: var(--spectrum-global-color-gray-900, #1b1b1b);
-  background: var(--spectrum-global-color-gray-200, #e9e9e9);
-  border-inline-start: 3px solid #13598f;
-  border-radius: 0 3px 3px 0;
+.erp-rail button[class*="spectrum-ActionButton"]:hover {
+  color: var(--erp-ink);
+  background: var(--erp-hover);
+}
+
+.erp-rail button[aria-checked="true"],
+.erp-rail button[aria-checked="true"]:hover {
+  font-weight: 600;
+  color: var(--erp-accent);
+  background: var(--erp-accent-tint);
 }
 
 /* ---- A page's own header ------------------------------------------------------
@@ -110,7 +159,7 @@ button[class*="spectrum-BaseButton"] {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .erp-page-actions {
@@ -119,6 +168,71 @@ button[class*="spectrum-BaseButton"] {
   gap: 8px;
   align-items: center;
 }
+
+/* ---- Tables -------------------------------------------------------------------
+ * The head row loses its grey fill and its bold; one hairline separates it from the
+ * rows. A row is separated by space and a hover, not by a line under every one of
+ * them — a ruled grid is the single most dated thing an enterprise screen does.
+ */
+[class*="spectrum-Table-headCell"] {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--erp-ink-soft);
+  letter-spacing: 0.02em;
+  background: transparent !important;
+}
+
+/* headWrapper, NOT head: `[class*="spectrum-Table-head"]` also matches Table-head,
+   Table-headCell and Table-headCellContents, so one intended line became four nested
+   ones and drew a stray underline beneath several column titles. A substring selector
+   matches every longer name too — check what else shares the prefix before using one. */
+[class*="spectrum-Table-headWrapper"] {
+  border-block-end: 1px solid var(--erp-hairline);
+}
+
+/* The line under every row is an inset box-shadow on the row's ::after, not a border —
+   which is why nothing here targeted it for two attempts. Softened rather than removed:
+   a dense table of numbers is harder to read across with nothing at all, and a ruled
+   grid in Spectrum's #d5d5d5 is the dated end of the same choice. */
+[class*="spectrum-Table-row"]::after {
+  box-shadow: inset 0 -1px 0 0 #f1f2f3 !important;
+}
+
+[class*="spectrum-Table-row"]:hover [class*="spectrum-Table-cell"] {
+  background: var(--erp-hover);
+}
+
+[class*="spectrum-Table-cell"] {
+  color: var(--erp-ink);
+}
+
+/* ---- Status -------------------------------------------------------------------
+ * Spectrum's status light is a coloured dot beside grey text, which is legible and
+ * old. A tinted badge is what current software uses and it reads at a glance across a
+ * column. The dot is a ::before, so it is hidden rather than removed.
+ */
+[class*="spectrum-StatusLight"] {
+  display: inline-block;
+  padding: 2px 9px 3px;
+  font-size: 12px;
+  font-weight: 500;
+  /* Spectrum italicises the neutral variant, which reads as an aside rather than as a
+     state once it is a badge. Every status is a state. */
+  font-style: normal;
+  line-height: 18px;
+  border-radius: 5px;
+  min-height: 0;
+}
+
+[class*="spectrum-StatusLight"]::before {
+  display: none !important;
+}
+
+[class*="spectrum-StatusLight--positive"] { color: #116b43; background: #e7f5ed; }
+[class*="spectrum-StatusLight--negative"] { color: #a7201f; background: #fdeced; }
+[class*="spectrum-StatusLight--notice"]   { color: #8a5200; background: #fdf2e3; }
+[class*="spectrum-StatusLight--info"]     { color: #1a4f9c; background: var(--erp-accent-tint); }
+[class*="spectrum-StatusLight--neutral"]  { color: var(--erp-ink-soft); background: #f1f2f3; }
 
 /* ---- Narrow -------------------------------------------------------------------
  * Under 900px the rail goes to the top and scrolls sideways, which is what it is for:
@@ -133,18 +247,18 @@ button[class*="spectrum-BaseButton"] {
 
   .erp-rail {
     flex: none;
-    padding: 12px;
+    padding: 12px 16px;
     overflow-x: auto;
     overflow-y: visible;
     border-inline-end: none;
-    border-block-end: 1px solid var(--spectrum-global-color-gray-300, #e1e1e1);
+    border-block-end: 1px solid var(--erp-hairline);
   }
 
   .erp-rail-name {
     margin-bottom: 10px;
   }
 
-  /* The nav becomes one scrollable row of tabs. */
+  /* The nav becomes one scrollable row. */
   .erp-rail [class*="spectrum-ActionGroup"] {
     flex-direction: row;
     flex-wrap: nowrap;
@@ -155,14 +269,8 @@ button[class*="spectrum-BaseButton"] {
     white-space: nowrap;
   }
 
-  .erp-rail button[aria-checked="true"] {
-    border-inline-start: none;
-    border-block-end: 3px solid #13598f;
-    border-radius: 3px 3px 0 0;
-  }
-
   .erp-content {
-    padding: 16px;
+    padding: 20px 16px 48px;
   }
 
   .erp-page-header {
@@ -170,9 +278,8 @@ button[class*="spectrum-BaseButton"] {
   }
 }
 
-/* A table wider than the screen scrolls sideways rather than pushing the page out. */
 @media (max-width: 700px) {
   .erp-content {
-    padding: 12px;
+    padding: 16px 12px 40px;
   }
 }

@@ -11,8 +11,10 @@ const LABEL_STYLE = { color: 'var(--spectrum-global-color-gray-700)', fontSize: 
 
 /** One labelled fact. An absent value reads as a dash, never as an empty gap. */
 function Field ({ label, children }) {
+  // alignItems start, not the default stretch: a status badge is as wide as its word,
+  // and a flex column would otherwise pull it across the whole field.
   return (
-    <Flex direction='column' gap='size-25'>
+    <Flex direction='column' gap='size-25' alignItems='start'>
       <Text UNSAFE_style={LABEL_STYLE}>{label}</Text>
       {typeof children === 'string' || typeof children === 'number'
         ? <Text>{children}</Text>
