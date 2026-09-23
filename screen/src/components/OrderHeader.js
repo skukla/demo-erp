@@ -33,32 +33,33 @@ export function statusText (status) {
 export default function OrderHeader ({ order }) {
   const partner = order.partner
   return (
-    <Grid
-      columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }}
-      gap='size-250'
-      marginBottom='size-300'
-    >
-      <Field label='Document type'>Sales order</Field>
-      <Field label='Order date'>{formatDate(order.createdAt)}</Field>
+    <div className='erp-card'>
+      <Grid
+        columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }}
+        gap='size-250'
+      >
+        <Field label='Document type'>Sales order</Field>
+        <Field label='Order date'>{formatDate(order.createdAt)}</Field>
       {/* The buyer's own reference for this order, which is what Commerce's increment
           id is. Business Central heads the same field External Document No. */}
-      <Field label='Customer reference'>{order.commerceIncrementId || order.commerceOrderId || '—'}</Field>
+        <Field label='Customer reference'>{order.commerceIncrementId || order.commerceOrderId || '—'}</Field>
 
-      <Field label='Sold-to'>{partner ? `${partner.id} · ${partner.name}` : '—'}</Field>
+        <Field label='Sold-to'>{partner ? `${partner.id} · ${partner.name}` : '—'}</Field>
       {/* SAP's own default: in the simplest case the customer takes every partner
           function itself. Saying so is honest and it is the field an ERP eye looks for. */}
-      <Field label='Ship-to'>Same as sold-to</Field>
-      <Field label='Sales organisation'>{partner ? partner.salesOrg : '—'}</Field>
+        <Field label='Ship-to'>Same as sold-to</Field>
+        <Field label='Sales organisation'>{partner ? partner.salesOrg : '—'}</Field>
 
-      <Field label='Payment terms'>{partner ? partner.paymentTerms : '—'}</Field>
-      <Field label='Currency'>{order.currency || 'USD'}</Field>
-      <Field label='Status'>
+        <Field label='Payment terms'>{partner ? partner.paymentTerms : '—'}</Field>
+        <Field label='Currency'>{order.currency || 'USD'}</Field>
+        <Field label='Status'>
         <StatusLight variant={LIGHT[order.status] || 'neutral'} marginStart='size-0'>
           {statusText(order.status)}
         </StatusLight>
       </Field>
 
-      {order.cancelReason && <Field label='Cancellation reason'>{order.cancelReason}</Field>}
-    </Grid>
+        {order.cancelReason && <Field label='Cancellation reason'>{order.cancelReason}</Field>}
+      </Grid>
+    </div>
   )
 }

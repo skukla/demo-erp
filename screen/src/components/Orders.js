@@ -91,7 +91,7 @@ export default function Orders ({ api, onChanged }) {
         <TableBody items={view.items}>
           {(o) => (
             <Row key={o.number}>
-              <Cell>{o.number}</Cell>
+              <Cell><span className='erp-key'>{o.number}</span></Cell>
               <Cell>{formatDate(o.createdAt)}</Cell>
               <Cell>{reference(o)}</Cell>
               <Cell>{o.partnerName ? `${o.partnerId} · ${o.partnerName}` : (o.partnerId || '—')}</Cell>

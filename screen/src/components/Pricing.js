@@ -14,7 +14,7 @@
  * deleting a row from a small table is a table operation, not a workflow step.
  */
 import React, { useMemo, useState } from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, ActionButton, Text } from '@adobe/react-spectrum'
+import { TableView, TableHeader, Column, TableBody, Row, Cell, ActionButton } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import AddPricingRule from './AddPricingRule'
 import PriceTest from './PriceTest'
@@ -71,13 +71,7 @@ export default function Pricing ({ api, onChanged }) {
       loading={!rows}
       actions={<AddPricingRule onAdd={add} />}
     >
-      {/* Not instructions — the one thing about this page that cannot be read off it.
-          Which rule wins is the whole behaviour, and it is what an audience asks. */}
-      <Text>
-        The most specific rule wins: one customer and one product beats one customer,
-        which beats everyone.
-      </Text>
-      <TableView {...widths.tableProps} aria-label='Pricing rules' density='compact' overflowMode='wrap' marginTop='size-200'>
+      <TableView {...widths.tableProps} aria-label='Pricing rules' density='compact' overflowMode='wrap'>
         <TableHeader>
           <Column key='rule' {...widths.columnProps('rule')}>Rule</Column>
           <Column key='customer' {...widths.columnProps('customer')}>Customer</Column>

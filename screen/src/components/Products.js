@@ -4,7 +4,7 @@
  * else on a row opens the page, which carries its own Back.
  */
 import React, { useMemo, useState } from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, Text } from '@adobe/react-spectrum'
+import { TableView, TableHeader, Column, TableBody, Row, Cell } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import ProductDetail from './ProductDetail'
 import StockStatus from './StockStatus'
@@ -24,9 +24,11 @@ const PRODUCT_COLUMNS = [
   { key: 'name', width: '2fr', minWidth: NAME_MIN_WIDTH },
   // "Configurable · 16 variants" is the longest thing this column holds.
   { key: 'kind', width: '1fr', minWidth: 190 },
-  { key: 'unit', width: 110 },
+  /* Wider than the words need: the headings are set in uppercase with letter-spacing,
+     which costs about a quarter again on a short one. "Base unit" was clipping. */
+  { key: 'unit', width: 135 },
   { key: 'listPrice', width: 170 },
-  { key: 'stock', width: 110 },
+  { key: 'stock', width: 125 },
   { key: 'status', width: 140 }
 ]
 
@@ -95,11 +97,6 @@ export default function Products ({ api, onChanged, onNavigate }) {
 
   return (
     <Frame title='Products' error={error} loading={!rows} actions={<EditToggle editing={editing} onChange={setEditing} />}>
-      <Text>
-        {editing
-          ? 'Click a name, price or stock figure to change it. Stock held in several warehouses, and a configurable product\'s price and stock, are changed on the product\'s page.'
-          : 'Choose a product to open it, or Edit to change names, prices and stock here. A configurable product lists its variants, which hold the price and stock.'}
-      </Text>
       <GridSearch placeholder='Product or description' view={view} />
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Products'
@@ -124,7 +121,7 @@ export default function Products ({ api, onChanged, onNavigate }) {
         <TableBody items={view.items}>
           {(p) => (
             <Row key={p.sku}>
-              <Cell>{p.sku}</Cell>
+              <Cell><span className='erp-key'>{p.sku}</span></Cell>
               <Cell><NameCell product={p} editing={p.editing} onSave={(patch) => save(p.sku, patch)} /></Cell>
               <Cell>{kindText(p)}</Cell>
               <Cell>{p.unit || 'EA'}</Cell>

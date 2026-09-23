@@ -31,7 +31,7 @@ function Total ({ label, amount, currency, strong }) {
 export default function OrderLines ({ order }) {
   const lines = order.lines || []
   return (
-    <>
+    <div className='erp-card'>
       <TableView aria-label='Order lines' density='compact' overflowMode='wrap'>
         <TableHeader>
           <Column key='item' width={90}>Item</Column>
@@ -69,6 +69,6 @@ export default function OrderLines ({ order }) {
           <Total label='Total' amount={order.total} currency={order.currency} strong />
         </Flex>
       </View>
-    </>
+    </div>
   )
 }

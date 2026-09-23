@@ -28,10 +28,20 @@
   --erp-ink-faint: #848d97;
   --erp-hairline: #e6e8ea;
   --erp-hover: #f5f6f7;
+  /* Three surfaces, not one. Everything was white on white, so a table had no edge and
+     the page had no shape: rail, then the canvas the work sits on, then the white
+     cards the work is ON. Each step is small; the three together are what makes a
+     screen read as sections rather than as a document. */
+  --erp-canvas: #f7f8fa;
+  --erp-card: #ffffff;
+  --erp-card-edge: #e4e8ed;
   /* The rail's own surface and the line that divides it from the work. Enough to read
      as two areas at a glance, not enough to read as a boxed panel. */
-  --erp-rail-surface: #f2f4f7;
+  --erp-rail-surface: #eef1f5;
   --erp-rail-edge: #dde2e8;
+  /* A step DARKER than the rail. The shared --erp-hover is lighter than it, so on the
+     rail it washed the item out instead of picking it up. */
+  --erp-rail-hover: #e4e9f0;
   /* The current page's own tint. It has to step clearly off the rail's surface, which
      the badge tint no longer did once the rail stopped being white, and its text has to
      stay readable on it — both measured in the browser, not chosen by eye. */
@@ -97,7 +107,7 @@ button[class*="spectrum-Picker"] {
   display: flex;
   height: 100%;
   min-height: 0;
-  background: #fff;
+  background: var(--erp-canvas);
 }
 
 /* A soft tinted surface against the white of the work, divided by one slightly firmer
@@ -128,6 +138,37 @@ button[class*="spectrum-Picker"] {
   min-width: 0;
   padding: 28px 32px 64px;
   overflow: auto;
+  background: var(--erp-canvas);
+}
+
+/* A section of the page, on its own surface. The table is one of these without being
+   told: Spectrum's table root is transparent and sits straight on the page. */
+.erp-card,
+.erp-content [role="grid"] {
+  background: var(--erp-card);
+  border: 1px solid var(--erp-card-edge);
+  border-radius: 8px;
+}
+
+.erp-card {
+  padding: 20px 24px 24px;
+  margin-top: 24px;
+}
+
+.erp-content [role="grid"] {
+  overflow: hidden;
+}
+
+/* A table INSIDE a card is part of that card, not a card of its own — the document's
+   lines sit above its totals, under one edge. */
+.erp-card [role="grid"] {
+  border: 0;
+  border-radius: 0;
+}
+
+/* The head sits on the card, so it takes the card's own white rather than the page's. */
+.erp-content [role="grid"] [class*="spectrum-Table-headWrapper"] {
+  background: var(--erp-card);
 }
 
 /* ---- The rail's current page --------------------------------------------------
@@ -161,7 +202,7 @@ button[class*="spectrum-Picker"] {
 
 .erp-rail button[class*="spectrum-ActionButton"]:hover {
   color: var(--erp-ink);
-  background: var(--erp-hover);
+  background: var(--erp-rail-hover);
 }
 
 .erp-rail button[aria-current="page"],
@@ -225,11 +266,16 @@ button[class*="spectrum-Picker"] {
  * rows. A row is separated by space and a hover, not by a line under every one of
  * them — a ruled grid is the single most dated thing an enterprise screen does.
  */
+/* A head cell carries BOTH spectrum-Table-headCell and react-spectrum-Table-cell, so
+   the cell rule below also matches it and was winning on source order — the heads were
+   coming out full-strength ink rather than the soft grey intended. `:not()` keeps the
+   two apart. Second time a substring selector has matched more than it names. */
 [class*="spectrum-Table-headCell"] {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--erp-ink-soft);
-  letter-spacing: 0.02em;
+  color: var(--erp-ink-faint) !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   background: transparent !important;
 }
 
@@ -246,15 +292,26 @@ button[class*="spectrum-Picker"] {
    a dense table of numbers is harder to read across with nothing at all, and a ruled
    grid in Spectrum's #d5d5d5 is the dated end of the same choice. */
 [class*="spectrum-Table-row"]::after {
-  box-shadow: inset 0 -1px 0 0 #f1f2f3 !important;
+  box-shadow: inset 0 -1px 0 0 #edeff2 !important;
 }
 
 [class*="spectrum-Table-row"]:hover [class*="spectrum-Table-cell"] {
   background: var(--erp-hover);
 }
 
-[class*="spectrum-Table-cell"] {
+[class*="spectrum-Table-cell"]:not([class*="headCell"]) {
   color: var(--erp-ink);
+  /* Tabular figures: every digit the same width, so ids, quantities and money line up
+     down a column instead of drifting. The single biggest readability win a table of
+     numbers can have, and Spectrum does not set it. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* The record's own number, in a grid whose rows open something. It is what the eye
+   looks for first and what the row is BY, so it reads as the way in. */
+.erp-key {
+  font-weight: 500;
+  color: var(--erp-accent);
 }
 
 /* ---- Status -------------------------------------------------------------------

@@ -13,8 +13,8 @@ export default function RelatedDocuments ({ order }) {
   const shipped = ['shipped', 'invoiced'].includes(order.status)
   const invoiced = order.status === 'invoiced'
   return (
-    <View marginTop='size-400'>
-      <Heading level={3}>Related documents</Heading>
+    <div className='erp-card'>
+      <Heading level={3} marginTop={0}>Related documents</Heading>
       <Divider size='S' marginBottom='size-200' />
       {shipped || invoiced
         ? (
@@ -25,6 +25,6 @@ export default function RelatedDocuments ({ order }) {
           </Text>
           )
         : <Text>No related documents yet.</Text>}
-    </View>
+    </div>
   )
 }
