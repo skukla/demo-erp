@@ -154,7 +154,7 @@ test('a name edit raises one product update carrying the new name and the price'
   assert.equal(edited.name, 'Aurora Tote')
   const entries = await pending(cols)
   assert.equal(entries.length, 1)
-  assert.deepEqual(entries[0].value, { sku: 'T1', name: 'Aurora Tote', price: 199, description: '' })
+  assert.deepEqual(entries[0].value, { sku: 'T1', name: 'Aurora Tote', price: 199 })
 })
 
 test('the SKU, a single stock number, an unknown warehouse, an empty name and unknown fields are refused', async () => {

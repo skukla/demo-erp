@@ -34,7 +34,7 @@ const PRODUCT_COLUMNS = [
 const priceOf = (p) => (p.type === 'configurable' ? (p.priceRange ? p.priceRange.min : 0) : (p.listPrice || 0))
 
 const PRODUCT_GRID = {
-  fields: [(p) => p.sku, (p) => p.name, (p) => p.description],
+  fields: [(p) => p.sku, (p) => p.name],
   values: {
     sku: (p) => p.sku,
     name: (p) => p.name,
@@ -99,7 +99,7 @@ export default function Products ({ api, onChanged, onNavigate }) {
           ? 'Click a name, price or stock figure to change it. Stock held in several warehouses, and a configurable product\'s price and stock, are changed on the product\'s page.'
           : 'Choose a product to open it, or Edit to change names, prices and stock here. A configurable product lists its variants, which hold the price and stock.'}
       </Text>
-      <GridSearch placeholder='SKU, name or description' view={view} />
+      <GridSearch placeholder='Product or description' view={view} />
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Products'
         density='spacious'
@@ -110,11 +110,10 @@ export default function Products ({ api, onChanged, onNavigate }) {
       >
         <TableHeader>
           <Column key='sku' {...widths.columnProps('sku')} allowsSorting>Product</Column>
-          {/* SAP and Business Central both head this column "Description". Ours stays
-              "Name" until the product document decides what to do with the SEPARATE
-              description field the record already carries — two columns both called
-              description would be worse than one called name. */}
-          <Column key='name' {...widths.columnProps('name')} allowsSorting>Name</Column>
+          {/* One text, headed as SAP and Business Central head theirs. The ERP's
+              record calls it `name`; marketing copy belongs to Commerce and is not
+              mirrored here (lib/products.js). */}
+          <Column key='name' {...widths.columnProps('name')} allowsSorting>Description</Column>
           <Column key='kind' {...widths.columnProps('kind')} allowsSorting>Type</Column>
           <Column key='unit' {...widths.columnProps('unit')} allowsSorting>Base unit</Column>
           <Column key='listPrice' {...widths.columnProps('listPrice')} align='end' allowsSorting>List price</Column>
