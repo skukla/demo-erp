@@ -94,7 +94,7 @@ export default function Events ({ api }) {
   if (opened) return <EventDetail entry={opened} state={state(opened)} onBack={() => setOpenId(null)} />
 
   return (
-    <Frame title='Event journal' error={actionError || error} loading={!rows}
+    <Frame title='Event Journal' error={actionError || error} loading={!rows}
       actions={<><Button variant='secondary' onPress={retry} isDisabled={!meta.pending}>Retry pending</Button><Button variant='secondary' onPress={requeue} isDisabled={!meta.failed} marginStart='size-100'>Requeue failed</Button></>}>
       <Text>Changes from Commerce, and what this ERP published to {meta.webhookUrl || 'no subscriber (no namespace)'}: {meta.pending ?? 0} waiting to be delivered, {meta.failed ?? 0} failed (an event is failed after ten attempts).</Text>
       <GridSearch placeholder='Event name or detail' view={view}>
@@ -105,7 +105,7 @@ export default function Events ({ api }) {
           {(x) => <Item key={x.key}>{x.label}</Item>}
         </Picker>
       </GridSearch>
-      <TableView {...widths.tableProps} {...view.tableProps} aria-label='Event journal' density='compact' overflowMode='wrap' marginTop='size-200'
+      <TableView {...widths.tableProps} {...view.tableProps} aria-label='Event Journal' density='compact' overflowMode='wrap' marginTop='size-200'
         selectionMode='none' onAction={(key) => setOpenId(String(key))}>
         <TableHeader>
           <Column key='at' {...widths.columnProps('at')} allowsSorting>When</Column>

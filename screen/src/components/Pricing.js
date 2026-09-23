@@ -66,12 +66,12 @@ export default function Pricing ({ api, onChanged }) {
 
   return (
     <Frame
-      title='Pricing rules'
+      title='Pricing Rules'
       error={actionError || error}
       loading={!rows}
       actions={<AddPricingRule onAdd={add} />}
     >
-      <TableView {...widths.tableProps} aria-label='Pricing rules' density='compact' overflowMode='wrap'>
+      <TableView {...widths.tableProps} aria-label='Pricing Rules' density='compact' overflowMode='wrap'>
         <TableHeader>
           <Column key='rule' {...widths.columnProps('rule')}>Rule</Column>
           <Column key='customer' {...widths.columnProps('customer')}>Customer</Column>

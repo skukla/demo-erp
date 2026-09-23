@@ -28,11 +28,11 @@ export default function Dashboard ({ health, reloading }) {
           <Flex gap='size-200' wrap marginBottom='size-300'>
             <Stat label='Products' value={counts.products ?? 0} />
             <Stat label='Customers' value={counts.businessPartners ?? 0} />
-            <Stat label='Sales orders' value={counts.salesOrders ?? 0} />
-            <Stat label='Pricing conditions' value={counts.pricingConditions ?? 0} />
+            <Stat label='Sales Orders' value={counts.salesOrders ?? 0} />
+            <Stat label='Pricing Rules' value={counts.pricingConditions ?? 0} />
             {/* Waiting to be delivered, not the journal's size: it also holds
                 delivered and incoming entries. */}
-            <Stat label='Events pending' value={health.eventsPending ?? 0} />
+            <Stat label='Events Pending' value={health.eventsPending ?? 0} />
           </Flex>
         </>
       )}

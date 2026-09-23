@@ -70,10 +70,10 @@ export default function Orders ({ api, onChanged }) {
   }
 
   return (
-    <Frame title='Sales orders' error={error} loading={!rows}>
+    <Frame title='Sales Orders' error={error} loading={!rows}>
       <GridSearch placeholder='Order, reference or customer' view={view} />
       <TableView {...widths.tableProps} {...view.tableProps}
-        aria-label='Sales orders' density='compact' overflowMode='wrap' marginTop='size-200'
+        aria-label='Sales Orders' density='compact' overflowMode='wrap' marginTop='size-200'
         selectionMode='none' onAction={(key) => setOpenNumber(String(key))}>
         <TableHeader>
           <Column key='number' {...widths.columnProps('number')} allowsSorting>Sales order</Column>

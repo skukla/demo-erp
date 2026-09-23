@@ -14,7 +14,7 @@ export default function RelatedDocuments ({ order }) {
   const invoiced = order.status === 'invoiced'
   return (
     <div className='erp-card'>
-      <Heading level={3} marginTop={0}>Related documents</Heading>
+      <Heading level={3} marginTop={0}>Related Documents</Heading>
       <Divider size='S' marginBottom='size-200' />
       {shipped || invoiced
         ? (

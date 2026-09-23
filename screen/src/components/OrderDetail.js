@@ -32,7 +32,7 @@ function CancelOrder ({ reasons, onCancel, isDisabled }) {
       <Button variant='negative' isDisabled={isDisabled}>{ACTION_LABEL.cancelled}</Button>
       {(close) => (
         <Dialog>
-          <Heading>Cancel this order?</Heading>
+          <Heading>Cancel This Order?</Heading>
           <Divider />
           <Content>
             <Text>
@@ -86,7 +86,7 @@ export default function OrderDetail ({ api, number, onBack, onChanged }) {
       <>
         <ActionButton isQuiet onPress={onBack} marginBottom='size-150'>
           <ChevronLeft />
-          <Text>Sales orders</Text>
+          <Text>Sales Orders</Text>
         </ActionButton>
         {error
           ? (
@@ -106,10 +106,10 @@ export default function OrderDetail ({ api, number, onBack, onChanged }) {
     <>
       <ActionButton isQuiet onPress={onBack} marginBottom='size-150'>
         <ChevronLeft />
-        <Text>Sales orders</Text>
+        <Text>Sales Orders</Text>
       </ActionButton>
       <div className='erp-page-header'>
-        <Heading level={1} marginY={0}>Sales order {order.number}</Heading>
+        <Heading level={1} marginY={0}>Sales Order {order.number}</Heading>
         <div className='erp-page-actions'>
           {forward.map((status) => (
             <Button key={status} variant='accent' isDisabled={busy} onPress={() => move(status)}>

@@ -123,7 +123,7 @@ export default function Settings ({ api, onChanged }) {
                 <Button variant='accent' onPress={startSync} isDisabled={busy || syncing}>Sync records</Button>
                 <DialogTrigger>
                   <Button variant='negative' isDisabled={busy || syncing}>Wipe all records</Button>
-                  <AlertDialog title='Wipe all records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
+                  <AlertDialog title='Wipe All Records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
                     Every product, customer, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
                   </AlertDialog>
                 </DialogTrigger>

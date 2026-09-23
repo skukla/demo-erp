@@ -35,7 +35,7 @@ export default function AddPricingRule ({ onAdd }) {
       <Button variant='accent'>Add rule</Button>
       {(close) => (
         <Dialog>
-          <Heading>Add a pricing rule</Heading>
+          <Heading>Add a Pricing Rule</Heading>
           <Divider />
           <Content>
             <Form>

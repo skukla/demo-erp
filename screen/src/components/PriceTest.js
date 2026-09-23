@@ -69,7 +69,7 @@ export default function PriceTest ({ api, customers, onError }) {
 
   return (
     <View marginTop='size-500'>
-      <Heading level={3}>Test a price</Heading>
+      <Heading level={3}>Test a Price</Heading>
       <Divider size='S' marginBottom='size-200' />
       <div className='erp-inline-form'>
         <TextField label='Customer' value={input.partnerId} onChange={(partnerId) => set({ partnerId })} width='size-2400' />
