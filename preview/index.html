@@ -4,11 +4,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Demo ERP — preview</title>
-    <link rel="stylesheet" href="/dist/main.css" />
     <style>html, body, #root { height: 100%; margin: 0; }</style>
+    <script>
+      /*
+       * The bundle and its stylesheet are loaded with a fresh query each time.
+       *
+       * esbuild's dev server sends no cache headers, so the browser applies heuristic
+       * caching and happily re-runs a build from ten minutes ago while the server holds
+       * the current one. That cost real time twice: a change was verified as present in
+       * the SERVED file and absent from the RUNNING page, which reads exactly like the
+       * change not working.
+       */
+      const bust = '?v=' + Date.now();
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = '/dist/main.css' + bust;
+      document.head.appendChild(css);
+      const js = document.createElement('script');
+      js.type = 'module';
+      js.src = '/dist/main.js' + bust;
+      document.head.appendChild(js);
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/dist/main.js"></script>
   </body>
 </html>

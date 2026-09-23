@@ -6,6 +6,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Provider, defaultTheme, ActionButton, InlineAlert, Heading, Content, ToastContainer } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
+import { pageFromHash } from '../pageRoute'
 import Dashboard from './Dashboard'
 import Products from './Products'
 import Partners from './Partners'
@@ -29,8 +30,13 @@ const PAGES = [
  *   the local preview hands in so the whole screen can be looked at without a deployed
  *   action, a key, or any records. Nothing in production passes it.
  */
+const PAGE_KEYS = PAGES.map((p) => p.key)
+const DEFAULT_PAGE = 'dashboard'
+
 export default function App ({ screenKey, api: given }) {
-  const [page, setPage] = useState('dashboard')
+  // The open area comes from the address bar, so reloading the browser stays where it
+  // was. Before this it lived only in memory and every reload landed on the Dashboard.
+  const [page, setPage] = useState(() => pageFromHash(window.location.hash, PAGE_KEYS) || DEFAULT_PAGE)
   // Bumped on every rail click and carried in the active page's key, so choosing an
   // area re-mounts it and it reads its records again — including when the area chosen
   // is the one already open, which is what someone clicking it again is asking for.
@@ -51,6 +57,23 @@ export default function App ({ screenKey, api: given }) {
   }, [api])
 
   useEffect(() => { if (ready) refreshHealth() }, [ready, refreshHealth])
+
+  /* Back, Forward, and a hash someone typed. */
+  useEffect(() => {
+    const follow = () => setPage(pageFromHash(window.location.hash, PAGE_KEYS) || DEFAULT_PAGE)
+    window.addEventListener('hashchange', follow)
+    return () => window.removeEventListener('hashchange', follow)
+  }, [])
+
+  /* Open an area and put it in the address bar. Writing the hash raises hashchange,
+     which sets the state — so this only writes when it would actually differ, or the
+     two would chase each other. */
+  const openPage = useCallback((key) => {
+    setPage(key)
+    if (pageFromHash(window.location.hash, PAGE_KEYS) !== key) {
+      window.location.hash = key
+    }
+  }, [])
 
   /* A rail click, whichever item it lands on. The counter re-mounts the page — every
      screen reads its own records on mount and shows its spinner while it does — and the
@@ -96,7 +119,7 @@ export default function App ({ screenKey, api: given }) {
                 key={p.key}
                 isQuiet
                 aria-current={p.key === page ? 'page' : undefined}
-                onPress={() => { setPage(p.key); revisit() }}
+                onPress={() => { openPage(p.key); revisit() }}
               >
                 {p.label}
               </ActionButton>
@@ -123,7 +146,7 @@ export default function App ({ screenKey, api: given }) {
               health={health}
               reloading={reloading}
               onChanged={refreshHealth}
-              onNavigate={setPage}
+              onNavigate={openPage}
             />
           )}
         </div>
