@@ -26,22 +26,28 @@
   --erp-ink: #1f2328;
   --erp-ink-soft: #5b636b;
   --erp-ink-faint: #848d97;
-  --erp-hairline: #e6e8ea;
-  --erp-hover: #f5f6f7;
+  /* ONE line colour. Card edges, the head's underline, the line under every row and
+     every Divider all draw in it. Three near-greys doing the same job is what "the
+     outlines are not consistent" was looking at. */
+  --erp-rule: #d3dae3;
+  --erp-hairline: #d3dae3;
+  --erp-hover: #f3f5f8;
   /* Three surfaces, not one. Everything was white on white, so a table had no edge and
      the page had no shape: rail, then the canvas the work sits on, then the white
      cards the work is ON. Each step is small; the three together are what makes a
      screen read as sections rather than as a document. */
-  --erp-canvas: #f7f8fa;
+  --erp-canvas: #e8ecf2;
   --erp-card: #ffffff;
-  --erp-card-edge: #e4e8ed;
+  --erp-card-edge: var(--erp-rule);
+  /* The head is a band, not a first row of data. */
+  --erp-head-band: #eef2f7;
   /* The rail's own surface and the line that divides it from the work. Enough to read
      as two areas at a glance, not enough to read as a boxed panel. */
-  --erp-rail-surface: #eef1f5;
-  --erp-rail-edge: #dde2e8;
+  --erp-rail-surface: #dde4ee;
+  --erp-rail-edge: #cbd4e0;
   /* A step DARKER than the rail. The shared --erp-hover is lighter than it, so on the
      rail it washed the item out instead of picking it up. */
-  --erp-rail-hover: #e4e9f0;
+  --erp-rail-hover: #cfd8e4;
   /* The current page's own tint. It has to step clearly off the rail's surface, which
      the badge tint no longer did once the rail stopped being white, and its text has to
      stay readable on it — both measured in the browser, not chosen by eye. */
@@ -166,9 +172,9 @@ button[class*="spectrum-Picker"] {
   border-radius: 0;
 }
 
-/* The head sits on the card, so it takes the card's own white rather than the page's. */
-.erp-content [role="grid"] [class*="spectrum-Table-headWrapper"] {
-  background: var(--erp-card);
+/* Every rule Spectrum draws — dividers inside cards included — takes the one colour. */
+[class*="spectrum-Divider"] {
+  background: var(--erp-rule) !important;
 }
 
 /* ---- The rail's current page --------------------------------------------------
@@ -273,10 +279,10 @@ button[class*="spectrum-Picker"] {
 [class*="spectrum-Table-headCell"] {
   font-size: 11px;
   font-weight: 600;
-  color: var(--erp-ink-faint) !important;
+  color: #4d5763 !important;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: transparent !important;
+  background: var(--erp-head-band) !important;
 }
 
 /* headWrapper, NOT head: `[class*="spectrum-Table-head"]` also matches Table-head,
@@ -284,7 +290,8 @@ button[class*="spectrum-Picker"] {
    ones and drew a stray underline beneath several column titles. A substring selector
    matches every longer name too — check what else shares the prefix before using one. */
 [class*="spectrum-Table-headWrapper"] {
-  border-block-end: 1px solid var(--erp-hairline);
+  background: var(--erp-head-band);
+  border-block-end: 1px solid var(--erp-rule);
 }
 
 /* The line under every row is an inset box-shadow on the row's ::after, not a border —
@@ -292,7 +299,7 @@ button[class*="spectrum-Picker"] {
    a dense table of numbers is harder to read across with nothing at all, and a ruled
    grid in Spectrum's #d5d5d5 is the dated end of the same choice. */
 [class*="spectrum-Table-row"]::after {
-  box-shadow: inset 0 -1px 0 0 #edeff2 !important;
+  box-shadow: inset 0 -1px 0 0 var(--erp-rule) !important;
 }
 
 [class*="spectrum-Table-row"]:hover [class*="spectrum-Table-cell"] {
