@@ -106,6 +106,7 @@ export default function Events ({ api }) {
         </Picker>
       </GridSearch>
       <TableView {...widths.tableProps} {...view.tableProps} aria-label='Event Journal' density='compact' overflowMode='wrap' marginTop='size-200'
+        UNSAFE_className='erp-rows-open'
         selectionMode='none' onAction={(key) => setOpenId(String(key))}>
         <TableHeader>
           <Column key='at' {...widths.columnProps('at')} allowsSorting>When</Column>

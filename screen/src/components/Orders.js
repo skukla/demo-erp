@@ -74,6 +74,7 @@ export default function Orders ({ api, onChanged }) {
       <GridSearch placeholder='Order, reference or customer' view={view} />
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Sales Orders' density='compact' overflowMode='wrap' marginTop='size-200'
+        UNSAFE_className='erp-rows-open'
         selectionMode='none' onAction={(key) => setOpenNumber(String(key))}>
         <TableHeader>
           <Column key='number' {...widths.columnProps('number')} allowsSorting>Sales order</Column>

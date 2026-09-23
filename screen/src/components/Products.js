@@ -103,6 +103,7 @@ export default function Products ({ api, onChanged, onNavigate }) {
         density='compact'
         overflowMode='wrap'
         marginTop='size-200'
+        UNSAFE_className='erp-rows-open'
         selectionMode='none'
         onAction={(key) => setTrail([String(key)])}
       >

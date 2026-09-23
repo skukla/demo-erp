@@ -282,6 +282,26 @@
   background: var(--surface-hover);
 }
 
+/* ---- The pointer ------------------------------------------------------------
+ * Spectrum uses the default arrow on its controls — a desktop convention, and one that
+ * on the web reads as "this is not clickable". Anything react-aria has made pressable
+ * gets a pointer instead.
+ *
+ * NOT rows, though. Spectrum marks EVERY row pressable whether or not an onAction is
+ * wired, so the attribute cannot be trusted to mean the row does something: Customers
+ * and Pricing Rules would have offered a click that does nothing. The three grids whose
+ * rows open a record say so themselves, with `erp-rows-open`.
+ */
+[data-react-aria-pressable="true"]:not([role="row"]),
+[data-react-aria-pressable="true"]:not([role="row"]) * {
+  cursor: pointer;
+}
+
+.erp-rows-open [class*="spectrum-Table-row"],
+.erp-rows-open [class*="spectrum-Table-row"] * {
+  cursor: pointer;
+}
+
 /* The record's own number, in a grid whose rows open something. */
 .erp-key {
   font-weight: var(--type-key-weight);
