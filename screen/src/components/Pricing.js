@@ -1,44 +1,54 @@
 /*
- * Pricing conditions: the rules that decide what a customer pays.
+ * Pricing rules: what a customer pays, decided before an order is placed.
  *
- * One full-width list of records. The form that used to stand beside it is a dialog
- * behind the page's own Add button, and the price test is a section underneath — the
- * two of them took a third of the screen permanently and left the rules squeezed into
- * what was left, which on a wide monitor was most of the page wasted.
+ * SAP calls these condition records; the screen does not, because "condition" explains
+ * nothing to anyone who has not used SAP. Each row says what the rule DOES and carries
+ * its code beside it (pricingRuleFormat.js).
+ *
+ * One full-width list. The form that used to stand beside it is a dialog behind the
+ * page's Add button, and the price test is a section underneath — the two of them took
+ * a third of the screen permanently and left the rules squeezed into what was left.
  *
  * Remove stays on the row. The rule elsewhere is that a list does not act on records —
- * an order is acted on from its own document — but a condition has no document and
- * deleting a row from a small rules table is a table operation, not a workflow step.
+ * an order is acted on from its own document — but a pricing rule has no document, and
+ * deleting a row from a small table is a table operation, not a workflow step.
  */
-import React, { useState } from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, ActionButton } from '@adobe/react-spectrum'
+import React, { useMemo, useState } from 'react'
+import { TableView, TableHeader, Column, TableBody, Row, Cell, ActionButton, Text } from '@adobe/react-spectrum'
 import Frame from './Frame'
-import AddCondition from './AddCondition'
+import AddPricingRule from './AddPricingRule'
 import PriceTest from './PriceTest'
 import { useLoad } from './useLoad'
 import { toastSaved } from './toast'
 import { useColumnWidths } from './columnWidths'
-import { amountText, conditionOf, productText, soldToText } from './conditionFormat'
+import { amountText, customerText, productText, ruleText } from './pricingRuleFormat'
 
-const CONDITION_COLUMNS = [
-  { key: 'code', width: 130 },
-  { key: 'label', width: '1fr', minWidth: 200 },
-  { key: 'soldTo', width: '1fr', minWidth: 190 },
+const RULE_COLUMNS = [
+  { key: 'rule', width: '1fr', minWidth: 230 },
+  { key: 'customer', width: '1fr', minWidth: 190 },
   { key: 'product', width: '1fr', minWidth: 190 },
   { key: 'amount', width: 150 },
   { key: 'remove', width: 120, resizable: false }
 ]
 
 export default function Pricing ({ api, onChanged }) {
-  const widths = useColumnWidths('pricing', CONDITION_COLUMNS)
+  const widths = useColumnWidths('pricing', RULE_COLUMNS)
   const { rows, error, reload } = useLoad(() => api.conditions(), [api])
+  // Read separately rather than folded into the rules: a row needs the customer's NAME
+  // (C000101 tells a room nothing) and so does the price test below, and there are
+  // rules-free stores where the first list is empty and this one is not.
+  const { rows: customers } = useLoad(() => api.partners(), [api])
+  const customerNames = useMemo(
+    () => new Map((customers || []).map((c) => [c.id, c.name])),
+    [customers]
+  )
   const [actionError, setActionError] = useState(null)
 
-  async function add (condition) {
+  async function add (rule) {
     try {
-      await api.saveCondition(condition)
+      await api.saveCondition(rule)
       setActionError(null)
-      toastSaved('Pricing condition added')
+      toastSaved('Pricing rule added')
       await reload()
       onChanged()
     } catch (e) { setActionError(e) }
@@ -48,7 +58,7 @@ export default function Pricing ({ api, onChanged }) {
     try {
       await api.deleteCondition(id)
       setActionError(null)
-      toastSaved('Pricing condition deleted')
+      toastSaved('Pricing rule deleted')
       await reload()
       onChanged()
     } catch (e) { setActionError(e) }
@@ -56,16 +66,21 @@ export default function Pricing ({ api, onChanged }) {
 
   return (
     <Frame
-      title='Pricing conditions'
+      title='Pricing rules'
       error={actionError || error}
       loading={!rows}
-      actions={<AddCondition onAdd={add} />}
+      actions={<AddPricingRule onAdd={add} />}
     >
-      <TableView {...widths.tableProps} aria-label='Pricing conditions' density='compact' overflowMode='wrap'>
+      {/* Not instructions — the one thing about this page that cannot be read off it.
+          Which rule wins is the whole behaviour, and it is what an audience asks. */}
+      <Text>
+        The most specific rule wins: one customer and one product beats one customer,
+        which beats everyone.
+      </Text>
+      <TableView {...widths.tableProps} aria-label='Pricing rules' density='compact' overflowMode='wrap' marginTop='size-200'>
         <TableHeader>
-          <Column key='code' {...widths.columnProps('code')}>Condition</Column>
-          <Column key='label' {...widths.columnProps('label')}>Description</Column>
-          <Column key='soldTo' {...widths.columnProps('soldTo')}>Sold-to</Column>
+          <Column key='rule' {...widths.columnProps('rule')}>Rule</Column>
+          <Column key='customer' {...widths.columnProps('customer')}>Customer</Column>
           <Column key='product' {...widths.columnProps('product')}>Product</Column>
           <Column key='amount' {...widths.columnProps('amount')} align='end'>Amount</Column>
           <Column key='remove' {...widths.columnProps('remove')}> </Column>
@@ -73,9 +88,8 @@ export default function Pricing ({ api, onChanged }) {
         <TableBody items={rows || []}>
           {(c) => (
             <Row key={c._id}>
-              <Cell>{conditionOf(c.kind).code}</Cell>
-              <Cell>{conditionOf(c.kind).label}</Cell>
-              <Cell>{soldToText(c)}</Cell>
+              <Cell>{ruleText(c.kind)}</Cell>
+              <Cell>{customerText(c, customerNames)}</Cell>
               <Cell>{productText(c)}</Cell>
               <Cell>{amountText(c)}</Cell>
               <Cell><ActionButton isQuiet onPress={() => remove(c._id)}>Remove</ActionButton></Cell>
@@ -83,7 +97,7 @@ export default function Pricing ({ api, onChanged }) {
           )}
         </TableBody>
       </TableView>
-      <PriceTest api={api} onError={setActionError} />
+      <PriceTest api={api} customers={customers || []} onError={setActionError} />
     </Frame>
   )
 }

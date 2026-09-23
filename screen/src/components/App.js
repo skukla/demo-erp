@@ -19,7 +19,7 @@ const PAGES = [
   { key: 'products', label: 'Products', Component: Products },
   { key: 'partners', label: 'Customers', Component: Partners },
   { key: 'orders', label: 'Sales orders', Component: Orders },
-  { key: 'pricing', label: 'Pricing', Component: Pricing },
+  { key: 'pricing', label: 'Pricing rules', Component: Pricing },
   { key: 'events', label: 'Event journal', Component: Events },
   { key: 'settings', label: 'Settings', Component: Settings }
 ]
