@@ -42,7 +42,12 @@ export function useGridView (rows, grid) {
 export function GridSearch ({ placeholder, view, children }) {
   return (
     <Flex alignItems='end' gap='size-200' marginTop='size-200' wrap>
-      <SearchField label='Search' placeholder={placeholder} width='size-3000' {...view.searchProps} />
+      {/* The width is set in theme.css, not here: the field has to be wide enough for
+          its placeholder AND able to shrink on a narrow screen, and the second half is
+          a flex rule rather than a number. */}
+      <div className='erp-search'>
+        <SearchField label='Search' placeholder={placeholder} width='100%' {...view.searchProps} />
+      </div>
       {children}
       {view.shown !== view.total && (
         <Text marginBottom='size-100'>{view.shown} of {view.total}</Text>

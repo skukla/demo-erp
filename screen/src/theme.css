@@ -32,6 +32,11 @@
      as two areas at a glance, not enough to read as a boxed panel. */
   --erp-rail-surface: #f2f4f7;
   --erp-rail-edge: #dde2e8;
+  /* The current page's own tint. It has to step clearly off the rail's surface, which
+     the badge tint no longer did once the rail stopped being white, and its text has to
+     stay readable on it — both measured in the browser, not chosen by eye. */
+  --erp-rail-selected: #d7e6fb;
+  --erp-rail-selected-ink: #0f4c99;
 }
 
 /* ---- Buttons ------------------------------------------------------------------
@@ -154,8 +159,8 @@ button[class*="spectrum-Picker"] {
 .erp-rail button[aria-checked="true"],
 .erp-rail button[aria-checked="true"]:hover {
   font-weight: 600;
-  color: var(--erp-accent);
-  background: var(--erp-accent-tint);
+  color: var(--erp-rail-selected-ink);
+  background: var(--erp-rail-selected);
   border-color: transparent;
 }
 
@@ -178,6 +183,23 @@ button[class*="spectrum-Picker"] {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+/* ---- Search -------------------------------------------------------------------
+ * Wide enough that a placeholder is never cut off.
+ *
+ * Measured rather than chosen: at 240px the field gave 177px of room for text, because
+ * Spectrum spends 35px on the search icon and 28px on the clear button, and the longest
+ * placeholder here — "Order, reference or customer" — needs 180. Three pixels short, so
+ * every longer one ended in an ellipsis.
+ *
+ * 320px leaves about 77px of slack at today's longest. `flex: 0 1` rather than a fixed
+ * width so it still shrinks inside the toolbar on a narrow screen.
+ */
+.erp-search {
+  flex: 0 1 320px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* ---- Tables -------------------------------------------------------------------

@@ -8,7 +8,7 @@
  * The buttons moved there when the document arrived.
  */
 import React, { useState } from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Text } from '@adobe/react-spectrum'
+import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import OrderDetail from './OrderDetail'
 import { useLoad } from './useLoad'
@@ -72,7 +72,6 @@ export default function Orders ({ api, onChanged }) {
   return (
     <Frame title='Sales orders' error={error} loading={!rows}>
       <GridSearch placeholder='Order, reference or customer' view={view} />
-      <Text>Choose an order to open its document, where it is confirmed, shipped, invoiced or cancelled.</Text>
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Sales orders' density='compact' overflowMode='wrap' marginTop='size-200'
         selectionMode='none' onAction={(key) => setOpenNumber(String(key))}>
