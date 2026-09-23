@@ -42,3 +42,17 @@ test('a stamp in the future shows its date rather than a negative age', async ()
   const { formatStamp } = await load()
   assert.equal(formatStamp('2026-09-18T09:00:00.000Z', opts()), '18 Sept 2026, 09:00')
 })
+
+test('a document date reads as a day, with no time', async () => {
+  const { formatDate } = await load()
+  assert.equal(formatDate('2026-09-17T18:33:23.836Z', { locale: 'en-GB', timeZone: 'UTC' }), '17 Sept 2026')
+  assert.equal(formatDate('2026-01-02T00:00:00.000Z', { locale: 'en-GB', timeZone: 'UTC' }), '2 Jan 2026')
+})
+
+test('a missing or unreadable document date reads as a dash', async () => {
+  const { formatDate } = await load()
+  assert.equal(formatDate(null), '—')
+  assert.equal(formatDate(undefined), '—')
+  assert.equal(formatDate(''), '—')
+  assert.equal(formatDate('not a date'), '—')
+})

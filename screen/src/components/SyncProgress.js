@@ -6,7 +6,7 @@
 import React from 'react'
 import { Flex, Text, ProgressBar, ProgressCircle, InlineAlert, Heading, Content } from '@adobe/react-spectrum'
 
-const BAR_LABEL = { partners: 'Business partners', products: 'Products' }
+const BAR_LABEL = { partners: 'Customers', products: 'Products' }
 
 const PHASE_TEXT = {
   reading: 'Reading products and companies from the connected store…',

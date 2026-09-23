@@ -22,7 +22,7 @@ export default function Dashboard ({ health }) {
         <>
           <Flex gap='size-200' wrap marginBottom='size-300'>
             <Stat label='Products' value={counts.products ?? 0} />
-            <Stat label='Business partners' value={counts.businessPartners ?? 0} />
+            <Stat label='Customers' value={counts.businessPartners ?? 0} />
             <Stat label='Sales orders' value={counts.salesOrders ?? 0} />
             <Stat label='Pricing conditions' value={counts.pricingConditions ?? 0} />
             {/* Waiting to be delivered, not the journal's size: it also holds

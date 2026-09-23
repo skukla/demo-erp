@@ -10,6 +10,7 @@ import ProductDetail from './ProductDetail'
 import StockStatus from './StockStatus'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { useGridView, GridSearch } from './GridView'
 import EditToggle from './EditToggle'
 import { saveInPlace, savingField } from './saveInPlace'
 import { NameCell, PriceCell, StockCell } from './ProductCells'
@@ -22,10 +23,29 @@ const PRODUCT_COLUMNS = [
   { key: 'sku', width: 170 },
   { key: 'name', width: '1fr', minWidth: NAME_MIN_WIDTH },
   { key: 'kind', width: 190 },
+  { key: 'unit', width: 110 },
   { key: 'listPrice', width: 170 },
-  { key: 'stock', width: 90 },
+  { key: 'stock', width: 110 },
   { key: 'status', width: 130 }
 ]
+
+/* A configurable parent has no price of its own, so it sorts by the bottom of its
+   range — which is the figure its row shows first. */
+const priceOf = (p) => (p.type === 'configurable' ? (p.priceRange ? p.priceRange.min : 0) : (p.listPrice || 0))
+
+const PRODUCT_GRID = {
+  fields: [(p) => p.sku, (p) => p.name, (p) => p.description],
+  values: {
+    sku: (p) => p.sku,
+    name: (p) => p.name,
+    kind: (p) => kindText(p),
+    unit: (p) => p.unit || '',
+    listPrice: priceOf,
+    stock: (p) => p.stock || 0,
+    status: (p) => p.stock || 0
+  },
+  sort: { column: 'sku', direction: 'ascending' }
+}
 
 export default function Products ({ api, onChanged, onNavigate }) {
   const widths = useColumnWidths('products', PRODUCT_COLUMNS)
@@ -39,6 +59,7 @@ export default function Products ({ api, onChanged, onNavigate }) {
     () => (rows || []).filter((p) => !p.parentSku).map((p) => ({ ...p, editing })),
     [rows, editing]
   )
+  const view = useGridView(listed, PRODUCT_GRID)
 
   function save (sku, patch) {
     const isRow = (row) => row.sku === sku
@@ -78,7 +99,8 @@ export default function Products ({ api, onChanged, onNavigate }) {
           ? 'Click a name, price or stock figure to change it. Stock held in several warehouses, and a configurable product\'s price and stock, are changed on the product\'s page.'
           : 'Choose a product to open it, or Edit to change names, prices and stock here. A configurable product lists its variants, which hold the price and stock.'}
       </Text>
-      <TableView {...widths.tableProps}
+      <GridSearch placeholder='SKU, name or description' view={view} />
+      <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Products'
         density='spacious'
         overflowMode='wrap'
@@ -87,19 +109,25 @@ export default function Products ({ api, onChanged, onNavigate }) {
         onAction={(key) => setTrail([String(key)])}
       >
         <TableHeader>
-          <Column key='sku' {...widths.columnProps('sku')}>SKU</Column>
-          <Column key='name' {...widths.columnProps('name')}>Name</Column>
-          <Column key='kind' {...widths.columnProps('kind')}>Type</Column>
-          <Column key='listPrice' {...widths.columnProps('listPrice')} align='end'>List price</Column>
-          <Column key='stock' {...widths.columnProps('stock')} align='end'>Stock</Column>
-          <Column key='status' {...widths.columnProps('status')}>Status</Column>
+          <Column key='sku' {...widths.columnProps('sku')} allowsSorting>Product</Column>
+          {/* SAP and Business Central both head this column "Description". Ours stays
+              "Name" until the product document decides what to do with the SEPARATE
+              description field the record already carries — two columns both called
+              description would be worse than one called name. */}
+          <Column key='name' {...widths.columnProps('name')} allowsSorting>Name</Column>
+          <Column key='kind' {...widths.columnProps('kind')} allowsSorting>Type</Column>
+          <Column key='unit' {...widths.columnProps('unit')} allowsSorting>Base unit</Column>
+          <Column key='listPrice' {...widths.columnProps('listPrice')} align='end' allowsSorting>List price</Column>
+          <Column key='stock' {...widths.columnProps('stock')} align='end' allowsSorting>On hand</Column>
+          <Column key='status' {...widths.columnProps('status')} allowsSorting>Status</Column>
         </TableHeader>
-        <TableBody items={listed}>
+        <TableBody items={view.items}>
           {(p) => (
             <Row key={p.sku}>
               <Cell>{p.sku}</Cell>
               <Cell><NameCell product={p} editing={p.editing} onSave={(patch) => save(p.sku, patch)} /></Cell>
               <Cell>{kindText(p)}</Cell>
+              <Cell>{p.unit || 'EA'}</Cell>
               <Cell><PriceCell product={p} editing={p.editing} onSave={(patch) => save(p.sku, patch)} /></Cell>
               <Cell><StockCell product={p} editing={p.editing} onSave={(patch) => save(p.sku, patch)} /></Cell>
               <Cell><StockStatus quantity={p.stock} /></Cell>

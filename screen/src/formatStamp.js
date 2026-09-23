@@ -43,3 +43,24 @@ export function formatStamp (iso, options = {}) {
     timeZone
   }).format(new Date(at))
 }
+
+/**
+ * A date with no time, for the date column of a document grid. An order date is a
+ * day, not a moment, and a grid of them reads better without the hours.
+ *
+ * @param {string|null|undefined} iso the stored stamp
+ * @param {object} [options] `locale`, `timeZone`
+ * @returns {string} "17 Sept 2026", or an em dash when there is no usable date
+ */
+export function formatDate (iso, options = {}) {
+  if (!iso) return '—'
+  const at = Date.parse(iso)
+  if (Number.isNaN(at)) return '—'
+  const { locale = undefined, timeZone = undefined } = options
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone
+  }).format(new Date(at))
+}

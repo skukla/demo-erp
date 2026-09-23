@@ -17,10 +17,10 @@ import Events from './Events'
 const PAGES = [
   { key: 'dashboard', label: 'Dashboard', Component: Dashboard },
   { key: 'products', label: 'Products', Component: Products },
-  { key: 'partners', label: 'Business partners', Component: Partners },
+  { key: 'partners', label: 'Customers', Component: Partners },
   { key: 'orders', label: 'Sales orders', Component: Orders },
   { key: 'pricing', label: 'Pricing', Component: Pricing },
-  { key: 'events', label: 'Events', Component: Events },
+  { key: 'events', label: 'Event journal', Component: Events },
   { key: 'settings', label: 'Settings', Component: Settings }
 ]
 
