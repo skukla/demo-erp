@@ -56,3 +56,43 @@ test('without a partner only list prices and global ceilings apply', () => {
   const conditions = [{ kind: 'contractDiscount', partnerId: 'P1', sku: null, percent: 15 }]
   assert.equal(priceLine({ product, partner: null, conditions }).contractPrice, 100)
 })
+
+// Commerce shows the buyer's price and the store operator asks "why that one?". The
+// answer is which rule the ERP applied, so a priced line carries it — the ERP owns the
+// rules, so the ERP is the one that can explain them (AB-25, decision 2).
+test('a priced line says which rules decided it', () => {
+  const conditions = [
+    { _id: 'c1', kind: 'contractPrice', partnerId: 'P1', sku: 'A1', price: 80 },
+    { _id: 'c2', kind: 'maxDiscount', partnerId: null, sku: null, percent: 30 }
+  ]
+  const line = priceLine({ product, partner, conditions })
+  assert.deepEqual(line.applied, {
+    ceiling: { id: 'c2', kind: 'maxDiscount', partnerId: null, percent: 30, sku: null },
+    price: { id: 'c1', kind: 'contractPrice', partnerId: 'P1', price: 80, sku: 'A1' }
+  })
+})
+
+test('a line at list price says no rule applied, rather than nothing', () => {
+  const line = priceLine({ product, partner, conditions: [] })
+  assert.deepEqual(line.applied, {})
+})
+
+test('the rule that CUT a price is the ceiling, and it is named', () => {
+  const conditions = [
+    { _id: 'c1', kind: 'contractPrice', partnerId: 'P1', sku: 'A1', price: 50 },
+    { _id: 'c2', kind: 'maxDiscount', partnerId: 'P1', sku: null, percent: 20 }
+  ]
+  const line = priceLine({ product, partner, conditions })
+  assert.equal(line.source, 'ceiling')
+  assert.equal(line.contractPrice, 80)
+  assert.equal(line.applied.ceiling.id, 'c2')
+  // The contract price is still named: it is what the ceiling cut.
+  assert.equal(line.applied.price.price, 50)
+})
+
+test("a discount belonging to another partner is not named as applied", () => {
+  const conditions = [{ _id: 'c9', kind: 'contractDiscount', partnerId: 'P2', sku: null, percent: 50 }]
+  const line = priceLine({ product, partner, conditions })
+  assert.equal(line.source, 'list')
+  assert.deepEqual(line.applied, {})
+})
