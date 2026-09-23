@@ -4,7 +4,7 @@
  * is the only credential, so opened without one it says where to go instead.
  */
 import React, { useEffect, useState, useCallback } from 'react'
-import { Provider, defaultTheme, ActionGroup, Item, InlineAlert, Heading, Content, ToastContainer } from '@adobe/react-spectrum'
+import { Provider, defaultTheme, ActionButton, InlineAlert, Heading, Content, ToastContainer } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import Dashboard from './Dashboard'
 import Products from './Products'
@@ -31,6 +31,11 @@ const PAGES = [
  */
 export default function App ({ screenKey, api: given }) {
   const [page, setPage] = useState('dashboard')
+  // Bumped on every rail click and carried in the active page's key, so choosing an
+  // area re-mounts it and it reads its records again — including when the area chosen
+  // is the one already open, which is what someone clicking it again is asking for.
+  const [visit, setVisit] = useState(0)
+  const [reloading, setReloading] = useState(false)
   const [health, setHealth] = useState(null)
   const [error, setError] = useState(null)
   const api = React.useMemo(() => given || makeApi(screenKey), [given, screenKey])
@@ -46,6 +51,16 @@ export default function App ({ screenKey, api: given }) {
   }, [api])
 
   useEffect(() => { if (ready) refreshHealth() }, [ready, refreshHealth])
+
+  /* A rail click, whichever item it lands on. The counter re-mounts the page — every
+     screen reads its own records on mount and shows its spinner while it does — and the
+     health read is for the Dashboard, whose numbers are held here rather than by it. */
+  const revisit = useCallback(async () => {
+    setVisit((n) => n + 1)
+    setReloading(true)
+    await refreshHealth()
+    setReloading(false)
+  }, [refreshHealth])
 
   // While a sync runs, keep reading health: the Dashboard's counters are the
   // ERP's contents, so they should climb as the integration imports rather than
@@ -64,12 +79,29 @@ export default function App ({ screenKey, api: given }) {
       {/* Plain elements, not Spectrum's Grid and View: the rail moves to the top on a
           narrow screen, and that is a media rule rather than a token (theme.css). */}
       <div className='erp-app'>
+        {/* Buttons, not a single-selection ActionGroup. Two reasons, both found by
+            trying it the other way:
+            - choosing the area already open raises no SELECTION change, so there was
+              nothing to hang a reload on, and a click listener on this div never fires
+              because react-aria swallows the click on its own buttons;
+            - worse, a single-selection group DESELECTS the item you click when it is
+              already selected, so clicking the open area sent the user to the Dashboard.
+            `aria-current="page"` is also what a navigation list should say; aria-checked
+            described these as radio buttons, which they are not. */}
         <div className='erp-rail'>
           <p className='erp-rail-name'>{health ? health.displayName : 'ERP'}</p>
-          <ActionGroup orientation='vertical' isQuiet selectionMode='single' selectedKeys={[page]}
-            onSelectionChange={(keys) => setPage([...keys][0] || 'dashboard')} width='100%'>
-            {PAGES.map((p) => <Item key={p.key}>{p.label}</Item>)}
-          </ActionGroup>
+          <nav className='erp-rail-nav' aria-label='Areas'>
+            {PAGES.map((p) => (
+              <ActionButton
+                key={p.key}
+                isQuiet
+                aria-current={p.key === page ? 'page' : undefined}
+                onPress={() => { setPage(p.key); revisit() }}
+              >
+                {p.label}
+              </ActionButton>
+            ))}
+          </nav>
         </div>
         <div className='erp-content'>
           {!ready && (
@@ -84,7 +116,16 @@ export default function App ({ screenKey, api: given }) {
               <Content>{error.message}</Content>
             </InlineAlert>
           )}
-          {ready && <active.Component key={active.key} api={api} health={health} onChanged={refreshHealth} onNavigate={setPage} />}
+          {ready && (
+            <active.Component
+              key={`${active.key}:${visit}`}
+              api={api}
+              health={health}
+              reloading={reloading}
+              onChanged={refreshHealth}
+              onNavigate={setPage}
+            />
+          )}
         </div>
       </div>
       <ToastContainer placement='top' />

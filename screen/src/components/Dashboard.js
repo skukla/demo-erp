@@ -11,13 +11,18 @@ function Stat ({ label, value }) {
   )
 }
 
-export default function Dashboard ({ health }) {
+/*
+ * `reloading` comes from App: this screen's numbers ARE the health read, which App holds
+ * so the rail can show the ERP's name. Without the flag the Dashboard would be the one
+ * page that answered a rail click by sitting still.
+ */
+export default function Dashboard ({ health, reloading }) {
   const counts = (health && health.counts) || {}
 
   // What a prospect sees first: the ERP's size and state. The controls for
   // rehearsing and presenting are on Settings.
   return (
-    <Frame title='Dashboard' loading={!health}>
+    <Frame title='Dashboard' loading={!health || reloading}>
       {health && (
         <>
           <Flex gap='size-200' wrap marginBottom='size-300'>

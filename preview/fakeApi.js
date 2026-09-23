@@ -93,6 +93,11 @@ const health = {
   sync: null
 }
 
+/* Real actions answer over the network. Without a delay here the preview would never
+   show a loading state, so the one place it is checked would be the one place it does
+   not happen. */
+const LATENCY_MS = 350
+const wait = () => new Promise((resolve) => setTimeout(resolve, LATENCY_MS))
 const copy = (value) => JSON.parse(JSON.stringify(value))
 
 /* The order document, shaped the way lib/orders.js `describeOrder` shapes it. Kept in
@@ -147,24 +152,27 @@ const refuse = () => Promise.reject(new Error('The preview holds stand-in record
 
 /** Everything screen/src/api.js offers, answered from the records above. */
 export const fakeApi = {
-  health: async () => copy(health),
-  settings: async () => copy(settings),
+  health: async () => { await wait(); return copy(health) },
+  settings: async () => { await wait(); return copy(settings) },
   saveSettings: refuse,
   wipe: refuse,
-  products: async () => copy(products),
+  products: async () => { await wait(); return copy(products) },
   product: async (sku) => copy(products.find((p) => p.sku === sku)),
   patchProduct: refuse,
-  partners: async () => copy(partners),
+  partners: async () => { await wait(); return copy(partners) },
   patchPartner: refuse,
-  conditions: async () => copy(conditions),
+  conditions: async () => { await wait(); return copy(conditions) },
   saveCondition: refuse,
   deleteCondition: refuse,
   quote: refuse,
-  orders: async () => copy(orders.map((o) => ({
-    ...o,
-    partnerName: (partners.find((p) => p.id === o.partnerId) || {}).name || null
-  }))),
-  order: async (number) => copy(describe(orders.find((o) => o.number === number))),
+  orders: async () => {
+    await wait()
+    return copy(orders.map((o) => ({
+      ...o,
+      partnerName: (partners.find((p) => p.id === o.partnerId) || {}).name || null
+    })))
+  },
+  order: async (number) => { await wait(); return copy(describe(orders.find((o) => o.number === number))) },
   // The one write the preview allows: moving an order is what the document is FOR, and
   // a document whose buttons do nothing cannot be looked at properly.
   moveOrder: async (number, status, reason) => {
@@ -179,7 +187,10 @@ export const fakeApi = {
     if (reason) order.cancelReason = reason
     return copy(describe(order))
   },
-  events: async () => ({ items: copy(events), webhookUrl: 'https://preview.example/ingestion/webhook', pending: 1, failed: 1 }),
+  events: async () => {
+    await wait()
+    return { items: copy(events), webhookUrl: 'https://preview.example/ingestion/webhook', pending: 1, failed: 1 }
+  },
   retryEvents: refuse,
   requeueEvents: refuse,
   sync: refuse
