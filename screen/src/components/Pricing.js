@@ -11,10 +11,12 @@ const KINDS = [
   { key: 'maxDiscount', label: 'Max discount % ceiling (optional partner, optional product)' }
 ]
 
+/* The rule takes the slack. It used to go to the Remove button at the end, which
+   cannot use it. */
 const CONDITION_COLUMNS = [
-  { key: 'kind', width: 160 },
-  { key: 'text' },
-  { key: 'remove', width: 90 }
+  { key: 'kind', width: 190 },
+  { key: 'text', width: '1fr', minWidth: 260 },
+  { key: 'remove', width: 110 }
 ]
 
 function describe (c) {

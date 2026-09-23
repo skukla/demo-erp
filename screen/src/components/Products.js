@@ -21,12 +21,13 @@ const NAME_MIN_WIDTH = 220
 
 const PRODUCT_COLUMNS = [
   { key: 'sku', width: 170 },
-  { key: 'name', width: '1fr', minWidth: NAME_MIN_WIDTH },
-  { key: 'kind', width: 190 },
+  { key: 'name', width: '2fr', minWidth: NAME_MIN_WIDTH },
+  // "Configurable · 16 variants" is the longest thing this column holds.
+  { key: 'kind', width: '1fr', minWidth: 190 },
   { key: 'unit', width: 110 },
   { key: 'listPrice', width: 170 },
   { key: 'stock', width: 110 },
-  { key: 'status', width: 130 }
+  { key: 'status', width: 140 }
 ]
 
 /* A configurable parent has no price of its own, so it sorts by the bottom of its

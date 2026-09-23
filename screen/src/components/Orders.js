@@ -29,15 +29,18 @@ const reference = (o) => o.commerceIncrementId || o.commerceOrderId || '—'
 
 /* Each sortable header carries a chevron, which eats about 24px of its width: a
    column sized to its title alone truncates the title. */
+/* Reference and Sold-to divide whatever the fixed columns leave, so the table fills
+   its area; the slack used to go to the Move to buttons, which cannot use it. */
 const ORDER_COLUMNS = [
   { key: 'number', width: 165 },
   { key: 'date', width: 140 },
-  { key: 'reference', width: 150 },
-  { key: 'partner', width: 130 },
+  { key: 'reference', width: '1fr', minWidth: 150 },
+  { key: 'partner', width: '1fr', minWidth: 130 },
   { key: 'lines', width: 80 },
   { key: 'total', width: 130 },
   { key: 'status', width: 140 },
-  { key: 'actions' }
+  // Two buttons side by side ("Confirmed  Cancelled") plus the cell's own padding.
+  { key: 'actions', width: 215 }
 ]
 
 const ORDER_GRID = {
