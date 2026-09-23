@@ -39,6 +39,42 @@
   letter-spacing: 0.01em;
 }
 
+/* Business Central's shape: a band of root items under the shell bar, each opening its
+   group. The current area's root stays marked, so the band still says where you are
+   once the menu closes. */
+.erp-topnav {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+  padding: var(--space-1) var(--space-4);
+  background: var(--surface-rail);
+  border-block-end: 1px solid var(--line);
+}
+
+.erp-topnav-item {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-body-size);
+  color: var(--ink-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.erp-topnav-item:hover {
+  color: var(--ink);
+  background: var(--surface-card);
+}
+
+.erp-topnav button[aria-current="page"],
+.erp-topnav-item[aria-current="page"] {
+  font-weight: var(--type-section-weight);
+  color: var(--accent-ink);
+  background: var(--accent-tint);
+}
+
 .erp-app {
   display: flex;
   flex: 1 1 auto;
@@ -47,12 +83,26 @@
 }
 
 .erp-rail {
+  display: flex;
   flex: 0 0 208px;
+  flex-direction: column;
   box-sizing: border-box;
   padding: var(--space-4) var(--space-3);
   overflow-y: auto;
   background: var(--surface-rail);
   border-inline-end: 1px solid var(--line);
+}
+
+/* Fiori's Side Navigation keeps a footer area that stays at the bottom, does not scroll
+   away with the areas above it, and is separated by a divider. Settings lives there: it
+   is how the ERP is set up, not one of the places work happens. */
+/* The child selector is for SPECIFICITY: `.erp-rail-group + .erp-rail-group` below sets
+   a plain margin-top, and at two classes it outranks a single one however the file is
+   ordered. Without it the footer sat under Monitoring instead of at the bottom. */
+.erp-rail > .erp-rail-group.erp-rail-footer {
+  padding-top: var(--space-4);
+  margin-top: auto;
+  border-top: 1px solid var(--line);
 }
 
 /* Groups, items and child items is what Fiori's Side Navigation is MADE of, and a
@@ -307,6 +357,13 @@
 
   .erp-rail-group + .erp-rail-group {
     margin-top: 0;
+  }
+
+  /* Sideways, there is no bottom to sit at. */
+  .erp-rail > .erp-rail-group.erp-rail-footer {
+    padding-top: 0;
+    margin-top: 0;
+    border-top: 0;
   }
 
   .erp-rail-group-name {

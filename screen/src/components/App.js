@@ -11,7 +11,10 @@
  * list of areas, which is what this rail was.
  */
 import React, { useEffect, useState, useCallback } from 'react'
-import { Provider, defaultTheme, ActionButton, InlineAlert, Heading, Content, ToastContainer } from '@adobe/react-spectrum'
+import {
+  Provider, defaultTheme, ActionButton, InlineAlert, Heading, Content, ToastContainer,
+  MenuTrigger, Menu, Item
+} from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import { pageFromHash } from '../pageRoute'
 import Dashboard from './Dashboard'
@@ -36,16 +39,20 @@ const AREAS = [
       { key: 'pricing', label: 'Pricing Rules', Component: Pricing }
     ]
   },
-  {
-    group: 'Monitoring',
-    items: [
-      { key: 'events', label: 'Event Journal', Component: Events },
-      { key: 'settings', label: 'Settings', Component: Settings }
-    ]
-  }
+  { group: 'Monitoring', items: [{ key: 'events', label: 'Event Journal', Component: Events }] },
+  /* Settings is not monitoring — it is how the ERP is set up, which is a different kind
+     of thing from the work. Fiori's Side Navigation has a FOOTER area for exactly this:
+     it stays at the bottom, does not scroll away with the areas above it, and is
+     separated by a divider. */
+  { group: null, footer: true, items: [{ key: 'settings', label: 'Settings', Component: Settings }] }
 ]
 
 const PAGES = AREAS.flatMap((area) => area.items)
+
+/* Which shape the menu takes, while the two are being compared. 'rail' is Fiori's Side
+   Navigation; 'top' is Business Central's navigation menu — root items along a band,
+   each opening its group. One of these is going away once it is chosen. */
+const MENU_SHAPE = 'rail'
 
 /**
  * @param {object} props `screenKey` from Demo Builder's link, and `api` — an override
@@ -127,6 +134,39 @@ export default function App ({ screenKey, api: given }) {
         <header className='erp-shellbar'>
           <span className='erp-shellbar-name'>{health ? health.displayName : 'ERP'}</span>
         </header>
+        {MENU_SHAPE === 'top' && (
+          <nav className='erp-topnav' aria-label='Areas'>
+            {AREAS.map((area) => (area.group === null
+              /* A group of one, and the home, are links rather than menus: an audience
+                 should not have to open a menu to find a single thing inside it. */
+              ? area.items.map((p) => (
+                <button
+                  className='erp-topnav-item'
+                  type='button'
+                  key={p.key}
+                  aria-current={p.key === page ? 'page' : undefined}
+                  onClick={() => { openPage(p.key); revisit() }}
+                >
+                  {p.label}
+                </button>
+                ))
+              : (
+                <MenuTrigger key={area.group}>
+                  <ActionButton
+                    isQuiet
+                    UNSAFE_className='erp-topnav-item'
+                    aria-current={area.items.some((p) => p.key === page) ? 'page' : undefined}
+                  >
+                    {area.group}
+                  </ActionButton>
+                  <Menu onAction={(key) => { openPage(String(key)); revisit() }}>
+                    {area.items.map((p) => <Item key={p.key}>{p.label}</Item>)}
+                  </Menu>
+                </MenuTrigger>
+                )
+            ))}
+          </nav>
+        )}
         <div className='erp-app'>
         {/* Buttons, not a single-selection ActionGroup. Two reasons, both found by
             trying it the other way:
@@ -137,9 +177,13 @@ export default function App ({ screenKey, api: given }) {
               already selected, so clicking the open area sent the user to the Dashboard.
             `aria-current="page"` is also what a navigation list should say; aria-checked
             described these as radio buttons, which they are not. */}
+        {MENU_SHAPE === 'rail' && (
         <nav className='erp-rail' aria-label='Areas'>
           {AREAS.map((area) => (
-            <div className='erp-rail-group' key={area.group || 'home'}>
+            <div
+              className={area.footer ? 'erp-rail-group erp-rail-footer' : 'erp-rail-group'}
+              key={area.group || (area.footer ? 'footer' : 'home')}
+            >
               {area.group && <p className='erp-rail-group-name'>{area.group}</p>}
               <div className='erp-rail-items'>
                 {area.items.map((p) => (
@@ -156,6 +200,7 @@ export default function App ({ screenKey, api: given }) {
             </div>
           ))}
         </nav>
+        )}
         <div className='erp-content'>
           {!ready && (
             <InlineAlert variant='info'>
