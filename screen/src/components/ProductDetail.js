@@ -101,7 +101,7 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
         : (
           <TableView
             aria-label='Variants'
-            density='spacious'
+            density='compact'
             selectionMode='none'
             onAction={(key) => onOpen(String(key))}
             {...widths.tableProps}
@@ -137,7 +137,7 @@ function InventoryCard ({ draft, total, onQuantity }) {
       {draft.warehouses.length === 0
         ? <Text>Commerce reports no stock for this product in any warehouse.</Text>
         : (
-          <TableView {...widths.tableProps} aria-label='Stock by warehouse' density='spacious' selectionMode='none'>
+          <TableView {...widths.tableProps} aria-label='Stock by warehouse' density='compact' selectionMode='none'>
             <TableHeader>
               <Column key='name' {...widths.columnProps('name')}>Warehouse</Column>
               <Column key='code' {...widths.columnProps('code')}>Code</Column>

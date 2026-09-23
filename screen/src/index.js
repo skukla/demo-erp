@@ -7,6 +7,8 @@ import { createRoot } from 'react-dom/client'
 import App from './components/App'
 import { takeScreenKey } from './key'
 // Last, so its rules land after Spectrum's own in the bundled stylesheet.
-import './theme.css'
+import './design/tokens.css'
+import './design/spectrum-bridge.css'
+import './design/app.css'
 
 createRoot(document.getElementById('root')).render(<App screenKey={takeScreenKey()} />)

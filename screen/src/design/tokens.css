@@ -1,0 +1,113 @@
+/*
+ * The design system. Every colour, space, radius and type role the screen uses is named
+ * here and nowhere else.
+ *
+ * The rule that makes it a system rather than a list: nothing outside this file writes a
+ * colour, a pixel size or a font size. Components name a token; spectrum-bridge.css
+ * points Spectrum's own variables at these same tokens, so a component we have never
+ * touched still comes out in our vocabulary.
+ *
+ * The audit that led to this is docs/design-audit.md. The short version: 29 colour
+ * literals, 17 spacing tokens, 5 radii and 17 style escapes, with Spectrum's own #222,
+ * #464646 and #fdfdfd showing through wherever nobody had noticed yet.
+ */
+
+:root {
+  /* ---- Neutral ramp ---------------------------------------------------------
+   * One ramp, cool-neutral. Every grey on the screen is a step on it. */
+  --grey-0: #ffffff;
+  --grey-50: #f7f8f9;
+  --grey-100: #f1f3f5;
+  --grey-200: #e6e9ec;
+  --grey-300: #d5dade;
+  --grey-400: #b4bcc3;
+  --grey-500: #8b959e;
+  --grey-600: #6b757e;
+  --grey-700: #4c555d;
+  --grey-800: #2b3238;
+  --grey-900: #171b1f;
+
+  /* ---- Accent ---------------------------------------------------------------
+   * Deep teal, chosen so the ERP does not read as another Adobe screen. The demo's
+   * whole point is two systems talking to each other, and side by side with the
+   * Commerce Admin a blue ERP loses that. Not SAP's blue either.
+   * White on --accent measures 5.9:1; --accent-ink on --accent-tint measures 8.7:1. */
+  --accent: #0f6b68;
+  --accent-hover: #0c5754;
+  --accent-down: #094543;
+  --accent-tint: #e4f1f0;
+  --accent-edge: #9ecdca;
+  --accent-ink: #0a4b49;
+
+  /* ---- Surfaces, in depth order --------------------------------------------- */
+  --surface-rail: var(--grey-200);
+  --surface-canvas: var(--grey-100);
+  --surface-card: var(--grey-0);
+  --surface-head: var(--grey-50);
+  --surface-hover: var(--grey-50);
+
+  /* ---- Ink ------------------------------------------------------------------ */
+  --ink: var(--grey-900);
+  --ink-2: var(--grey-600);
+  --ink-3: var(--grey-500);
+
+  /* ---- Line -----------------------------------------------------------------
+   * One colour. Card edges, table rules, dividers and field borders all draw in it. */
+  --line: var(--grey-300);
+  --line-strong: var(--grey-400);
+
+  /* ---- Status ---------------------------------------------------------------
+   * Semantic, and deliberately not derived from the accent: green means shipped
+   * whatever colour the product is. */
+  --ok-ink: #0f6b43;
+  --ok-tint: #e6f4ec;
+  --bad-ink: #a32320;
+  --bad-tint: #fceceb;
+  --warn-ink: #8a5200;
+  --warn-tint: #fdf2e3;
+  --info-ink: var(--accent-ink);
+  --info-tint: var(--accent-tint);
+  --quiet-ink: var(--ink-2);
+  --quiet-tint: var(--grey-100);
+
+  /* ---- Space ----------------------------------------------------------------
+   * Six steps. Every margin and padding on the screen is one of these. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* ---- Radius ---------------------------------------------------------------
+   * Two. A control is 6, a surface is 8. */
+  --radius-badge: 4px;
+  --radius-control: 6px;
+  --radius-surface: 8px;
+
+  /* ---- Density --------------------------------------------------------------
+   * 44px: denser than the 52 we had, which read as a consumer app, and still legible
+   * across a room, which the 32–36 of a real ERP is not. One number, one place. */
+  --row-height: 44px;
+
+  /* ---- Type -----------------------------------------------------------------
+   * Six roles, not eleven sizes. Each fixes size, weight, spacing and case together,
+   * so "the grid heading" is one decision rather than four properties per call site. */
+  --type-page-size: 22px;
+  --type-page-weight: 600;
+
+  --type-section-size: 15px;
+  --type-section-weight: 600;
+
+  --type-body-size: 14px;
+  --type-body-weight: 400;
+
+  --type-key-weight: 500;
+
+  --type-label-size: 12px;
+  --type-label-weight: 400;
+
+  --type-micro-size: 11px;
+  --type-micro-weight: 600;
+  --type-micro-spacing: 0.06em;
+}

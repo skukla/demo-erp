@@ -106,3 +106,61 @@ without a freeze.
    more on a screen; it also makes the screen busier.
 3. **Whether the accent stays blue.** It is a demo tool that sits beside Adobe Commerce.
    Blue is safe; a distinct accent would make it feel like its own product.
+
+
+---
+
+# What was built, and how it is checked
+
+**2026-09-23, the same day.** All three decisions were taken: the full remap including the
+type scale, 44px rows everywhere, and a deep teal accent.
+
+## The three files
+
+| File | Holds |
+|---|---|
+| `screen/src/design/tokens.css` | The system. Every colour, space, radius, density and type role, named once. |
+| `screen/src/design/spectrum-bridge.css` | Spectrum's own variables, pointed at those tokens. |
+| `screen/src/design/app.css` | Our components — shell, rail, page, card, grid, status, forms — built only from tokens. |
+
+`theme.css`, the 29-colour patch list, is gone.
+
+## The measurement that says it worked
+
+Sweep every page for a colour that is **not in the palette**, ignoring anything a person
+cannot see:
+
+| | Before | After |
+|---|---|---|
+| Colours on screen that nobody chose | 3 named, more unmeasured | **0 across all seven pages** |
+| Row heights | 44 and 52, unintentionally | 44 everywhere |
+| Declared radii | 5 | 3, each named |
+
+The sweep carries a positive control — a planted magenta — so a clean result means the
+check ran, not that it could not fail.
+
+## What the sweep found that reading could not
+
+Five leaks were invisible in the stylesheet and only showed up on screen:
+
+1. **`--spectrum-alias-label-text-color`** — a field label sets its own colour, so the
+   grey ramp never reached it.
+2. **The column-resize indicator** — Spectrum's blue, 0×0 until someone drags a column
+   header, at which point it would have appeared exactly once.
+3. **Switch tracks, placeholders and icons** — each keeps its own alias rather than
+   deriving from the ramp.
+4. **Button labels** — `--spectrum-button-text-color` is declared on the button and
+   differs per variant, so it cannot be set once at the root. The variant is not in the
+   class list at all; it is `data-variant`.
+5. **Specificity, three times.** Spectrum's rules are a class plus one or two attributes.
+   A rule of ours that is correct, present in the stylesheet, and matches the element
+   still loses — and the failure looks exactly like the rule being absent.
+
+## The rule that keeps it
+
+Nothing outside `tokens.css` writes a colour, a font size or a raw pixel value. If a
+value is needed that the tokens do not have, **the missing thing is the token**.
+
+The 17 `UNSAFE_style` escapes in the components are the remaining debt. They are where
+the system can leak back in, and they are why the product detail page still reads
+slightly apart from the rest.

@@ -1,0 +1,189 @@
+/*
+ * Spectrum, pointed at our tokens.
+ *
+ * Spectrum reads about 1,750 CSS custom properties for everything it draws. Overriding
+ * components one at a time means the system only covers what somebody has noticed —
+ * which is how #222222, #464646 and #fdfdfd ended up on screen without anyone choosing
+ * them. Redefining its variables instead means a component we have never touched still
+ * comes out in our vocabulary.
+ *
+ * Everything here was read off the rendered page before it was written. Two things make
+ * that necessary: Spectrum's class names are HASHED at build time, so a rule for
+ * `.spectrum-Button` matches nothing; and it declares most variables on the ELEMENT that
+ * uses them, so an override at :root silently does nothing. The variables below are the
+ * ones it declares at the theme root, which is why they can be set here.
+ */
+
+/* The theme root. Everything Spectrum draws inherits from it. */
+[class*="spectrum--light"] {
+  /* ---- The grey ramp --------------------------------------------------------
+   * The single highest-value mapping: Spectrum derives its text, borders, fills and
+   * disabled states from this ramp, so pointing it at ours brings almost every
+   * component along without naming any of them. */
+  --spectrum-global-color-gray-50: var(--grey-0);
+  --spectrum-global-color-gray-75: var(--grey-50);
+  --spectrum-global-color-gray-100: var(--grey-50);
+  --spectrum-global-color-gray-200: var(--grey-200);
+  --spectrum-global-color-gray-300: var(--line);
+  --spectrum-global-color-gray-400: var(--grey-400);
+  --spectrum-global-color-gray-500: var(--grey-500);
+  --spectrum-global-color-gray-600: var(--grey-600);
+  --spectrum-global-color-gray-700: var(--ink-2);
+  --spectrum-global-color-gray-800: var(--grey-800);
+  --spectrum-global-color-gray-900: var(--ink);
+
+  /* ---- Borders --------------------------------------------------------------
+   * Spectrum keeps its own border aliases, several of which are a mid grey that is
+   * heavier than anything else on the screen. One line colour, everywhere. */
+  --spectrum-alias-border-color: var(--line);
+  --spectrum-alias-border-color-light: var(--line);
+  --spectrum-alias-border-color-mid: var(--line);
+  --spectrum-alias-border-color-dark: var(--line-strong);
+  --spectrum-alias-border-color-hover: var(--line-strong);
+  --spectrum-alias-border-color-down: var(--line-strong);
+  --spectrum-alias-border-color-focus: var(--accent);
+  --spectrum-alias-input-border-color-key-focus: var(--accent);
+
+  /* ---- Accent ---------------------------------------------------------------- */
+  --spectrum-accent-background-color-default: var(--accent);
+  --spectrum-accent-background-color-hover: var(--accent-hover);
+  --spectrum-accent-background-color-key-focus: var(--accent-hover);
+  --spectrum-accent-background-color-down: var(--accent-down);
+  --spectrum-accent-content-color-default: var(--accent);
+  --spectrum-accent-content-color-hover: var(--accent-hover);
+  --spectrum-accent-content-color-down: var(--accent-down);
+  --spectrum-alias-focus-ring-color: var(--accent);
+
+  /* ---- Text, icons and toggles ----------------------------------------------
+   * The second layer: Spectrum keeps its own aliases for text, labels, placeholders,
+   * icons and switches, and they do NOT derive from the grey ramp above. Each was
+   * found by sweeping the rendered pages for a colour that is not in our palette —
+   * the only way to find a leak that is invisible in the stylesheet. */
+  --spectrum-alias-text-color: var(--ink);
+  --spectrum-alias-text-color-hover: var(--ink);
+  --spectrum-alias-text-color-down: var(--ink);
+  --spectrum-alias-text-color-selected-neutral: var(--ink);
+  --spectrum-alias-text-color-disabled: var(--grey-400);
+  --spectrum-alias-text-color-invalid: var(--bad-ink);
+  --spectrum-alias-heading-text-color: var(--ink);
+  --spectrum-alias-title-text-color: var(--ink);
+  --spectrum-alias-label-text-color: var(--ink-2);
+
+  --spectrum-alias-placeholder-text-color: var(--ink-3);
+  --spectrum-alias-placeholder-text-color-hover: var(--ink-2);
+  --spectrum-alias-placeholder-text-color-down: var(--ink-2);
+  --spectrum-alias-placeholder-text-color-selected: var(--ink-3);
+
+  --spectrum-alias-icon-color: var(--ink-2);
+  --spectrum-alias-icon-color-hover: var(--ink);
+  --spectrum-alias-icon-color-down: var(--ink);
+  --spectrum-alias-icon-color-focus: var(--ink);
+  --spectrum-alias-icon-color-selected-neutral: var(--ink);
+  --spectrum-alias-icon-color-disabled: var(--grey-400);
+
+  /* A switch that is on was Spectrum's near-black; it is the accent, like everything
+     else that means "this one". */
+  --spectrum-alias-toggle-color-selected: var(--accent);
+  --spectrum-alias-toggle-color-selected-hover: var(--accent-hover);
+  --spectrum-alias-toggle-color-selected-down: var(--accent-down);
+  --spectrum-alias-toggle-color-selected-key-focus: var(--accent-hover);
+  --spectrum-alias-toggle-color-hover: var(--line-strong);
+  --spectrum-alias-toggle-color-key-focus: var(--line-strong);
+
+  /* Red means the same thing everywhere: the colour a failed status badge uses. */
+  --spectrum-global-color-red-500: var(--bad-ink);
+  --spectrum-negative-background-color-default: var(--bad-ink);
+
+  --spectrum-neutral-background-color-default: var(--grey-800);
+  --spectrum-neutral-background-color-hover: var(--ink);
+  --spectrum-neutral-background-color-down: var(--ink);
+  --spectrum-neutral-background-color-key-focus: var(--ink);
+
+  /* ---- Type scale -----------------------------------------------------------
+   * Spectrum's scale is sane at the small end and runs large at the top: its h1 is
+   * 28px at weight 700, which is what made the screen read as heavy. The lower steps
+   * keep their values — 14px body is right for an ERP — and the display sizes come
+   * down to the roles we actually use. */
+  --spectrum-global-dimension-font-size-50: var(--type-micro-size);
+  --spectrum-global-dimension-font-size-75: var(--type-label-size);
+  --spectrum-global-dimension-font-size-100: var(--type-body-size);
+  --spectrum-global-dimension-font-size-150: var(--type-section-size);
+  --spectrum-global-dimension-font-size-200: 16px;
+  --spectrum-global-dimension-font-size-300: 17px;
+  --spectrum-global-dimension-font-size-400: 19px;
+  --spectrum-global-dimension-font-size-500: var(--type-page-size);
+  --spectrum-global-dimension-font-size-600: 24px;
+  --spectrum-global-dimension-font-size-700: 26px;
+  --spectrum-alias-font-size-default: var(--type-body-size);
+}
+
+/* ---- Radius -----------------------------------------------------------------
+ * These live on the elements that use them, not at the theme root — an override at
+ * :root does nothing at all, which is the trap this file exists to warn about. */
+button[class*="spectrum-Button"],
+button[class*="spectrum-ActionButton"],
+button[class*="spectrum-BaseButton"] {
+  --spectrum-button-border-radius: var(--radius-control);
+  --spectrum-focus-ring-border-radius: 7px;
+}
+
+input,
+textarea,
+div[class*="spectrum-Textfield"],
+div[class*="spectrum-InputGroup"],
+button[class*="spectrum-Picker"],
+button[class*="spectrum-FieldButton"] {
+  --spectrum-textfield-border-radius: var(--radius-control);
+  --spectrum-picker-border-radius: var(--radius-control);
+}
+
+/* ---- The two that are declared on their own element -------------------------
+ * Found by sweeping the rendered page for colours that are not in our palette, which
+ * is the only way to find this class of leak: both were invisible in the stylesheet
+ * and both were Spectrum's, unchosen.
+ *
+ * A field label sets its own colour, so the ramp never reaches it. The column-resize
+ * indicator is 0x0 until a header is dragged, and was Spectrum's blue — which would
+ * have appeared, once, at the exact moment someone touched a column. */
+label[class*="spectrum-FieldLabel"] {
+  color: var(--ink-2);
+}
+
+[class*="spectrum-Table-bodyResizeIndicator"],
+[class*="spectrum-Table-headResizeIndicator"] {
+  background: var(--accent) !important;
+}
+
+/* ---- Button labels ----------------------------------------------------------
+ * `--spectrum-button-text-color` is declared on the button and differs per variant, so
+ * it cannot be set once at the root: a blanket value would turn the accent button's
+ * white label dark.
+ *
+ * The variant is NOT in the class list — every button carries the same classes. It is
+ * `data-variant`, which is a better hook anyway: an attribute Spectrum sets on purpose
+ * rather than a class name its build hashes.
+ *
+ * The class and `[data-style]` selectors are there for SPECIFICITY, not for matching.
+ * Spectrum's rules are a class plus one or two attributes, so each of ours has to carry
+ * at least as many. Written plainly because this is the third time a rule in this file
+ * was correct and lost, and because the failure looks exactly like the rule not being
+ * there — the stylesheet contains it, the element matches it, and the value is theirs. */
+button[class*="spectrum-Button"][data-variant="primary"][data-style],
+button[class*="spectrum-Button"][data-variant="secondary"][data-style] {
+  --spectrum-button-text-color: var(--ink);
+}
+
+button[class*="spectrum-Button"][data-variant="negative"][data-style] {
+  --spectrum-button-text-color: var(--bad-ink);
+  --spectrum-button-border-color: var(--bad-ink);
+}
+
+/* ---- Headings ---------------------------------------------------------------
+ * Spectrum sets heading weight to 700 near-black. Our sections are 600, and the page
+ * title is set in app.css. A dialog's heading is a section heading. */
+[class*="spectrum-Dialog"] h2,
+[class*="spectrum-Dialog"] h3 {
+  font-size: var(--type-section-size);
+  font-weight: var(--type-section-weight);
+  color: var(--ink);
+}

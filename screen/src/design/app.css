@@ -1,0 +1,295 @@
+/*
+ * The screen's own components, built from tokens.css. Nothing here writes a colour, a
+ * font size or a raw pixel measurement — if a value is needed that the tokens do not
+ * have, the token is what is missing.
+ *
+ * Three patterns carry the whole screen: the PAGE (title, actions, canvas), the CARD
+ * (a surface with an edge) and the GRID (head band, rows, key column, status).
+ */
+
+/* ---- Shell -------------------------------------------------------------------
+ * Plain elements rather than Spectrum layout, so the breakpoint below is ours to set.
+ */
+.erp-app {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  background: var(--surface-canvas);
+}
+
+.erp-rail {
+  flex: 0 0 232px;
+  box-sizing: border-box;
+  padding: var(--space-5) var(--space-4);
+  overflow-y: auto;
+  background: var(--surface-rail);
+  border-inline-end: 1px solid var(--line);
+}
+
+.erp-rail-name {
+  padding: 0 var(--space-2);
+  margin: 0 0 var(--space-4);
+  font-size: var(--type-micro-size);
+  font-weight: var(--type-micro-weight);
+  line-height: 1.3;
+  color: var(--ink-3);
+  letter-spacing: var(--type-micro-spacing);
+  text-transform: uppercase;
+}
+
+.erp-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  overflow: auto;
+  background: var(--surface-canvas);
+}
+
+/* ---- Rail options ------------------------------------------------------------
+ * Each area is an outlined surface on the rail, the same card language as the work
+ * beside it. The current one takes the accent's tint and edge, so "where I am" reads
+ * before "what I can choose".
+ */
+.erp-rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* The label span fills the button and centres its own text, so the alignment has to be
+   set on the label rather than on the button. */
+.erp-rail-nav button [class*="spectrum-ActionButton-label"] {
+  text-align: start;
+}
+
+.erp-rail button[class*="spectrum-ActionButton"] {
+  justify-content: flex-start;
+  width: 100%;
+  font-weight: var(--type-body-weight);
+  color: var(--ink-2);
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.erp-rail button[class*="spectrum-ActionButton"]:hover {
+  color: var(--ink);
+  background: var(--surface-card);
+  border-color: var(--line-strong);
+}
+
+.erp-rail button[aria-current="page"],
+.erp-rail button[aria-current="page"]:hover {
+  font-weight: var(--type-section-weight);
+  color: var(--accent-ink);
+  background: var(--accent-tint);
+  border-color: var(--accent-edge);
+}
+
+/* ---- Page --------------------------------------------------------------------
+ * A page's own actions sit at the right of its title, on the title's line. Below the
+ * breakpoint they drop under it rather than squeezing it.
+ */
+.erp-content h1 {
+  margin-bottom: var(--space-1);
+  font-size: var(--type-page-size);
+  font-weight: var(--type-page-weight);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.erp-content h2,
+.erp-content h3 {
+  font-size: var(--type-section-size);
+  font-weight: var(--type-section-weight);
+  color: var(--ink);
+}
+
+.erp-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.erp-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* ---- Card --------------------------------------------------------------------
+ * A section of the page, on its own surface. Spectrum's table root is transparent and
+ * sits straight on the page, so it is made a card here rather than being wrapped.
+ */
+.erp-card,
+.erp-content [role="grid"] {
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-surface);
+}
+
+.erp-card {
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  margin-top: var(--space-5);
+}
+
+.erp-content [role="grid"] {
+  overflow: hidden;
+}
+
+/* A table inside a card is part of that card, not a card of its own. */
+.erp-card [role="grid"] {
+  border: 0;
+  border-radius: 0;
+}
+
+/* ---- Grid --------------------------------------------------------------------- */
+[class*="spectrum-Table-headWrapper"] {
+  background: var(--surface-head);
+  border-block-end: 1px solid var(--line);
+}
+
+/* A head cell carries BOTH spectrum-Table-headCell and react-spectrum-Table-cell, so
+   the cell rule below also matches it; :not() keeps the two apart. */
+[class*="spectrum-Table-headCell"] {
+  font-size: var(--type-micro-size);
+  font-weight: var(--type-micro-weight);
+  color: var(--ink-2) !important;
+  letter-spacing: var(--type-micro-spacing);
+  text-transform: uppercase;
+  background: var(--surface-head) !important;
+}
+
+[class*="spectrum-Table-cell"]:not([class*="headCell"]) {
+  color: var(--ink);
+  /* Tabular figures: every digit the same width, so ids, quantities and money line up
+     down a column instead of drifting. Spectrum does not set it. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* One height for every grid on the screen. Products and the product page were running
+   Spectrum's `spacious` while everything else ran `compact`, which nobody chose. */
+[class*="spectrum-Table-row"] {
+  min-height: var(--row-height);
+}
+
+[class*="spectrum-Table-row"]::after {
+  box-shadow: inset 0 -1px 0 0 var(--line) !important;
+}
+
+[class*="spectrum-Table-row"]:hover [class*="spectrum-Table-cell"] {
+  background: var(--surface-hover);
+}
+
+/* The record's own number, in a grid whose rows open something. */
+.erp-key {
+  font-weight: var(--type-key-weight);
+  color: var(--accent);
+}
+
+/* Every rule Spectrum draws, dividers inside cards included, takes the one colour. */
+[class*="spectrum-Divider"] {
+  background: var(--line) !important;
+}
+
+/* ---- Status ------------------------------------------------------------------
+ * A tinted badge rather than a coloured dot beside grey text: it reads down a column
+ * at a glance, which the dot did not. The dot is a ::before, so it is hidden.
+ */
+[class*="spectrum-StatusLight"] {
+  display: inline-block;
+  min-height: 0;
+  padding: 2px var(--space-2) 3px;
+  font-size: var(--type-label-size);
+  font-weight: var(--type-key-weight);
+  /* Spectrum italicises the neutral variant, which reads as an aside rather than as a
+     state once it is a badge. Every status is a state. */
+  font-style: normal;
+  line-height: 18px;
+  border-radius: var(--radius-badge);
+}
+
+[class*="spectrum-StatusLight"]::before {
+  display: none !important;
+}
+
+[class*="spectrum-StatusLight--positive"] { color: var(--ok-ink); background: var(--ok-tint); }
+[class*="spectrum-StatusLight--negative"] { color: var(--bad-ink); background: var(--bad-tint); }
+[class*="spectrum-StatusLight--notice"]   { color: var(--warn-ink); background: var(--warn-tint); }
+[class*="spectrum-StatusLight--info"]     { color: var(--info-ink); background: var(--info-tint); }
+[class*="spectrum-StatusLight--neutral"]  { color: var(--quiet-ink); background: var(--quiet-tint); }
+
+/* ---- Forms -------------------------------------------------------------------- */
+.erp-search {
+  /* Wide enough that a placeholder is never cut off. Measured: at 240px the field gave
+     177px for text, because Spectrum spends 35px on the search icon and 28px on the
+     clear button, and the longest placeholder needs 180. */
+  flex: 0 1 320px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* A form whose fields read across a line rather than down a column. */
+.erp-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: end;
+  margin: var(--space-3) 0;
+}
+
+/* ---- Narrow ------------------------------------------------------------------
+ * Under 900px the rail goes to the top and scrolls sideways: a demo is given on a
+ * laptop, but it is prepared and checked on whatever is to hand.
+ */
+@media (max-width: 900px) {
+  .erp-app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .erp-rail {
+    flex: none;
+    padding: var(--space-3) var(--space-4);
+    overflow-x: auto;
+    overflow-y: visible;
+    border-inline-end: none;
+    border-block-end: 1px solid var(--line);
+  }
+
+  .erp-rail-name {
+    margin-bottom: var(--space-2);
+  }
+
+  .erp-rail-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+
+  /* The attribute selector MATCHES the wide rule's specificity, which sets width:100%
+     — without it every option filled the strip and only the first was visible. */
+  .erp-rail-nav button[class*="spectrum-ActionButton"] {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .erp-rail-nav button [class*="spectrum-ActionButton-label"] {
+    overflow: visible;
+    white-space: nowrap;
+    text-overflow: clip;
+  }
+
+  .erp-content {
+    padding: var(--space-4) var(--space-4) var(--space-6);
+  }
+
+  .erp-page-header {
+    align-items: flex-start;
+  }
+}

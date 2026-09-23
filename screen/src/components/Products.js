@@ -100,7 +100,7 @@ export default function Products ({ api, onChanged, onNavigate }) {
       <GridSearch placeholder='Product or description' view={view} />
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Products'
-        density='spacious'
+        density='compact'
         overflowMode='wrap'
         marginTop='size-200'
         selectionMode='none'
