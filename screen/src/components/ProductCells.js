@@ -9,8 +9,9 @@ import EditableNumber from './EditableNumber'
 import EditableText from './EditableText'
 import SavingValue from './SavingValue'
 import { priceText } from './productFormat'
+import { moneyOptions } from '../money'
 
-const MONEY = { style: 'currency', currency: 'USD' }
+const MONEY = moneyOptions()
 
 export function NameCell ({ product, editing, onSave }) {
   const isSaving = product.saving === 'name'

@@ -20,8 +20,10 @@ import { saveInPlace } from './saveInPlace'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
+import { moneyOptions } from '../money'
 
-const money = { style: 'currency', currency: 'USD' }
+// One object, not one per render: a Spectrum number field compares this by identity.
+const MONEY = moneyOptions()
 
 /* Wide enough for the header plus its sort chevron; see Orders.js. */
 /* Name takes twice the slack of the two id columns beside it; the switch at the end
@@ -87,7 +89,7 @@ export default function Partners ({ api, onChanged }) {
               <Cell>{p.commerceCompanyId || '—'}</Cell>
               <Cell>{p.salesOrg || '—'}</Cell>
               <Cell>{p.paymentTerms}</Cell>
-              <Cell><EditableNumber label='Credit limit' value={p.creditLimit} isSaving={p.saving === 'creditLimit'} step={100} formatOptions={money} onSave={(v) => save(p.id, { creditLimit: v })} /></Cell>
+              <Cell><EditableNumber label='Credit limit' value={p.creditLimit} isSaving={p.saving === 'creditLimit'} step={100} formatOptions={MONEY} onSave={(v) => save(p.id, { creditLimit: v })} /></Cell>
               <Cell><SavingValue isSaving={p.saving === 'blocked'}><Switch aria-label='Blocked' isSelected={Boolean(p.blocked)} onChange={(v) => save(p.id, { blocked: v })} /></SavingValue></Cell>
             </Row>
           )}

@@ -55,7 +55,9 @@ const orders = STATUSES.map((status, i) => {
     partnerId: partners[(i % 4) + 1].id,
     lines,
     currency: 'USD',
-    total: lines.reduce((sum, l) => sum + l.qty * l.price, 0),
+    // Every third order arrives with tax in its total, as a real Commerce order does,
+    // so the document's Tax row is something that can be looked at.
+    total: Math.round(lines.reduce((sum, l) => sum + l.qty * l.price, 0) * (i % 3 === 0 ? 1.0825 : 1) * 100) / 100,
     status,
     createdAt: new Date(Date.UTC(2026, 8, 4 + i, 9, 12)).toISOString()
   }
@@ -92,6 +94,55 @@ const health = {
 }
 
 const copy = (value) => JSON.parse(JSON.stringify(value))
+
+/* The order document, shaped the way lib/orders.js `describeOrder` shapes it. Kept in
+   step by hand: the preview runs in a browser and that module is the action's CommonJS.
+   If the document grows a field there, it grows one here. */
+const LINE_STEP = 10
+const NEXT = {
+  created: ['confirmed', 'cancelled'],
+  confirmed: ['shipped', 'cancelled'],
+  shipped: ['invoiced'],
+  invoiced: [],
+  cancelled: []
+}
+const CANCEL_REASONS = [
+  'Customer request',
+  'Credit rejected',
+  'Out of stock',
+  'Pricing error',
+  'Duplicate order'
+]
+const cents = (value) => Math.round(value * 100) / 100
+
+function describe (order) {
+  const partner = partners.find((p) => p.id === order.partnerId) || null
+  const lines = (order.lines || []).map((line, index) => {
+    const product = products.find((p) => p.sku === line.sku)
+    return {
+      ...line,
+      item: (index + 1) * LINE_STEP,
+      name: product ? product.name : line.sku,
+      unit: product && product.unit ? product.unit : 'EA',
+      amount: cents(line.qty * line.price)
+    }
+  })
+  const net = cents(lines.reduce((sum, l) => sum + l.amount, 0))
+  const total = cents(Number(order.total ?? net))
+  const nextStatuses = NEXT[order.status] || []
+  return {
+    ...order,
+    lines,
+    nextStatuses,
+    partner: partner
+      ? { id: partner.id, name: partner.name, paymentTerms: partner.paymentTerms, salesOrg: partner.salesOrg }
+      : null,
+    net,
+    tax: cents(total - net),
+    total,
+    cancelReasons: nextStatuses.includes('cancelled') ? CANCEL_REASONS : []
+  }
+}
 const refuse = () => Promise.reject(new Error('The preview holds stand-in records; nothing here writes.'))
 
 /** Everything screen/src/api.js offers, answered from the records above. */
@@ -109,9 +160,25 @@ export const fakeApi = {
   saveCondition: refuse,
   deleteCondition: refuse,
   quote: refuse,
-  orders: async () => copy(orders),
-  order: async (number) => copy(orders.find((o) => o.number === number)),
-  moveOrder: refuse,
+  orders: async () => copy(orders.map((o) => ({
+    ...o,
+    partnerName: (partners.find((p) => p.id === o.partnerId) || {}).name || null
+  }))),
+  order: async (number) => copy(describe(orders.find((o) => o.number === number))),
+  // The one write the preview allows: moving an order is what the document is FOR, and
+  // a document whose buttons do nothing cannot be looked at properly.
+  moveOrder: async (number, status, reason) => {
+    const order = orders.find((o) => o.number === number)
+    if (!(NEXT[order.status] || []).includes(status)) {
+      throw new Error(`an order in status "${order.status}" cannot move to "${status}"`)
+    }
+    if (status === 'cancelled' && !CANCEL_REASONS.includes(reason)) {
+      throw new Error(`a cancellation needs one of these reasons: ${CANCEL_REASONS.join(', ')}`)
+    }
+    order.status = status
+    if (reason) order.cancelReason = reason
+    return copy(describe(order))
+  },
   events: async () => ({ items: copy(events), webhookUrl: 'https://preview.example/ingestion/webhook', pending: 1, failed: 1 }),
   retryEvents: refuse,
   requeueEvents: refuse,

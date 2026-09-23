@@ -23,8 +23,9 @@ import { useColumnWidths } from './columnWidths'
 import EditToggle from './EditToggle'
 import { PriceCell, StockCell } from './ProductCells'
 import { kindText, priceText, variantText, withEdit, withVariantTotals } from './productFormat'
+import { moneyOptions } from '../money'
 
-const MONEY = { style: 'currency', currency: 'USD' }
+const MONEY = moneyOptions()
 const SUBTLE = { color: 'var(--spectrum-global-color-gray-700)' }
 
 const VARIANT_COLUMNS = [

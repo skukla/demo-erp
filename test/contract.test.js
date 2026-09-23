@@ -34,7 +34,7 @@ test('the payload of each raised event carries exactly the contract keys', async
   await setStatus(cols, order.number, 'shipped')
   await setStatus(cols, order.number, 'invoiced')
   const cancelled = await createOrder(cols, { commerceOrderId: '10', lines: [] })
-  await setStatus(cols, cancelled.number, 'cancelled')
+  await setStatus(cols, cancelled.number, 'cancelled', undefined, { reason: 'Customer request' })
   const entries = await pending(cols)
   const seen = new Set()
   for (const e of entries) {
