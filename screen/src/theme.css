@@ -53,6 +53,7 @@
      stay readable on it — both measured in the browser, not chosen by eye. */
   --erp-rail-selected: #d7e6fb;
   --erp-rail-selected-ink: #0f4c99;
+  --erp-rail-selected-edge: #a6c8f3;
 }
 
 /* ---- Buttons ------------------------------------------------------------------
@@ -182,10 +183,13 @@ button[class*="spectrum-Picker"] {
  * accent colour and the accent's own text is how current software marks it — the bar
  * down the side that replaced the dark block first was the dated half.
  */
+/* Each area is its own outlined option on the rail's grey, the same card language as
+   the work beside it. With an outline they need room to breathe: at 2px apart they
+   read as the rows of a table rather than as separate things to choose. */
 .erp-rail-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 
 /* Spectrum gives a selected quiet action button a 1px #464646 border, which on a rail
@@ -197,18 +201,23 @@ button[class*="spectrum-Picker"] {
   text-align: start;
 }
 
+/* Spectrum gives a selected quiet action button a 1px #464646 border, which on a rail
+   item read as a hard box drawn around the page you are on. The border is ours now —
+   every option carries one, in the same colour as every other outline on the screen. */
 .erp-rail button[class*="spectrum-ActionButton"] {
   justify-content: flex-start;
   width: 100%;
   font-weight: 400;
   color: var(--erp-ink-soft);
-  border-color: transparent;
+  background: var(--erp-card);
+  border: 1px solid var(--erp-rule);
   border-radius: 6px;
 }
 
 .erp-rail button[class*="spectrum-ActionButton"]:hover {
   color: var(--erp-ink);
-  background: var(--erp-rail-hover);
+  background: var(--erp-card);
+  border-color: var(--erp-ink-faint);
 }
 
 .erp-rail button[aria-current="page"],
@@ -216,7 +225,7 @@ button[class*="spectrum-Picker"] {
   font-weight: 600;
   color: var(--erp-rail-selected-ink);
   background: var(--erp-rail-selected);
-  border-color: transparent;
+  border-color: var(--erp-rail-selected-edge);
 }
 
 /* ---- A page's own header ------------------------------------------------------
