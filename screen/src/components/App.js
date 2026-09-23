@@ -4,7 +4,7 @@
  * is the only credential, so opened without one it says where to go instead.
  */
 import React, { useEffect, useState, useCallback } from 'react'
-import { Provider, defaultTheme, Grid, View, Heading, ActionGroup, Item, InlineAlert, Content, ToastContainer } from '@adobe/react-spectrum'
+import { Provider, defaultTheme, ActionGroup, Item, InlineAlert, Heading, Content, ToastContainer } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import Dashboard from './Dashboard'
 import Products from './Products'
@@ -61,15 +61,17 @@ export default function App ({ screenKey, api: given }) {
   const active = PAGES.find((p) => p.key === page) || PAGES[0]
   return (
     <Provider theme={defaultTheme} colorScheme='light' height='100vh'>
-      <Grid areas={['rail content']} columns={['size-3000', '1fr']} rows={['auto']} height='100%'>
-        <View gridArea='rail' backgroundColor='gray-100' padding='size-300' borderEndWidth='thin' borderEndColor='gray-300'>
-          <Heading level={2} marginTop={0}>{health ? health.displayName : 'ERP'}</Heading>
+      {/* Plain elements, not Spectrum's Grid and View: the rail moves to the top on a
+          narrow screen, and that is a media rule rather than a token (theme.css). */}
+      <div className='erp-app'>
+        <div className='erp-rail'>
+          <p className='erp-rail-name'>{health ? health.displayName : 'ERP'}</p>
           <ActionGroup orientation='vertical' isQuiet selectionMode='single' selectedKeys={[page]}
             onSelectionChange={(keys) => setPage([...keys][0] || 'dashboard')} width='100%'>
             {PAGES.map((p) => <Item key={p.key}>{p.label}</Item>)}
           </ActionGroup>
-        </View>
-        <View gridArea='content' padding='size-400' overflow='auto'>
+        </div>
+        <div className='erp-content'>
           {!ready && (
             <InlineAlert variant='info'>
               <Heading>Open the ERP from Demo Builder</Heading>
@@ -83,8 +85,8 @@ export default function App ({ screenKey, api: given }) {
             </InlineAlert>
           )}
           {ready && <active.Component key={active.key} api={api} health={health} onChanged={refreshHealth} onNavigate={setPage} />}
-        </View>
-      </Grid>
+        </div>
+      </div>
       <ToastContainer placement='top' />
     </Provider>
   )

@@ -1,0 +1,178 @@
+/*
+ * A house style over Spectrum. The components stay Spectrum — their behaviour,
+ * keyboard handling and accessibility are the reason to use it — but the chrome reads
+ * as business software rather than as an Adobe product.
+ *
+ * Every selector and variable here was read off the rendered page before it was
+ * written, not guessed. Two things make that necessary:
+ *
+ * 1. Class names are HASHED at build time (`_VbXxq_spectrum-Button`), so a rule for
+ *    `.spectrum-Button` matches nothing. Substring attribute selectors work and are
+ *    stable across builds, because the suffix is the real name.
+ * 2. Spectrum declares most of its variables on the ELEMENT that uses them, not on the
+ *    theme root — `--spectrum-button-border-radius` lives on the button. Overriding it
+ *    at :root does nothing at all, silently.
+ *
+ * If a rule here stops working, check both of those before assuming Spectrum changed.
+ */
+
+/* ---- The single loudest tell: the pill ---------------------------------------
+ * Spectrum buttons are 16px-radius capsules. No ERP has ever shipped a capsule
+ * button; SAP Fiori and Business Central both use a small rectangle. The variable is
+ * declared on the button, so the override has to be too.
+ */
+button[class*="spectrum-Button"],
+button[class*="spectrum-ActionButton"],
+button[class*="spectrum-BaseButton"] {
+  --spectrum-button-border-radius: 4px;
+  --spectrum-focus-ring-border-radius: 5px;
+}
+
+/* ---- The accent ---------------------------------------------------------------
+ * Spectrum's #0265dc is a vivid product blue. These four are declared at the theme
+ * root, so they can be re-pointed there. A deeper, less saturated blue reads as
+ * enterprise software and keeps white text well clear of the contrast floor
+ * (measured in the browser at 7.36:1 against white, where 4.5:1 is the requirement).
+ */
+[class*="spectrum--light"] {
+  --spectrum-accent-background-color-default: #13598f;
+  --spectrum-accent-background-color-hover: #0f4a78;
+  --spectrum-accent-background-color-key-focus: #0f4a78;
+  --spectrum-accent-background-color-down: #0d3f66;
+}
+
+/* ---- The shell ----------------------------------------------------------------
+ * Plain elements rather than Spectrum layout components, so the breakpoints below are
+ * ours to set. Spectrum's own Grid takes tokens but not the media rules this needs.
+ */
+.erp-app {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.erp-rail {
+  flex: 0 0 240px;
+  box-sizing: border-box;
+  padding: 20px 12px;
+  overflow-y: auto;
+  background: var(--spectrum-global-color-gray-75, #f8f8f8);
+  border-inline-end: 1px solid var(--spectrum-global-color-gray-300, #e1e1e1);
+}
+
+.erp-rail-name {
+  padding: 0 8px;
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.erp-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 24px 28px 48px;
+  overflow: auto;
+}
+
+/* ---- The rail's selected item -------------------------------------------------
+ * Spectrum marks a selected quiet action as a dark filled block. Every ERP marks the
+ * page you are on with a bar down the side and a light tint, so the nav reads as a
+ * place rather than as a pressed button. `aria-checked` is the hook because it is
+ * semantic — the class names are hashed.
+ */
+.erp-rail [class*="spectrum-ActionGroup"] {
+  gap: 2px;
+}
+
+.erp-rail button[class*="spectrum-ActionButton"] {
+  justify-content: flex-start;
+  width: 100%;
+  border-radius: 3px;
+}
+
+.erp-rail button[aria-checked="true"] {
+  font-weight: 700;
+  color: var(--spectrum-global-color-gray-900, #1b1b1b);
+  background: var(--spectrum-global-color-gray-200, #e9e9e9);
+  border-inline-start: 3px solid #13598f;
+  border-radius: 0 3px 3px 0;
+}
+
+/* ---- A page's own header ------------------------------------------------------
+ * The title on the left and the page's actions on the right, on one line — the
+ * arrangement both reference systems use. Below the breakpoint the actions drop under
+ * the title rather than squeezing it.
+ */
+.erp-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.erp-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ---- Narrow -------------------------------------------------------------------
+ * Under 900px the rail goes to the top and scrolls sideways, which is what it is for:
+ * a demo is given on a laptop, but it is prepared and checked on whatever is to hand.
+ */
+@media (max-width: 900px) {
+  .erp-app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+  }
+
+  .erp-rail {
+    flex: none;
+    padding: 12px;
+    overflow-x: auto;
+    overflow-y: visible;
+    border-inline-end: none;
+    border-block-end: 1px solid var(--spectrum-global-color-gray-300, #e1e1e1);
+  }
+
+  .erp-rail-name {
+    margin-bottom: 10px;
+  }
+
+  /* The nav becomes one scrollable row of tabs. */
+  .erp-rail [class*="spectrum-ActionGroup"] {
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+
+  .erp-rail button[class*="spectrum-ActionButton"] {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .erp-rail button[aria-checked="true"] {
+    border-inline-start: none;
+    border-block-end: 3px solid #13598f;
+    border-radius: 3px 3px 0 0;
+  }
+
+  .erp-content {
+    padding: 16px;
+  }
+
+  .erp-page-header {
+    align-items: flex-start;
+  }
+}
+
+/* A table wider than the screen scrolls sideways rather than pushing the page out. */
+@media (max-width: 700px) {
+  .erp-content {
+    padding: 12px;
+  }
+}

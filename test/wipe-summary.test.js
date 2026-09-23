@@ -10,7 +10,7 @@ test('names every collection that had something in it, in the words the screen u
   const { wipeSummary } = await load()
   assert.equal(
     wipeSummary({ products: 182, businessPartners: 4, pricingConditions: 0, salesOrders: 2, events: 8 }),
-    'Wiped 182 products, 4 business partners, 2 sales orders and 8 events. The order numbering and the settings stay.'
+    'Wiped 182 products, 4 customers, 2 sales orders and 8 events. The order numbering and the settings stay.'
   )
 })
 
@@ -18,7 +18,7 @@ test('counts of one read as one', async () => {
   const { wipeSummary } = await load()
   assert.equal(
     wipeSummary({ products: 1, businessPartners: 1, pricingConditions: 1, salesOrders: 1, events: 1 }),
-    'Wiped 1 product, 1 business partner, 1 pricing condition, 1 sales order and 1 event. The order numbering and the settings stay.'
+    'Wiped 1 product, 1 customer, 1 pricing condition, 1 sales order and 1 event. The order numbering and the settings stay.'
   )
 })
 

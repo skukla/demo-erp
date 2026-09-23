@@ -10,7 +10,7 @@ const BAR_LABEL = { partners: 'Customers', products: 'Products' }
 
 const PHASE_TEXT = {
   reading: 'Reading products and companies from the connected store…',
-  partners: 'Importing business partners…',
+  partners: 'Importing customers…',
   products: 'Importing products…'
 }
 
@@ -41,7 +41,7 @@ export function syncHeadline (sync) {
   if (sync.state === 'done') {
     const products = sync.products ? sync.products.total : 0
     const partners = sync.partners ? sync.partners.total : 0
-    return `Synced ${products} products and ${partners} business partners.`
+    return `Synced ${products} products and ${partners} customers.`
   }
   return null
 }

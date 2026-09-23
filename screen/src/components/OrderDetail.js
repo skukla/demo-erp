@@ -108,9 +108,9 @@ export default function OrderDetail ({ api, number, onBack, onChanged }) {
         <ChevronLeft />
         <Text>Sales orders</Text>
       </ActionButton>
-      <Flex justifyContent='space-between' alignItems='center' marginBottom='size-200' wrap gap='size-200'>
+      <div className='erp-page-header'>
         <Heading level={1} marginY={0}>Sales order {order.number}</Heading>
-        <Flex gap='size-100'>
+        <div className='erp-page-actions'>
           {forward.map((status) => (
             <Button key={status} variant='accent' isDisabled={busy} onPress={() => move(status)}>
               {ACTION_LABEL[status] || status}
@@ -123,8 +123,8 @@ export default function OrderDetail ({ api, number, onBack, onChanged }) {
               onCancel={(reason) => move('cancelled', reason)}
             />
           )}
-        </Flex>
-      </Flex>
+        </div>
+      </div>
       {(moveError || error) && (
         <InlineAlert variant='negative' marginBottom='size-200'>
           <Heading>Something went wrong</Heading>

@@ -13,13 +13,13 @@
 /** Singular and plural for each collection a wipe clears. */
 const LABELS = {
   products: ['product', 'products'],
-  businessPartners: ['business partner', 'business partners'],
+  businessPartners: ['customer', 'customers'],
   pricingConditions: ['pricing condition', 'pricing conditions'],
   salesOrders: ['sales order', 'sales orders'],
   events: ['event', 'events']
 }
 
-/** "3 products", "1 business partner", or the raw name for a collection we have no words for. */
+/** "3 products", "1 customer", or the raw name for a collection we have no words for. */
 function count (name, n) {
   const words = LABELS[name]
   return `${n} ${words ? words[n === 1 ? 0 : 1] : name}`

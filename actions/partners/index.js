@@ -9,12 +9,12 @@ async function handler ({ cols, method, segments, body, params }) {
   if (method === 'GET' && !id) return ok({ items: await listPartners(cols) })
   if (method === 'GET') {
     const partner = await getPartner(cols, id)
-    if (!partner) throw notFound(`Business partner ${id}`)
+    if (!partner) throw notFound(`Customer ${id}`)
     return ok(partner)
   }
   if ((method === 'PATCH' || method === 'POST') && id) {
     const partner = await patchPartner(cols, id, body, params)
-    if (!partner) throw notFound(`Business partner ${id}`)
+    if (!partner) throw notFound(`Customer ${id}`)
     return ok(partner)
   }
 }

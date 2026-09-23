@@ -97,7 +97,7 @@ test('a finished sync is journaled once, not on every report', async () => {
 
   const entries = await recent(cols)
   assert.equal(entries.length, 1)
-  assert.equal(entries[0].summary, 'Synced 182 products and 4 business partners')
+  assert.equal(entries[0].summary, 'Synced 182 products and 4 customers')
 })
 
 test('a Commerce order is journaled the first time, and a redelivery is not', async () => {

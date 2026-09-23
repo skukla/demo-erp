@@ -116,7 +116,7 @@ export default function Settings ({ api, onChanged }) {
 
           <Section title='Records'>
             <Flex direction='column' gap='size-200' maxWidth='size-6000'>
-              <Text>Brings the ERP's products and business partners up to date with the connected store. Existing records are updated; nothing is removed.</Text>
+              <Text>Brings the ERP's products and customers up to date with the connected store. Existing records are updated; nothing is removed.</Text>
               {/* Each button as wide as its label, in one row; the destructive
                   one set apart rather than sized differently. */}
               <Flex gap='size-300' alignItems='center'>
@@ -124,7 +124,7 @@ export default function Settings ({ api, onChanged }) {
                 <DialogTrigger>
                   <Button variant='negative' isDisabled={busy || syncing}>Wipe all records</Button>
                   <AlertDialog title='Wipe all records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
-                    Every product, business partner, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
+                    Every product, customer, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
                   </AlertDialog>
                 </DialogTrigger>
               </Flex>
