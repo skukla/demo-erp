@@ -10,31 +10,73 @@
 /* ---- Shell -------------------------------------------------------------------
  * Plain elements rather than Spectrum layout, so the breakpoint below is ours to set.
  */
+/* The shell: a bar across the top, everything else beneath it. */
+.erp-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* SAP Fiori's shell bar and Business Central's own top band do the same job: the
+   product's name, always visible, in the product's colour. Ours was a small grey label
+   wedged into the top of the rail, which is why the rail felt like it was carrying two
+   unrelated things. */
+.erp-shellbar {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--space-4);
+  align-items: center;
+  padding: 0 var(--space-5);
+  height: 48px;
+  background: var(--shell);
+  color: var(--shell-ink);
+}
+
+.erp-shellbar-name {
+  font-size: var(--type-section-size);
+  font-weight: var(--type-section-weight);
+  letter-spacing: 0.01em;
+}
+
 .erp-app {
   display: flex;
-  height: 100%;
+  flex: 1 1 auto;
   min-height: 0;
   background: var(--surface-canvas);
 }
 
 .erp-rail {
-  flex: 0 0 232px;
+  flex: 0 0 208px;
   box-sizing: border-box;
-  padding: var(--space-5) var(--space-4);
+  padding: var(--space-4) var(--space-3);
   overflow-y: auto;
   background: var(--surface-rail);
   border-inline-end: 1px solid var(--line);
 }
 
-.erp-rail-name {
+/* Groups, items and child items is what Fiori's Side Navigation is MADE of, and a
+   grouped menu is the clearest single signal that a screen is an ERP — a real one is
+   never a flat list. */
+.erp-rail-group + .erp-rail-group {
+  margin-top: var(--space-4);
+}
+
+.erp-rail-group-name {
   padding: 0 var(--space-2);
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-2);
   font-size: var(--type-micro-size);
   font-weight: var(--type-micro-weight);
   line-height: 1.3;
   color: var(--ink-3);
   letter-spacing: var(--type-micro-spacing);
   text-transform: uppercase;
+}
+
+.erp-rail-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .erp-content {
@@ -50,15 +92,9 @@
  * beside it. The current one takes the accent's tint and edge, so "where I am" reads
  * before "what I can choose".
  */
-.erp-rail-nav {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 /* The label span fills the button and centres its own text, so the alignment has to be
    set on the label rather than on the button. */
-.erp-rail-nav button [class*="spectrum-ActionButton-label"] {
+.erp-rail button [class*="spectrum-ActionButton-label"] {
   text-align: start;
 }
 
@@ -262,11 +298,22 @@
     border-block-end: 1px solid var(--line);
   }
 
-  .erp-rail-name {
-    margin-bottom: var(--space-2);
+  /* A group heading cannot be read in a sideways strip, so the strip is flat and the
+     groups run on from each other. */
+  .erp-rail {
+    display: flex;
+    gap: var(--space-2);
   }
 
-  .erp-rail-nav {
+  .erp-rail-group + .erp-rail-group {
+    margin-top: 0;
+  }
+
+  .erp-rail-group-name {
+    display: none;
+  }
+
+  .erp-rail-items {
     flex-direction: row;
     flex-wrap: nowrap;
     gap: var(--space-2);
@@ -274,12 +321,12 @@
 
   /* The attribute selector MATCHES the wide rule's specificity, which sets width:100%
      — without it every option filled the strip and only the first was visible. */
-  .erp-rail-nav button[class*="spectrum-ActionButton"] {
+  .erp-rail button[class*="spectrum-ActionButton"][class] {
     flex: 0 0 auto;
     width: auto;
   }
 
-  .erp-rail-nav button [class*="spectrum-ActionButton-label"] {
+  .erp-rail button [class*="spectrum-ActionButton-label"] {
     overflow: visible;
     white-space: nowrap;
     text-overflow: clip;

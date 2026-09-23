@@ -38,6 +38,10 @@
   --accent-tint: #e4f1f0;
   --accent-edge: #9ecdca;
   --accent-ink: #0a4b49;
+  /* The shell bar's band. Deeper than the accent so it reads as the product's own
+     chrome rather than as a very large button. */
+  --shell: #0b4341;
+  --shell-ink: #eaf3f2;
 
   /* ---- Surfaces, in depth order --------------------------------------------- */
   --surface-rail: var(--grey-200);

@@ -1,7 +1,14 @@
 /*
- * The ERP's screen: one Spectrum app with a side rail. Every page loads through
- * the same `api` and shows the same error banner; the key from Demo Builder's link
- * is the only credential, so opened without one it says where to go instead.
+ * The ERP's screen: a shell bar across the top and grouped side navigation beneath it.
+ * Every page loads through the same `api` and shows the same error banner; the key from
+ * Demo Builder's link is the only credential, so opened without one it says where to go
+ * instead.
+ *
+ * Both halves are real SAP Fiori patterns rather than a compromise between them. Its
+ * shell bar is the always-visible band carrying the product's name and anything global;
+ * its Side Navigation is a vertical menu of GROUPS, items and child items. Business
+ * Central arranges the same two ideas along the top instead. What neither has is a flat
+ * list of areas, which is what this rail was.
  */
 import React, { useEffect, useState, useCallback } from 'react'
 import { Provider, defaultTheme, ActionButton, InlineAlert, Heading, Content, ToastContainer } from '@adobe/react-spectrum'
@@ -15,15 +22,30 @@ import Pricing from './Pricing'
 import Settings from './Settings'
 import Events from './Events'
 
-const PAGES = [
-  { key: 'dashboard', label: 'Dashboard', Component: Dashboard },
-  { key: 'products', label: 'Products', Component: Products },
-  { key: 'partners', label: 'Customers', Component: Partners },
-  { key: 'orders', label: 'Sales Orders', Component: Orders },
-  { key: 'pricing', label: 'Pricing Rules', Component: Pricing },
-  { key: 'events', label: 'Event Journal', Component: Events },
-  { key: 'settings', label: 'Settings', Component: Settings }
+/* The menu, as an ERP arranges one: a home, then areas under the part of the business
+   they belong to. Shipments and Invoices land under Sales when they exist, which is the
+   other reason to group now rather than when the list is ten long. */
+const AREAS = [
+  { group: null, items: [{ key: 'dashboard', label: 'Dashboard', Component: Dashboard }] },
+  { group: 'Sales', items: [{ key: 'orders', label: 'Sales Orders', Component: Orders }] },
+  {
+    group: 'Master Data',
+    items: [
+      { key: 'products', label: 'Products', Component: Products },
+      { key: 'partners', label: 'Customers', Component: Partners },
+      { key: 'pricing', label: 'Pricing Rules', Component: Pricing }
+    ]
+  },
+  {
+    group: 'Monitoring',
+    items: [
+      { key: 'events', label: 'Event Journal', Component: Events },
+      { key: 'settings', label: 'Settings', Component: Settings }
+    ]
+  }
 ]
+
+const PAGES = AREAS.flatMap((area) => area.items)
 
 /**
  * @param {object} props `screenKey` from Demo Builder's link, and `api` — an override
@@ -100,8 +122,12 @@ export default function App ({ screenKey, api: given }) {
   return (
     <Provider theme={defaultTheme} colorScheme='light' height='100vh'>
       {/* Plain elements, not Spectrum's Grid and View: the rail moves to the top on a
-          narrow screen, and that is a media rule rather than a token (theme.css). */}
-      <div className='erp-app'>
+          narrow screen, and that is a media rule rather than a token (design/app.css). */}
+      <div className='erp-shell'>
+        <header className='erp-shellbar'>
+          <span className='erp-shellbar-name'>{health ? health.displayName : 'ERP'}</span>
+        </header>
+        <div className='erp-app'>
         {/* Buttons, not a single-selection ActionGroup. Two reasons, both found by
             trying it the other way:
             - choosing the area already open raises no SELECTION change, so there was
@@ -111,21 +137,25 @@ export default function App ({ screenKey, api: given }) {
               already selected, so clicking the open area sent the user to the Dashboard.
             `aria-current="page"` is also what a navigation list should say; aria-checked
             described these as radio buttons, which they are not. */}
-        <div className='erp-rail'>
-          <p className='erp-rail-name'>{health ? health.displayName : 'ERP'}</p>
-          <nav className='erp-rail-nav' aria-label='Areas'>
-            {PAGES.map((p) => (
-              <ActionButton
-                key={p.key}
-                isQuiet
-                aria-current={p.key === page ? 'page' : undefined}
-                onPress={() => { openPage(p.key); revisit() }}
-              >
-                {p.label}
-              </ActionButton>
-            ))}
-          </nav>
-        </div>
+        <nav className='erp-rail' aria-label='Areas'>
+          {AREAS.map((area) => (
+            <div className='erp-rail-group' key={area.group || 'home'}>
+              {area.group && <p className='erp-rail-group-name'>{area.group}</p>}
+              <div className='erp-rail-items'>
+                {area.items.map((p) => (
+                  <ActionButton
+                    key={p.key}
+                    isQuiet
+                    aria-current={p.key === page ? 'page' : undefined}
+                    onPress={() => { openPage(p.key); revisit() }}
+                  >
+                    {p.label}
+                  </ActionButton>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
         <div className='erp-content'>
           {!ready && (
             <InlineAlert variant='info'>
@@ -149,6 +179,7 @@ export default function App ({ screenKey, api: given }) {
               onNavigate={openPage}
             />
           )}
+          </div>
         </div>
       </div>
       <ToastContainer placement='top' />
