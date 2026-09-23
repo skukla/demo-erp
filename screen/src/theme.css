@@ -28,6 +28,10 @@
   --erp-ink-faint: #848d97;
   --erp-hairline: #e6e8ea;
   --erp-hover: #f5f6f7;
+  /* The rail's own surface and the line that divides it from the work. Enough to read
+     as two areas at a glance, not enough to read as a boxed panel. */
+  --erp-rail-surface: #f2f4f7;
+  --erp-rail-edge: #dde2e8;
 }
 
 /* ---- Buttons ------------------------------------------------------------------
@@ -91,14 +95,16 @@ button[class*="spectrum-Picker"] {
   background: #fff;
 }
 
-/* The rail is white and separated by a hairline, not a panel in its own grey box. */
+/* A soft tinted surface against the white of the work, divided by one slightly firmer
+   line. Not a grey panel in a box — the difference is that the tint is barely there and
+   the line does the dividing. */
 .erp-rail {
   flex: 0 0 232px;
   box-sizing: border-box;
   padding: 24px 16px;
   overflow-y: auto;
-  background: #fff;
-  border-inline-end: 1px solid var(--erp-hairline);
+  background: var(--erp-rail-surface);
+  border-inline-end: 1px solid var(--erp-rail-edge);
 }
 
 .erp-rail-name {
@@ -128,11 +134,15 @@ button[class*="spectrum-Picker"] {
   gap: 2px;
 }
 
+/* Spectrum gives a selected quiet action button a 1px #464646 border, which on a rail
+   item reads as a hard box drawn around the page you are on. The border stays at 1px so
+   nothing shifts when the selection moves; it is simply not drawn. */
 .erp-rail button[class*="spectrum-ActionButton"] {
   justify-content: flex-start;
   width: 100%;
   font-weight: 400;
   color: var(--erp-ink-soft);
+  border-color: transparent;
   border-radius: 6px;
 }
 
@@ -146,6 +156,7 @@ button[class*="spectrum-Picker"] {
   font-weight: 600;
   color: var(--erp-accent);
   background: var(--erp-accent-tint);
+  border-color: transparent;
 }
 
 /* ---- A page's own header ------------------------------------------------------
@@ -251,7 +262,7 @@ button[class*="spectrum-Picker"] {
     overflow-x: auto;
     overflow-y: visible;
     border-inline-end: none;
-    border-block-end: 1px solid var(--erp-hairline);
+    border-block-end: 1px solid var(--erp-rail-edge);
   }
 
   .erp-rail-name {
