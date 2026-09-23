@@ -73,9 +73,9 @@ const events = [
 ]
 
 const conditions = [
-  { id: 'c1', kind: 'contractPrice', partnerId: 'C000101', sku: 'P000001', price: 79 },
-  { id: 'c2', kind: 'contractDiscount', partnerId: 'C000102', sku: null, percent: 12 },
-  { id: 'c3', kind: 'maxDiscount', partnerId: null, sku: null, percent: 25 }
+  { _id: 'c1', id: 'c1', kind: 'contractPrice', partnerId: 'C000101', sku: 'P000001', price: 79 },
+  { _id: 'c2', id: 'c2', kind: 'contractDiscount', partnerId: 'C000102', sku: null, percent: 12 },
+  { _id: 'c3', id: 'c3', kind: 'maxDiscount', partnerId: null, sku: null, percent: 25 }
 ]
 
 const settings = {
@@ -98,6 +98,55 @@ const health = {
    not happen. */
 const LATENCY_MS = 350
 const wait = () => new Promise((resolve) => setTimeout(resolve, LATENCY_MS))
+/* Pricing, mirroring lib/pricing.js so the preview answers what the ERP would. Kept in
+   step by hand for the same reason describe() above is: that module is the action's
+   CommonJS and this runs in a browser. */
+const DEFAULT_MAX_DISCOUNT = 100
+const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
+const specificity = (c) => (c.partnerId ? 2 : 0) + (c.sku ? 1 : 0)
+const matchesCondition = (c, partnerId, sku) =>
+  (!c.partnerId || c.partnerId === partnerId) && (!c.sku || c.sku === sku)
+
+function mostSpecific (kind, partnerId, sku) {
+  return conditions
+    .filter((c) => c.kind === kind && matchesCondition(c, partnerId, sku))
+    .sort((a, b) => specificity(b) - specificity(a))[0]
+}
+
+function priceLine (product, partnerId, qty) {
+  const listPrice = Number(product.listPrice) || 0
+  const price = mostSpecific('contractPrice', partnerId, product.sku)
+  const discount = mostSpecific('contractDiscount', partnerId, product.sku)
+  const ceiling = mostSpecific('maxDiscount', partnerId, product.sku)
+  const maxDiscountPercent = ceiling ? Number(ceiling.percent) : DEFAULT_MAX_DISCOUNT
+  let contractPrice = listPrice
+  let source = 'list'
+  if (price && price.partnerId === partnerId) {
+    contractPrice = Number(price.price)
+    source = 'contractPrice'
+  } else if (discount && discount.partnerId === partnerId) {
+    contractPrice = round2(listPrice * (1 - Number(discount.percent) / 100))
+    source = 'contractDiscount'
+  }
+  const floor = round2(listPrice * (1 - maxDiscountPercent / 100))
+  if (contractPrice < floor) {
+    contractPrice = floor
+    source = 'ceiling'
+  }
+  const discountPercent = listPrice > 0 ? round2(((listPrice - contractPrice) / listPrice) * 100) : 0
+  return {
+    sku: product.sku,
+    qty,
+    listPrice,
+    contractPrice: round2(contractPrice),
+    discountPercent,
+    maxDiscountPercent,
+    source,
+    lineTotal: round2(contractPrice * qty)
+  }
+}
+
+let nextConditionId = 100
 const copy = (value) => JSON.parse(JSON.stringify(value))
 
 /* The order document, shaped the way lib/orders.js `describeOrder` shapes it. Kept in
@@ -162,9 +211,31 @@ export const fakeApi = {
   partners: async () => { await wait(); return copy(partners) },
   patchPartner: refuse,
   conditions: async () => { await wait(); return copy(conditions) },
-  saveCondition: refuse,
-  deleteCondition: refuse,
-  quote: refuse,
+  saveCondition: async (condition) => {
+    await wait()
+    const saved = { ...condition, id: `c${nextConditionId++}`, _id: `c${nextConditionId}` }
+    conditions.push(saved)
+    return copy(saved)
+  },
+  deleteCondition: async (id) => {
+    await wait()
+    const at = conditions.findIndex((c) => c._id === id || c.id === id)
+    if (at >= 0) conditions.splice(at, 1)
+    return { deleted: at >= 0 }
+  },
+  quote: async ({ partnerId, lines }) => {
+    await wait()
+    const priced = (lines || []).map((line) => {
+      const product = products.find((p) => p.sku === line.sku)
+      if (!product) return { sku: line.sku, qty: line.qty ?? 1, unknown: true }
+      return priceLine(product, partnerId, line.qty ?? 1)
+    })
+    return {
+      partnerId: partnerId || partners[0].id,
+      lines: priced,
+      total: round2(priced.reduce((sum, l) => sum + (l.lineTotal || 0), 0))
+    }
+  },
   orders: async () => {
     await wait()
     return copy(orders.map((o) => ({

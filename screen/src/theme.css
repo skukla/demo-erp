@@ -210,6 +210,16 @@ button[class*="spectrum-Picker"] {
   max-width: 100%;
 }
 
+/* A form whose fields read across a line rather than down a column: short inputs and
+   the button that acts on them, wrapping when there is no room. */
+.erp-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+  margin: 12px 0;
+}
+
 /* ---- Tables -------------------------------------------------------------------
  * The head row loses its grey fill and its bold; one hairline separates it from the
  * rows. A row is separated by space and a hover, not by a line under every one of

@@ -57,8 +57,9 @@ function trimmed (columns, sizes, widths, dragged, tableWidth) {
  * @param {Array<{ key: string, width?: number|string, minWidth?: number }>} columns in
  *   display order, declared once outside the component. A number is a default width
  *   someone can drag; a fraction ('1fr', '2fr') makes it a share column, which divides
- *   what the fixed ones leave. Give every share column a `minWidth` that fits its
- *   heading — a sortable heading carries a chevron worth about 24px.
+ *   what the fixed ones leave; `resizable: false` pins one at its width. Give every
+ *   share column a `minWidth` that fits its heading — a sortable heading carries a
+ *   chevron worth about 24px.
  * @returns {{ tableProps: object, columnProps: (key: string) => object }} spread
  *   `tableProps` on the TableView and `columnProps(key)` on each Column
  */
@@ -119,7 +120,9 @@ export function useColumnWidths (tableId, columns) {
   const columnProps = useCallback((key) => {
     const column = columns.find((c) => c.key === key)
     return {
-      allowsResizing: !fills(column),
+      // `resizable: false` for a column nobody should drag — an action column with no
+      // heading, where the drag handle is a chevron hanging under a blank title.
+      allowsResizing: column.resizable !== false && !fills(column),
       minWidth: minOf(column),
       width: sizes[key]
     }
