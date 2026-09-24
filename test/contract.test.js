@@ -14,6 +14,7 @@ const { memoryCollections } = require('./helpers/memory-db')
 const { importProducts, patchProduct } = require('../lib/products')
 const { importPartners, patchPartner } = require('../lib/partners')
 const { createOrder, setStatus } = require('../lib/orders')
+const { releaseCredit } = require('../lib/fulfilment')
 
 let cols
 beforeEach(() => { cols = memoryCollections() })
@@ -36,6 +37,10 @@ test('the payload of each raised event carries exactly the contract keys', async
   await patchPartner(cols, 'C1', { creditLimit: 5, blocking: 'all' })
   const cancelled = await createOrder(cols, { commerceOrderId: '10', lines: [] })
   await setStatus(cols, cancelled.number, 'cancelled', undefined, { reason: 'Customer request' })
+  // The blocked customer's next order is created and held (hold event, held: true), then released (held: false).
+  const held = await createOrder(cols, { commerceOrderId: '11', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 11, commerceItemId: 4 }] })
+  assert.equal(held.creditStatus, 'held')
+  await releaseCredit(cols, held.number)
   const entries = await pending(cols)
   const seen = new Set()
   for (const e of entries) {

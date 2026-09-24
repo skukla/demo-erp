@@ -21,6 +21,8 @@ test('order events read as sentences with the Commerce order beside them', () =>
   assert.equal(describeEvent(out('order.confirmed', { erpNumber: '0000001001', incrementId: '000000301' })).text, 'Sales order 0000001001 confirmed (Commerce order 000000301)')
   assert.equal(describeEvent(out('order.cancelled', { erpNumber: '0000001001', reason: 'Out of stock' })).text, 'Sales order 0000001001 cancelled: Out of stock')
   assert.equal(describeEvent(out('order.invoiced', { erpNumber: '0000001001' })).text, 'Invoice for sales order 0000001001')
+  assert.equal(describeEvent(out('order.hold', { erpNumber: '0000001007', held: true, reason: 'Credit limit 80,000.00 exceeded by 1,240.00' })).text, 'Sales order 0000001007 put on credit hold: Credit limit 80,000.00 exceeded by 1,240.00')
+  assert.equal(describeEvent(out('order.hold', { erpNumber: '0000001007', held: false, reason: null })).text, 'Sales order 0000001007 released from credit hold')
 })
 
 test('master-data events name the record and link it', () => {

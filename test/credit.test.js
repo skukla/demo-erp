@@ -63,9 +63,13 @@ test('a held order refuses to confirm, and says what to do; Release clears it an
   assert.equal(doc.can.confirm, false)
   assert.equal(doc.can.release, true)
   assert.equal(doc.can.reject, true)
+  // Commerce heard the hold when the order was created, and hears the release now.
+  const holdEvents = () => pending(cols).then((all) => all.filter((e) => e.kind === 'order.hold').map((e) => e.value))
+  assert.deepEqual((await holdEvents()).map((v) => [v.erpNumber, v.held, v.reason]), [[held.number, true, 'Credit limit 1,000.00 exceeded by 100.00']])
   const released = await releaseCredit(cols, held.number)
   assert.equal(released.creditStatus, 'released')
   assert.ok(released.creditDecidedAt)
+  assert.deepEqual((await holdEvents()).map((v) => [v.held, v.reason]), [[true, 'Credit limit 1,000.00 exceeded by 100.00'], [false, null]])
   const confirmed = await confirmOrder(cols, held.number)
   assert.equal(confirmed.header, 'confirmed')
   const after = await describeOrder(cols, confirmed)

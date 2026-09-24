@@ -66,7 +66,7 @@ async function handler ({ cols, method, segments, body, params }) {
   }
   if (method === 'POST' && !number) {
     const existed = await cols.salesOrders.findOne({ commerceOrderId: String(body.commerceOrderId || '') })
-    const order = await createOrder(cols, body)
+    const order = await createOrder(cols, body, params)
     // Journaled the first time only: a redelivered event is the same order.
     if (!existed) await journalOrder(cols, body, order)
     return ok(order, existed ? 200 : 201)
