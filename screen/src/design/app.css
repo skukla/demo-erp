@@ -10,6 +10,17 @@
 /* ---- Shell -------------------------------------------------------------------
  * Plain elements rather than Spectrum layout, so the breakpoint below is ours to set.
  */
+/* The page hands the shell every pixel. Without this the browser's default body margin
+   framed the deployed screen in a pale 8px border (owner, 2026-09-24), and the shell's
+   percentage height had nothing above it to measure against, so the rail and the
+   content pane scrolled the page instead of themselves. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
 /* The shell: a bar across the top, everything else beneath it. */
 .erp-shell {
   display: flex;

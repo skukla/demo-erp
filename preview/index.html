@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Demo ERP — preview</title>
     <link rel="stylesheet" href="/dist/main.css" />
-    <style>html, body, #root { height: 100%; margin: 0; }</style>
+    <!-- No page styles here: the preview shows the page the screen action ships. The
+         html/body/#root reset used to live in this tag alone, so every screen check
+         passed while the deployed page kept the browser's 8px body margin (2026-09-24).
+         It is in design/app.css now. -->
   </head>
   <body>
     <div id="root"></div>
