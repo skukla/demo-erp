@@ -9,7 +9,7 @@ import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
-import { useTrail, OpenDocument } from './Documents'
+import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
 
@@ -35,11 +35,12 @@ const INVOICE_GRID = {
   sort: { column: 'number', direction: 'descending' }
 }
 
-export default function Invoices ({ api, onChanged, onNavigate }) {
+export default function Invoices ({ api, query = {}, onChanged, onNavigate }) {
   const widths = useColumnWidths('invoices', INVOICE_COLUMNS)
   const { rows, error, reload } = useLoad(() => api.invoices(), [api])
   const view = useGridView(rows, INVOICE_GRID)
   const trail = useTrail('Invoices')
+  useOpenFromQuery(trail, query, 'invoice')
 
   if (trail.top) {
     return <OpenDocument trail={trail} api={api} onChanged={onChanged} onNavigate={onNavigate} onClose={reload} />

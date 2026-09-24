@@ -29,7 +29,10 @@ export default function EventDetail ({ entry, state, onBack }) {
         <ChevronLeft />
         <Text>Events</Text>
       </ActionButton>
-      <Heading level={2} marginTop={0}>{entry.event}</Heading>
+      <Heading level={2} marginTop={0}>{(entry.describe && entry.describe.name) || entry.event}</Heading>
+      {entry.describe && entry.describe.text && <Field label='What happened'>{entry.describe.text}</Field>}
+      {/* The wire name stays: it is what the integration's history and I/O Events show. */}
+      <Field label='Event'>{entry.event}</Field>
       <Field label='Direction'>{incoming ? '← From Commerce' : '→ To Commerce'}</Field>
       {/* The exact time too: it is what Debug Tracing lists deliveries by. */}
       <Field label='When'>{formatStamp(entry.at)} ({entry.at})</Field>

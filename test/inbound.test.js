@@ -111,7 +111,7 @@ test('a Commerce order is journaled the first time, and a redelivery is not', as
   assert.equal(entries[0].summary, `Commerce order 000000042 received as sales order ${first.body.number}`)
 })
 
-test('incoming entries never join the retry queue, and the Dashboard counts only what is waiting', async () => {
+test('incoming entries never join the retry queue, and Home counts only what is waiting', async () => {
   await invoke(admin, cols, {
     method: 'POST',
     path: '/import',

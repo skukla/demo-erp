@@ -7,7 +7,8 @@ const handlers = {
   health: require('../actions/health'),
   settings: require('../actions/settings'),
   admin,
-  products: require('../actions/products')
+  products: require('../actions/products'),
+  search: require('../actions/search')
 }
 
 const KEY = 'k3y-for-tests-only'
@@ -92,6 +93,14 @@ test('the key never reaches a handler as data', async () => {
 test('every ERP action is reachable through the screen with the key', async () => {
   assert.equal((await screen({ path: '/api/products', key: KEY })).statusCode, 200)
   assert.equal((await screen({ path: '/api/health', key: KEY })).statusCode, 200)
+})
+
+test('a query string reaches the handler as its own parameters: the shell search asks ?q=', async () => {
+  // Runtime merges query parameters into params for a web action, so the screen action
+  // receives `q` beside its own inputs and forwards it with the rest.
+  const res = await screen({ path: '/api/search', key: KEY, params: { q: 'widget' } })
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.body.items[0].number, 'A1')
 })
 
 test('unknown actions and paths are 404s', async () => {

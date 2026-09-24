@@ -5,7 +5,7 @@
  * top one; this file is the trail and the one place that knows which component shows
  * which kind of document.
  */
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import OrderDetail from './OrderDetail'
 import ShipmentDetail from './ShipmentDetail'
 import InvoiceDetail from './InvoiceDetail'
@@ -35,6 +35,17 @@ export function useTrail (listLabel) {
     back: () => setTrail((t) => t.slice(0, -1)),
     backLabel: trail.length > 1 ? labelOf(trail[trail.length - 2]) : listLabel
   }
+}
+
+/**
+ * Open the document the address bar names (`?open=<number>`) when the list mounts: how
+ * a search result, a recent document on Home and a journal line reach a document.
+ */
+export function useOpenFromQuery (trail, query, kind) {
+  const number = query && query.open
+  useEffect(() => {
+    if (number) trail.open(kind, String(number))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /**

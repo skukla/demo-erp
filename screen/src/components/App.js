@@ -13,13 +13,15 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import {
   Provider, defaultTheme, ActionButton, InlineAlert, Heading, Content, ToastContainer,
-  MenuTrigger, Menu, Item
+  MenuTrigger, Menu, Item, Text
 } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
-import { pageFromHash } from '../pageRoute'
+import { routeFromHash, hashFor } from '../pageRoute'
+import { RAIL_COUNTS } from '../../../lib/cues'
 import { applyPalette, DEFAULT_APPEARANCE } from '../design/palette'
 import Logo from './Logo'
-import Dashboard from './Dashboard'
+import Home from './Home'
+import ShellSearch from './ShellSearch'
 import Products from './Products'
 import Partners from './Partners'
 import Orders from './Orders'
@@ -33,7 +35,7 @@ import Events from './Events'
    they belong to. Sales runs in document order — order, shipment, invoice — which is
    the order the demo walks them in. */
 const AREAS = [
-  { group: null, items: [{ key: 'dashboard', label: 'Dashboard', Component: Dashboard }] },
+  { group: null, items: [{ key: 'home', label: 'Home', Component: Home }] },
   {
     group: 'Sales',
     items: [
@@ -71,12 +73,25 @@ const FALLBACK_NAME = 'ERP'
  *   action, a key, or any records. Nothing in production passes it.
  */
 const PAGE_KEYS = PAGES.map((p) => p.key)
-const DEFAULT_PAGE = 'dashboard'
+const DEFAULT_PAGE = 'home'
+const routeOf = (hash) => {
+  const { page, query } = routeFromHash(hash, PAGE_KEYS)
+  return { page: page || DEFAULT_PAGE, query }
+}
+
+/** The count a rail item carries: the cues it stands for, added up (lib/cues). */
+function railCount (key, work) {
+  const cues = RAIL_COUNTS[key]
+  if (!cues || !work || !work.counts) return 0
+  return cues.reduce((sum, cue) => sum + (work.counts[cue] || 0), 0)
+}
 
 export default function App ({ screenKey, api: given }) {
   // The open area comes from the address bar, so reloading the browser stays where it
-  // was. Before this it lived only in memory and every reload landed on the Dashboard.
-  const [page, setPage] = useState(() => pageFromHash(window.location.hash, PAGE_KEYS) || DEFAULT_PAGE)
+  // was. Before this it lived only in memory and every reload landed on Home. The hash
+  // also carries the area's query — a work filter, a document to open (pageRoute.js).
+  const [route, setRoute] = useState(() => routeOf(window.location.hash))
+  const { page, query } = route
   /* What Settings is showing the SC before they save it. Null the rest of the time, so
      the saved appearance is the truth everywhere except while somebody is choosing.
      Settings clears it when it unmounts, which is what makes leaving without saving put
@@ -105,24 +120,25 @@ export default function App ({ screenKey, api: given }) {
 
   /* Back, Forward, and a hash someone typed. */
   useEffect(() => {
-    const follow = () => setPage(pageFromHash(window.location.hash, PAGE_KEYS) || DEFAULT_PAGE)
+    const follow = () => setRoute(routeOf(window.location.hash))
     window.addEventListener('hashchange', follow)
     return () => window.removeEventListener('hashchange', follow)
   }, [])
 
-  /* Open an area and put it in the address bar. Writing the hash raises hashchange,
-     which sets the state — so this only writes when it would actually differ, or the
-     two would chase each other. */
-  const openPage = useCallback((key) => {
-    setPage(key)
-    if (pageFromHash(window.location.hash, PAGE_KEYS) !== key) {
-      window.location.hash = key
+  /* Open an area, with what it should show, and put both in the address bar. Writing
+     the hash raises hashchange, which sets the state — so this only writes when it
+     would actually differ, or the two would chase each other. */
+  const openPage = useCallback((key, next = {}) => {
+    setRoute({ page: key, query: next })
+    const wanted = hashFor(key, next)
+    if (window.location.hash.replace(/^#/, '') !== wanted) {
+      window.location.hash = wanted
     }
   }, [])
 
   /* A rail click, whichever item it lands on. The counter re-mounts the page — every
      screen reads its own records on mount and shows its spinner while it does — and the
-     health read is for the Dashboard, whose numbers are held here rather than by it. */
+     health read is for Home and the rail counts, whose numbers are held here. */
   const revisit = useCallback(async () => {
     setVisit((n) => n + 1)
     setReloading(true)
@@ -130,10 +146,10 @@ export default function App ({ screenKey, api: given }) {
     setReloading(false)
   }, [refreshHealth])
 
-  // While a sync runs, keep reading health: the Dashboard's counters are the
-  // ERP's contents, so they should climb as the integration imports rather than
-  // jump when the SC next opens the page. Re-armed after each read (health is a
-  // dependency), so it stops by itself when the sync ends.
+  // While a sync runs, keep reading health: Home's numbers are the ERP's contents,
+  // so they should climb as the integration imports rather than jump when the SC
+  // next opens the page. Re-armed after each read (health is a dependency), so it
+  // stops by itself when the sync ends.
   const syncing = Boolean(health && health.sync && (health.sync.state === 'requested' || health.sync.state === 'running'))
   useEffect(() => {
     if (!ready || !syncing) return undefined
@@ -158,6 +174,7 @@ export default function App ({ screenKey, api: given }) {
         <header className='erp-shellbar'>
           <Logo logo={look.logo} name={name} />
           <span className='erp-shellbar-name'>{name}</span>
+          {ready && <ShellSearch api={api} onOpen={openPage} />}
         </header>
         {shape === 'top' && (
           <nav className='erp-topnav' aria-label='Areas'>
@@ -218,7 +235,13 @@ export default function App ({ screenKey, api: given }) {
                     aria-current={p.key === page ? 'page' : undefined}
                     onPress={() => { openPage(p.key); revisit() }}
                   >
-                    {p.label}
+                    <Text>
+                      {p.label}
+                      {/* Work waiting behind this item; nothing is drawn for none. */}
+                      {railCount(p.key, health && health.work) > 0 && (
+                        <span className='erp-rail-count' aria-label={`${railCount(p.key, health && health.work)} waiting`}>{railCount(p.key, health && health.work)}</span>
+                      )}
+                    </Text>
                   </ActionButton>
                 ))}
               </div>
@@ -241,8 +264,9 @@ export default function App ({ screenKey, api: given }) {
           )}
           {ready && (
             <active.Component
-              key={`${active.key}:${visit}`}
+              key={`${active.key}:${visit}:${hashFor(active.key, query)}`}
               api={api}
+              query={query}
               health={health}
               reloading={reloading}
               onChanged={refreshHealth}

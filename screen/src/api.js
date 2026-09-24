@@ -53,6 +53,7 @@ export function makeApi (screenKey, base = screenBase()) {
     shipment: (number) => call('shipments', { path: `/${number}` }),
     invoices: () => call('invoices'),
     invoice: (number) => call('invoices', { path: `/${number}` }),
+    search: (q) => call('search', { path: `?q=${encodeURIComponent(q)}` }),
     events: () => call('events'),
     retryEvents: () => call('events', { method: 'POST', path: '/retry' }),
     requeueEvents: () => call('events', { method: 'POST', path: '/requeue' }),

@@ -110,6 +110,17 @@ the rows behind every fingerprint are written under the OS temp directory
 (`demo-erp-screen-rows/`), and a first mismatch is kept beside them as `<screen>.mismatch.txt`
 for diffing.
 
+### Home, the rail counts and the shell search
+
+Home is a work list, not a set of record counts: each cue (orders to confirm, on credit
+hold, to ship, to invoice; shipments to post; blocked customers; events not delivered or
+waiting) is counted by `lib/work.js` from the same abilities the documents' own buttons
+read, and opens its list filtered to exactly those rows (`#orders?work=toShip`). The rail
+carries the same numbers as small counts. The shell bar's search (`actions/search`) finds
+any document by number, SKU or customer name and opens it on its own list page
+(`#orders?open=0000001003`); the Event Journal names the document each entry belongs to
+(`lib/journal.js`), links it, and refreshes itself while open.
+
 ## The screen
 
 How the ERP and its integration fit together:

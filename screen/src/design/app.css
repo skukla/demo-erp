@@ -824,3 +824,131 @@
 .erp-settings-columns .erp-card {
   margin-top: 0;
 }
+
+/* ---- Home: the work list -----------------------------------------------------
+ * A cue is a number and the work it names, on its own card, and the whole card is the
+ * way into the filtered list. The number is the biggest thing on the page on purpose:
+ * it is what someone glances at.
+ */
+.erp-cues {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.erp-cue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  font: inherit;
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-surface);
+}
+
+.erp-cue:hover {
+  border-color: var(--line-strong);
+}
+
+.erp-cue:focus-visible {
+  outline: 2px solid var(--accent-edge);
+  outline-offset: 2px;
+}
+
+.erp-cue-count {
+  font-size: 28px;
+  font-weight: var(--type-section-weight);
+  line-height: 1.1;
+  color: var(--accent-ink);
+}
+
+.erp-cue-label {
+  font-size: var(--type-label-size);
+  color: var(--ink-2);
+}
+
+.erp-home-column {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.erp-home-column .erp-card {
+  margin-top: 0;
+}
+
+.erp-home-column .erp-card + .erp-card {
+  margin-top: var(--space-4);
+}
+
+.erp-recent {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.erp-recent li + li {
+  margin-top: var(--space-2);
+}
+
+/* A link that is a button: it opens a document from anywhere, so it is an action. */
+.erp-link {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.erp-link:hover .erp-key {
+  text-decoration: underline;
+}
+
+/* ---- Rail counts -------------------------------------------------------------
+ * A small count on the items that carry work (Fiori's Side Navigation, and every modern
+ * back office). Only items with work carry one; a zero says nothing worth a badge.
+ */
+.erp-rail-count {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 6px;
+  margin-inline-start: auto;
+  font-size: var(--type-micro-size);
+  font-weight: var(--type-section-weight);
+  line-height: 20px;
+  color: var(--accent-ink);
+  text-align: center;
+  background: var(--accent-tint);
+  border-radius: 10px;
+}
+
+.erp-rail button [class*="spectrum-ActionButton-label"] {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  width: 100%;
+}
+
+/* ---- Shell search ------------------------------------------------------------
+ * One box, reachable from anywhere, that opens any document by its number, a SKU or a
+ * customer's name: Fiori's shell search, Business Central's "Tell me".
+ */
+.erp-shell-search {
+  flex: 0 1 360px;
+  min-width: 160px;
+  margin-inline-start: auto;
+}
+
+/* No width rules on Spectrum's inner parts: the ComboBox's own width prop sizes them, and
+   a `[class*="spectrum-Field"]` selector also matched its FieldButton, which then
+   stretched over the input and took every click (measured 2026-09-24). */
+
+/* A document number inside a journal sentence, openable from the row. */
+.erp-journal-link {
+  margin-inline-start: var(--space-2);
+}

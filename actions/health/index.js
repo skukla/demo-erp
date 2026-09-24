@@ -3,6 +3,7 @@ const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { COLLECTIONS } = require('../../lib/db')
 const { pending } = require('../../lib/events')
+const { workList } = require('../../lib/work')
 
 async function handler ({ cols, settings }) {
   const counts = {}
@@ -12,10 +13,12 @@ async function handler ({ cols, settings }) {
   }
   // The journal holds delivered and incoming entries too, so its size is not a queue.
   const eventsPending = (await pending(cols)).length
+  // Home's cues and the rail counts: what is waiting, counted from the documents (lib/work).
+  const work = await workList(cols)
   // The appearance rides along here rather than behind its own request: the screen
   // already waits on health before it draws, so the shell bar paints in the SC's own
   // palette instead of flashing the default first.
-  return ok({ ok: true, displayName: settings.displayName, appearance: settings.appearance, eventsPending, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, sync: settings.sync || null, counts })
+  return ok({ ok: true, displayName: settings.displayName, appearance: settings.appearance, eventsPending, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, sync: settings.sync || null, counts, work })
 }
 
 exports.handler = handler

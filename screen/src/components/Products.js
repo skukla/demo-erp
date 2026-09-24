@@ -50,11 +50,12 @@ const PRODUCT_GRID = {
   sort: { column: 'sku', direction: 'ascending' }
 }
 
-export default function Products ({ api, onChanged, onNavigate }) {
+export default function Products ({ api, query = {}, onChanged, onNavigate }) {
   const widths = useColumnWidths('products', PRODUCT_COLUMNS)
   const { rows, error, reload, updateRow } = useLoad(() => api.products(), [api])
-  // The pages opened from here, newest last: Back returns to the one before.
-  const [trail, setTrail] = useState([])
+  // The pages opened from here, newest last: Back returns to the one before. A product
+  // named in the address bar (?open=SKU — a search result, a journal line) starts open.
+  const [trail, setTrail] = useState(() => (query.open ? [String(query.open)] : []))
   const [editing, setEditing] = useState(false)
   // Variants are reached from their parent, as in SAP's generic articles. Each row
   // carries the mode: the table redraws a row only when its item changes.

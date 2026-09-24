@@ -3,13 +3,13 @@
  * row to open the shipment's document. Shipments are created on their order, so the
  * list has no Add — it is where an SC finds the one to post.
  */
-import React from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight } from '@adobe/react-spectrum'
+import React, { useMemo, useState } from 'react'
+import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Picker, Item } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
-import { useTrail, OpenDocument } from './Documents'
+import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { formatDate } from '../formatStamp'
 
 const SHIPMENT_COLUMNS = [
@@ -36,11 +36,25 @@ const SHIPMENT_GRID = {
   sort: { column: 'number', direction: 'descending' }
 }
 
-export default function Shipments ({ api, onChanged, onNavigate }) {
+const SHOW = [
+  { key: 'all', label: 'All shipments' },
+  { key: 'open', label: 'To post' },
+  { key: 'posted', label: 'Posted' }
+]
+const showKey = (asked) => (SHOW.some((x) => x.key === asked) ? asked : 'all')
+
+export default function Shipments ({ api, query = {}, onChanged, onNavigate }) {
   const widths = useColumnWidths('shipments', SHIPMENT_COLUMNS)
   const { rows, error, reload } = useLoad(() => api.shipments(), [api])
-  const view = useGridView(rows, SHIPMENT_GRID)
+  // Home's "Shipments to post" lands here with ?work=open.
+  const [show, setShow] = useState(() => showKey(query.work))
+  const shown = useMemo(() => {
+    if (!rows || show === 'all') return rows
+    return rows.filter((s) => (show === 'posted' ? s.status === 'posted' : s.status !== 'posted'))
+  }, [rows, show])
+  const view = useGridView(shown, SHIPMENT_GRID)
   const trail = useTrail('Shipments')
+  useOpenFromQuery(trail, query, 'shipment')
 
   if (trail.top) {
     return <OpenDocument trail={trail} api={api} onChanged={onChanged} onNavigate={onNavigate} onClose={reload} />
@@ -48,7 +62,11 @@ export default function Shipments ({ api, onChanged, onNavigate }) {
 
   return (
     <Frame title='Shipments' error={error} loading={!rows}>
-      <GridSearch placeholder='Shipment, order or warehouse' view={view} />
+      <GridSearch placeholder='Shipment, order or warehouse' view={view}>
+        <Picker aria-label='Status' label='Show' selectedKey={show} onSelectionChange={(k) => setShow(String(k))} items={SHOW}>
+          {(x) => <Item key={x.key}>{x.label}</Item>}
+        </Picker>
+      </GridSearch>
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Shipments' density='compact' overflowMode='wrap' marginTop='size-200'
         UNSAFE_className='erp-rows-open'

@@ -51,6 +51,17 @@ application:
               require-adobe-auth: true
               include-ims-credentials: true
               final: true
+          search:
+            function: actions/search/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
           settings:
             function: actions/settings/index.js
             web: 'yes'

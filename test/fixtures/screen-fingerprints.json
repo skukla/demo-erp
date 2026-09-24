@@ -1,23 +1,23 @@
 {
-  "dashboard": {
-    "elements": 18,
-    "hash": "7d7461488729c1b4ebb1690faa1d13c89b3906ab67d036a356072d8134e5e6bc"
+  "home": {
+    "elements": 66,
+    "hash": "14d95f0c4624113a8e38675984ed1b4284b9afaace12ed62f2fbb7f4cb94aa86"
   },
   "orders": {
-    "elements": 322,
-    "hash": "4f518a370fb533266a9dd2ec0ca97fb366ef08687e4139ac930f5b044b0bd79c"
+    "elements": 338,
+    "hash": "79445ee10ab67a98d9ff57e8420f4a36caaf6d41667aaa2e65bd2fbd001fece7"
   },
   "orders:document": {
     "elements": 163,
-    "hash": "e789f392d30af4d065aab669fd006c3adb91a0883588827bd69f9a16cd029aad"
+    "hash": "9ca8d16fb7835a3c632b34d9bfb89edc0c36b14e0addc2df31a4224187cf4f72"
   },
   "shipments": {
-    "elements": 215,
-    "hash": "892ab70e041edd0f68262f058dae254f8528b22feeeda05786eed145a3678b18"
+    "elements": 229,
+    "hash": "d9ea4197fafcfe3ca57a2b47b787f968aad7dc4ff423e48ad380b20e419d3639"
   },
   "shipments:document": {
     "elements": 92,
-    "hash": "7873596b35996234c4f9ee1205e10bface866dd45244fce849eb1467f4ac3c8a"
+    "hash": "3c851e4e2d046f50695168324ea565cb040d88b6b7be8455e8761a7dfde2dd95"
   },
   "invoices": {
     "elements": 123,
@@ -25,7 +25,7 @@
   },
   "invoices:document": {
     "elements": 125,
-    "hash": "6d6ae5a51f2785fe6c97e40a0619dadd44809bb2ef3a8f41e982af29041b1b75"
+    "hash": "91559e666ed9fbef113c06edecbb201db9216a3ee35b907250637d4a5ef94e09"
   },
   "products": {
     "elements": 615,
@@ -36,8 +36,8 @@
     "hash": "7f802621a6ed582efef643288c781df029f45736cb9ee38fc2ddd32c38c53132"
   },
   "partners": {
-    "elements": 245,
-    "hash": "008d8b6265d450829dd9245bed7eb372c7a82d42b5f019b13816afff1426704a"
+    "elements": 258,
+    "hash": "eb5e6fb426c8c7fbccb33e59255e12613b7d896b2c81dd4c881632f2f80d4910"
   },
   "partners:document": {
     "elements": 176,
@@ -48,8 +48,8 @@
     "hash": "442e6b6f964649759af43a6e068bc13484eaca8b0cdf0db23b9978b2e787eca1"
   },
   "events": {
-    "elements": 226,
-    "hash": "56def7a584d3f6b6f25ffe7f992c4f4140b2d6389463d52ad2b10dbab83e1934"
+    "elements": 234,
+    "hash": "108fa822850f99c7467973383fdf5a122c8754b6c994dab6040b4a4ab8ddf11c"
   },
   "settings": {
     "elements": 141,

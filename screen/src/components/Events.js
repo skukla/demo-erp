@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Button, Text, Picker, Item } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import EventDetail from './EventDetail'
@@ -6,6 +6,7 @@ import { formatStamp } from '../formatStamp'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
+import { LIST_OF } from './Home'
 
 /* The event name and its detail are the long ones, so they take the slack between
    them: an event name runs to "be-observer.sales_order_shipment_create". */
@@ -42,12 +43,20 @@ const STATES = [
   { key: 'failed', label: 'Failed' }
 ]
 
+/** The sentence for a row: the ERP's (lib/journal), else what the row carried. */
+const detailText = (e) => (e.describe && e.describe.text) || (isIncoming(e) ? e.summary : (e.lastError || JSON.stringify(e.value).slice(0, 120)))
+const eventName = (e) => (e.describe && e.describe.name) || e.event || ''
+
+/* The journal refreshes itself while open, so "watch the event go" needs no rail click.
+   Slow enough that a screen check's three agreeing samples fit between two reads. */
+const REFRESH_MS = 8000
+
 const EVENT_GRID = {
-  fields: [(e) => e.event, (e) => e.summary, (e) => e.lastError],
+  fields: [(e) => e.event, (e) => eventName(e), (e) => detailText(e), (e) => e.lastError],
   values: {
     at: (e) => Date.parse(e.at) || 0,
     direction: (e) => (isIncoming(e) ? 'From Commerce' : 'To Commerce'),
-    event: (e) => e.event || '',
+    event: (e) => eventName(e),
     state: (e) => stateKey(e)
   },
   sort: { column: 'at', direction: 'descending' }
@@ -58,7 +67,7 @@ const EVENT_GRID = {
  * it, and what the ERP published and whether it was delivered. Until 2026-09-18 only
  * the outbound half was here, so a change Commerce sent left no trace on this screen.
  */
-export default function Events ({ api }) {
+export default function Events ({ api, query = {}, onNavigate }) {
   const widths = useColumnWidths('events', EVENT_COLUMNS)
   const [meta, setMeta] = useState({})
   const { rows, error, reload } = useLoad(async () => {
@@ -69,6 +78,13 @@ export default function Events ({ api }) {
   const [actionError, setActionError] = useState(null)
   // The event opened from the table, as Products opens a product.
   const [openId, setOpenId] = useState(null)
+  useEffect(() => {
+    if (openId) return undefined
+    const id = setInterval(reload, REFRESH_MS)
+    return () => clearInterval(id)
+  }, [reload, openId])
+  /** A document named in a sentence opens on its own list page. */
+  const openDocument = (link) => onNavigate && onNavigate(LIST_OF[link.kind] || 'orders', { open: link.number })
   async function retry () {
     try { await api.retryEvents(); setActionError(null); await reload() } catch (e) { setActionError(e) }
   }
@@ -83,7 +99,8 @@ export default function Events ({ api }) {
     return { variant: 'notice', text: `pending (${e.attempts || 0} tries)` }
   }
   const [direction, setDirection] = useState('all')
-  const [shown, setShown] = useState('all')
+  // Home's "Events not delivered" and "Events waiting" land here with ?work=failed / pending.
+  const [shown, setShown] = useState(() => (STATES.some((x) => x.key === query.work) ? query.work : 'all'))
   const filtered = useMemo(() => (rows || []).filter((e) => {
     if (direction !== 'all' && (isIncoming(e) ? 'in' : 'out') !== direction) return false
     return shown === 'all' || stateKey(e) === shown
@@ -120,9 +137,16 @@ export default function Events ({ api }) {
             <Row key={e._id}>
               <Cell>{formatStamp(e.at)}</Cell>
               <Cell>{isIncoming(e) ? '← From Commerce' : '→ To Commerce'}</Cell>
-              <Cell>{e.event}</Cell>
+              <Cell>{eventName(e)}</Cell>
               <Cell><StatusLight variant={state(e).variant}>{state(e).text}</StatusLight></Cell>
-              <Cell>{isIncoming(e) ? e.summary : (e.lastError || JSON.stringify(e.value).slice(0, 120))}</Cell>
+              <Cell>
+                {detailText(e)}
+                {(e.describe && e.describe.links || []).map((link) => (
+                  <button type='button' className='erp-link erp-journal-link' key={`${link.kind}:${link.number}`} onClick={() => openDocument(link)}>
+                    <span className='erp-key'>{link.number}</span>
+                  </button>
+                ))}
+              </Cell>
             </Row>
           )}
         </TableBody>

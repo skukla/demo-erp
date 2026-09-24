@@ -30,7 +30,7 @@ const VIEWPORT = { width: 1440, height: 900 }
 
 /* The areas, and for a list, how to open the first document behind it. */
 const SCREENS = [
-  { key: 'dashboard', heading: /^Dashboard$/ },
+  { key: 'home', heading: /^Home$/ },
   { key: 'orders', heading: /^Sales Orders$/, opens: /^Sales Order \d{10}$/ },
   { key: 'shipments', heading: /^Shipments$/, opens: /^Shipment \d{10}$/ },
   { key: 'invoices', heading: /^Invoices$/, opens: /^Invoice \d{10}$/ },
@@ -188,3 +188,71 @@ for (const screen of SCREENS) {
     }
   })
 }
+
+/* Body rows of the one grid on the page: Spectrum numbers header and body rows alike, from 1. */
+async function bodyRows (page) {
+  return page.locator('.erp-rows-open [role="row"][aria-rowindex]').evaluateAll((rows) => rows.filter((r) => Number(r.getAttribute('aria-rowindex')) > 1).length)
+}
+
+test('home: a cue opens its list filtered to exactly the rows it counted', async () => {
+  const { page, context, problems } = await open('home')
+  try {
+    // The first cue is Orders to confirm; its number is what the filtered list must show.
+    const cue = page.locator('.erp-cue').first()
+    const count = Number(await cue.locator('.erp-cue-count').textContent())
+    assert.ok(count > 0, 'the preview seeds orders waiting for confirmation')
+    await cue.click()
+    await settled(page)
+    assert.equal(new URL(page.url()).hash, '#orders?work=toConfirm')
+    assert.equal(await bodyRows(page), count)
+    assert.deepEqual(problems, [], 'home → orders console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('the rail counts the work behind each item, from the same numbers as the cues', async () => {
+  const { page, context } = await open('home')
+  try {
+    const cues = await page.locator('.erp-cue').evaluateAll((nodes) => Object.fromEntries(nodes.map((n) => [n.querySelector('.erp-cue-label').textContent, Number(n.querySelector('.erp-cue-count').textContent)])))
+    const rail = await page.locator('.erp-rail button').evaluateAll((nodes) => Object.fromEntries(nodes.map((n) => [n.textContent.replace(/\d+$/, ''), Number((n.querySelector('.erp-rail-count') || {}).textContent || 0)])))
+    assert.equal(rail['Sales Orders'], cues['Orders to confirm'] + cues['Orders on credit hold'] + cues['Orders to ship'] + cues['Orders to invoice'])
+    assert.equal(rail.Shipments, cues['Shipments to post'])
+    assert.equal(rail['Event Journal'], cues['Events not delivered'])
+  } finally {
+    await context.close()
+  }
+})
+
+test('the shell search opens a document from anywhere', async () => {
+  const { page, context, problems } = await open('products')
+  try {
+    const box = page.getByRole('combobox', { name: 'Search the ERP' })
+    await box.fill('0000001003')
+    // The list opens on "Loading..." first; the answer replaces it a moment later.
+    const option = page.getByRole('option', { name: /Sales Order 0000001003/ })
+    await option.waitFor({ timeout: 5000 })
+    await option.click()
+    await settled(page)
+    assert.equal(new URL(page.url()).hash, '#orders?open=0000001003')
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Sales Order 0000001003$/)
+    assert.deepEqual(problems, [], 'search console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('the journal names the document each entry belongs to, and opens it', async () => {
+  const { page, context } = await open('events')
+  try {
+    const text = await page.locator('.erp-rows-open').textContent()
+    assert.match(text, /Shipment of 5 for sales order 0000001002 from default/)
+    assert.match(text, /Order confirmed/)
+    assert.doesNotMatch(text, /\{"erpNumber"/, 'no raw JSON in the list')
+    await page.locator('.erp-journal-link').first().click()
+    await settled(page)
+    assert.match(new URL(page.url()).hash, /^#orders\?open=/)
+  } finally {
+    await context.close()
+  }
+})

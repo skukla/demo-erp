@@ -7,10 +7,10 @@
  * order from the order's own document, where you can see what you are about to change.
  * The buttons moved there when the document arrived.
  */
-import React from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight } from '@adobe/react-spectrum'
+import React, { useMemo, useState } from 'react'
+import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Picker, Item } from '@adobe/react-spectrum'
 import Frame from './Frame'
-import { useTrail, OpenDocument } from './Documents'
+import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
@@ -49,12 +49,31 @@ const ORDER_GRID = {
   sort: { column: 'number', direction: 'descending' }
 }
 
-export default function Orders ({ api, onChanged, onNavigate }) {
+/* The work a cue on Home counted, as a filter here. Each key names the ability the
+   ERP put on the row (lib/work orderCues reads the same abilities), so the list and
+   the count cannot disagree. */
+const WORK = [
+  { key: 'all', label: 'All orders' },
+  { key: 'toConfirm', label: 'To confirm', can: 'confirm' },
+  { key: 'onHold', label: 'On credit hold', can: 'release' },
+  { key: 'toShip', label: 'To ship', can: 'ship' },
+  { key: 'toInvoice', label: 'To invoice', can: 'invoice' }
+]
+const workKey = (asked) => (WORK.some((w) => w.key === asked) ? asked : 'all')
+
+export default function Orders ({ api, query = {}, onChanged, onNavigate }) {
   const widths = useColumnWidths('orders', ORDER_COLUMNS)
   const { rows, error, reload } = useLoad(() => api.orders(), [api])
-  const view = useGridView(rows, ORDER_GRID)
+  const [work, setWork] = useState(() => workKey(query.work))
+  const shown = useMemo(() => {
+    const chosen = WORK.find((w) => w.key === work)
+    if (!rows || !chosen || !chosen.can) return rows
+    return rows.filter((o) => o.can && o.can[chosen.can])
+  }, [rows, work])
+  const view = useGridView(shown, ORDER_GRID)
   // The documents opened from the list: the order, then whatever it opens (Documents.js).
   const trail = useTrail('Sales Orders')
+  useOpenFromQuery(trail, query, 'order')
 
   if (trail.top) {
     return <OpenDocument trail={trail} api={api} onChanged={onChanged} onNavigate={onNavigate} onClose={reload} />
@@ -62,7 +81,11 @@ export default function Orders ({ api, onChanged, onNavigate }) {
 
   return (
     <Frame title='Sales Orders' error={error} loading={!rows}>
-      <GridSearch placeholder='Order, reference or customer' view={view} />
+      <GridSearch placeholder='Order, reference or customer' view={view}>
+        <Picker aria-label='Work' label='Show' selectedKey={work} onSelectionChange={(k) => setWork(String(k))} items={WORK}>
+          {(w) => <Item key={w.key}>{w.label}</Item>}
+        </Picker>
+      </GridSearch>
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Sales Orders' density='compact' overflowMode='wrap' marginTop='size-200'
         UNSAFE_className='erp-rows-open'

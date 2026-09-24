@@ -34,6 +34,15 @@ test('health reports the name and the counts', async () => {
   assert.ok(res.body.lastImportAt)
 })
 
+test('health carries the work list Home and the rail draw: cue counts, open order value, recent documents', async () => {
+  await invoke(orders, cols, { method: 'POST', body: { commerceOrderId: '9', partnerId: 'P1', lines: [{ sku: 'A1', qty: 2, price: 100 }] } })
+  const res = await invoke(health, cols)
+  assert.equal(res.body.work.counts.toConfirm, 1)
+  assert.equal(res.body.work.counts.toShip, 0)
+  assert.deepEqual(res.body.work.openValue, { amount: 200, currency: 'USD' })
+  assert.equal(res.body.work.recent[0].kind, 'order')
+})
+
 test('health carries the appearance, so the shell bar paints dressed on first render', async () => {
   // The screen already fetches health on load. Putting the look here rather than behind
   // a second request is what stops the default teal flashing before the SC's palette.
@@ -113,6 +122,15 @@ test('settings takes a name and ignores anything else sent with it', async () =>
 test('an unknown route is a 404, a bad import is a 400', async () => {
   assert.equal((await invoke(products, cols, { method: 'DELETE', path: '/A1' })).statusCode, 404)
   assert.equal((await invoke(admin, cols, { method: 'POST', path: '/import', body: {} })).statusCode, 400)
+})
+
+test('the journal answers each entry with its sentence, so the screen names documents rather than JSON', async () => {
+  await invoke(orders, cols, { method: 'POST', body: { commerceOrderId: '9', commerceIncrementId: '000000009', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 100 }] } })
+  await invoke(orders, cols, { method: 'POST', path: '/0000001000/confirm' })
+  const res = await invoke(events, cols)
+  const confirmed = res.body.items.find((e) => e.kind === 'order.confirmed')
+  assert.equal(confirmed.describe.name, 'Order confirmed')
+  assert.equal(confirmed.describe.text, 'Sales order 0000001000 confirmed (Commerce order 000000009)')
 })
 
 test('events are delivered to the ingestion webhook with the journal id, and retried when pending', async () => {

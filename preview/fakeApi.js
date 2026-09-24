@@ -10,6 +10,7 @@
  * this runs in a browser. If a field grows there, it grows here.
  */
 import { DEFAULT_APPEARANCE, normalizeAppearance } from '../lib/appearance.js'
+import { describeEvent } from '../lib/journal.js'
 
 const NAMES = [
   ['Wide-leg trouser', 89], ['Cotton poplin shirt', 34.2], ['Canvas tote', 12],
@@ -126,12 +127,12 @@ let nextShipment = 8000000006
 let nextInvoice = 9000000002
 
 const events = [
-  { _id: 'e1', at: new Date(Date.UTC(2026, 8, 22, 14, 2)).toISOString(), direction: 'out', event: 'be-observer.sales_order_status_update', value: { erpNumber: '0000001001' }, delivered: true, attempts: 1 },
+  { _id: 'e1', at: new Date(Date.UTC(2026, 8, 22, 14, 2)).toISOString(), direction: 'out', kind: 'order.confirmed', event: 'be-observer.sales_order_status_update', value: { erpNumber: '0000001001', incrementId: '00000301' }, delivered: true, attempts: 1 },
   { _id: 'e2', at: new Date(Date.UTC(2026, 8, 22, 13, 55)).toISOString(), direction: 'in', event: 'catalog_stock_update', summary: 'Stock for P000003 set to 18', value: { sku: 'P000003', stock: 18 } },
-  { _id: 'e3', at: new Date(Date.UTC(2026, 8, 22, 13, 40)).toISOString(), direction: 'out', event: 'be-observer.catalog_product_update', value: { sku: 'P000007', price: 189 }, delivered: false, failed: true, attempts: 10, lastError: 'ingestion webhook answered 503' },
-  { _id: 'e4', at: new Date(Date.UTC(2026, 8, 22, 13, 20)).toISOString(), direction: 'out', event: 'be-observer.company_credit_update', value: { companyId: '7', creditLimit: 120000 }, delivered: false, attempts: 2 },
-  { _id: 'e5', at: new Date(Date.UTC(2026, 8, 22, 12, 5)).toISOString(), direction: 'in', event: 'company_updated', summary: 'Company 9 blocked', value: { companyId: '9', blocked: true } },
-  { _id: 'e6', at: new Date(Date.UTC(2026, 8, 22, 11, 45)).toISOString(), direction: 'out', event: 'be-observer.sales_order_shipment_create', value: { erpNumber: '0000001002' }, delivered: true, attempts: 1 }
+  { _id: 'e3', at: new Date(Date.UTC(2026, 8, 22, 13, 40)).toISOString(), direction: 'out', kind: 'product.price', event: 'be-observer.catalog_product_update', value: { sku: 'P000007', price: 189 }, delivered: false, failed: true, attempts: 10, lastError: 'ingestion webhook answered 503' },
+  { _id: 'e4', at: new Date(Date.UTC(2026, 8, 22, 13, 20)).toISOString(), direction: 'out', kind: 'partner.creditLimit', event: 'be-observer.company_credit_update', value: { partnerId: 'C000102', companyId: '7', creditLimit: 120000 }, delivered: false, attempts: 2 },
+  { _id: 'e5', at: new Date(Date.UTC(2026, 8, 22, 12, 5)).toISOString(), direction: 'in', event: 'observer.company_save_commit_after', summary: 'Customer C000103 blocked', value: { companyId: '9', blocked: true } },
+  { _id: 'e6', at: new Date(Date.UTC(2026, 8, 22, 11, 45)).toISOString(), direction: 'out', kind: 'order.shipped', event: 'be-observer.sales_order_shipment_create', value: { erpNumber: '0000001002', items: [{ qty: 3 }, { qty: 2 }], stockSourceCode: 'default' }, delivered: true, attempts: 1 }
 ]
 
 const conditions = [
@@ -148,6 +149,34 @@ const settings = {
   lastImportAt: new Date(Date.UTC(2026, 8, 22, 13, 58)).toISOString(),
   lastWipeAt: null,
   sync: null
+}
+
+/* Home's work list, as lib/work counts it: from the same abilities the documents read. */
+function workList () {
+  const counts = { toConfirm: 0, onHold: 0, toShip: 0, toInvoice: 0, toPost: 0, blockedCustomers: 0, eventsFailed: 0, eventsPending: 0 }
+  let amount = 0
+  const recent = []
+  for (const o of orders) {
+    const can = abilities(o)
+    if (can.confirm) counts.toConfirm += 1
+    if (can.release) counts.onHold += 1
+    if (can.ship) counts.toShip += 1
+    if (can.invoice) counts.toInvoice += 1
+    counts.toPost += o.shipments.filter((s) => s.status !== 'posted').length
+    if (o.header !== 'cancelled' && !o.invoice) amount += o.lines.reduce((sum, l) => sum + l.qty * l.price, 0)
+    const last = o.history.reduce((at, h) => (h.at > at ? h.at : at), o.createdAt)
+    recent.push({ kind: 'order', number: o.number, at: last, title: `Sales Order ${o.number}` })
+    for (const sh of o.shipments) recent.push({ kind: 'shipment', number: sh.number, at: sh.postedAt || sh.createdAt, title: `Shipment ${sh.number}` })
+    if (o.invoice) recent.push({ kind: 'invoice', number: o.invoice.number, at: o.invoice.createdAt, title: `Invoice ${o.invoice.number}` })
+  }
+  counts.blockedCustomers = partners.filter((p) => p.blocking !== 'open').length
+  counts.eventsFailed = events.filter((e) => e.direction === 'out' && e.failed).length
+  counts.eventsPending = events.filter((e) => e.direction === 'out' && !e.delivered && !e.failed).length
+  return {
+    counts,
+    openValue: { amount: cents(amount), currency: 'USD' },
+    recent: recent.sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 5)
+  }
 }
 
 const health = {
@@ -372,7 +401,8 @@ const refuse = () => Promise.reject(new Error('The preview holds stand-in record
 
 /** Everything screen/src/api.js offers, answered from the records above. */
 export const fakeApi = {
-  health: async () => { await wait(); return copy(health) },
+  // The work list is counted on each read, as the ERP counts it, so a move made in the preview shows on Home.
+  health: async () => { await wait(); return copy({ ...health, work: workList() }) },
   settings: async () => { await wait(); return copy(settings) },
   /* The one settings write the preview allows, because it is the one thing the preview
      exists to show. An appearance is not a record — it is how the screen looks, and a
@@ -431,6 +461,7 @@ export const fakeApi = {
     return copy(orders.map((o) => ({
       ...o,
       status: deriveStatus(o),
+      can: abilities(o),
       partnerName: (partnerOf(o.partnerId) || {}).name || null
     })))
   },
@@ -577,7 +608,24 @@ export const fakeApi = {
   },
   events: async () => {
     await wait()
-    return { items: copy(events), webhookUrl: 'https://preview.example/ingestion/webhook', pending: 1, failed: 1 }
+    return { items: copy(events.map((e) => ({ ...e, describe: describeEvent(e) }))), webhookUrl: 'https://preview.example/ingestion/webhook', pending: 1, failed: 1 }
+  },
+  /* One search across every record, as lib/search ranks it: exact first, then contains. */
+  search: async (q) => {
+    await wait()
+    const needle = String(q || '').toLowerCase().trim()
+    if (needle.length < 2) return { items: [] }
+    const score = (fields) => fields.reduce((best, f) => {
+      const v = String(f || '').toLowerCase()
+      return v === needle ? 2 : (v.includes(needle) ? Math.max(best, 1) : best)
+    }, 0)
+    const hits = []
+    for (const o of orders) hits.push({ rank: score([o.number, o.commerceIncrementId, (partnerOf(o.partnerId) || {}).name]), kind: 'order', number: o.number, title: `Sales Order ${o.number}`, subtitle: (partnerOf(o.partnerId) || {}).name })
+    for (const o of orders) for (const sh of o.shipments) hits.push({ rank: score([sh.number, o.number]), kind: 'shipment', number: sh.number, title: `Shipment ${sh.number}`, subtitle: `for sales order ${o.number}` })
+    for (const o of orders) if (o.invoice) hits.push({ rank: score([o.invoice.number, o.number]), kind: 'invoice', number: o.invoice.number, title: `Invoice ${o.invoice.number}`, subtitle: `for sales order ${o.number}` })
+    for (const p of products) hits.push({ rank: score([p.sku, p.name]), kind: 'product', number: p.sku, title: p.name, subtitle: p.sku })
+    for (const p of partners) hits.push({ rank: score([p.id, p.name]), kind: 'customer', number: p.id, title: p.name, subtitle: p.id })
+    return { items: hits.filter((h) => h.rank > 0).sort((a, b) => b.rank - a.rank || a.title.localeCompare(b.title)).slice(0, 12).map(({ rank, ...h }) => h) }
   },
   retryEvents: refuse,
   requeueEvents: refuse,

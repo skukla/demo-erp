@@ -14,10 +14,10 @@
  * every customer showed $0.00 beside a real credit limit. Real exposure is derived
  * from open orders, which needs order line quantities that do not exist yet.
  */
-import React from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight } from '@adobe/react-spectrum'
+import React, { useMemo, useState } from 'react'
+import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Picker, Item } from '@adobe/react-spectrum'
 import Frame from './Frame'
-import { useTrail, OpenDocument } from './Documents'
+import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { blockingText } from './CustomerDetail'
 import EditableNumber from './EditableNumber'
 import { saveInPlace } from './saveInPlace'
@@ -56,12 +56,21 @@ const PARTNER_GRID = {
   sort: { column: 'id', direction: 'ascending' }
 }
 
-export default function Partners ({ api, onChanged, onNavigate }) {
+const SHOW = [
+  { key: 'all', label: 'All customers' },
+  { key: 'blocked', label: 'Blocked' }
+]
+
+export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
   const widths = useColumnWidths('partners', PARTNER_COLUMNS)
   const { rows, error, reload, updateRow } = useLoad(() => api.partners(), [api])
-  const view = useGridView(rows, PARTNER_GRID)
+  // Home's "Blocked customers" lands here with ?work=blocked.
+  const [show, setShow] = useState(() => (query.work === 'blocked' ? 'blocked' : 'all'))
+  const shown = useMemo(() => (rows && show === 'blocked' ? rows.filter((p) => p.blocking && p.blocking !== 'open') : rows), [rows, show])
+  const view = useGridView(shown, PARTNER_GRID)
   // The customer opened from the list, and the orders opened from the customer.
   const trail = useTrail('Customers')
+  useOpenFromQuery(trail, query, 'customer')
   function save (id, patch) {
     const isRow = (row) => row.id === id
     const before = rows.find(isRow)
@@ -79,7 +88,11 @@ export default function Partners ({ api, onChanged, onNavigate }) {
 
   return (
     <Frame title='Customers' error={error} loading={!rows}>
-      <GridSearch placeholder='Customer, name or company' view={view} />
+      <GridSearch placeholder='Customer, name or company' view={view}>
+        <Picker aria-label='Blocking' label='Show' selectedKey={show} onSelectionChange={(k) => setShow(String(k))} items={SHOW}>
+          {(x) => <Item key={x.key}>{x.label}</Item>}
+        </Picker>
+      </GridSearch>
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Customers' density='compact' overflowMode='wrap' marginTop='size-200'
         UNSAFE_className='erp-rows-open'

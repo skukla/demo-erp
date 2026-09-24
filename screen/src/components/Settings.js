@@ -1,6 +1,6 @@
 /*
  * Settings: the ERP's name, how it is dressed, and the levers for rehearsing and
- * presenting. The levers live here rather than on the Dashboard so a prospect looking at
+ * presenting. The levers live here rather than on Home so a prospect looking at
  * the ERP does not see them.
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react'

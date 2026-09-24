@@ -11,7 +11,8 @@ const handlers = {
   orders: require('../orders'),
   shipments: require('../shipments'),
   invoices: require('../invoices'),
-  events: require('../events')
+  events: require('../events'),
+  search: require('../search')
 }
 
 // Written by scripts/build-screen.js before every build (the pre-app-build hook).
