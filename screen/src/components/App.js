@@ -17,6 +17,7 @@ import {
 } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import { routeFromHash, hashFor } from '../pageRoute'
+import { setDefaultCurrency } from '../money'
 import { RAIL_COUNTS } from '../../../lib/cues'
 import { applyPalette, DEFAULT_APPEARANCE } from '../design/palette'
 import Logo from './Logo'
@@ -109,7 +110,10 @@ export default function App ({ screenKey, api: given }) {
 
   const refreshHealth = useCallback(async () => {
     try {
-      setHealth(await api.health())
+      const next = await api.health()
+      // Money with no currency of its own follows the ERP's company code from here on.
+      setDefaultCurrency(next.currency)
+      setHealth(next)
       setError(null)
     } catch (e) {
       setError(e)

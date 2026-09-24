@@ -7,11 +7,21 @@
  * point at which one helper is worth more than three near-copies.
  *
  * The currency comes from the record that holds it: an order carries its own. Where no
- * record does — a product's list price, a credit limit — the ERP has no currency of its
- * own yet, and these fall back to dollars. That fallback is a known gap, not a decision:
- * a euro demo shows dollars on those screens.
+ * record does — a product's list price, a credit limit — the ERP's OWN currency stands in:
+ * its company code's, from the website mapped to it (lib/structure.js), handed here once
+ * health arrives (App.js). Before that, or for an ERP no mirror has told yet, dollars.
  */
-const FALLBACK = 'USD'
+let fallback = 'USD'
+
+/** The ERP's own currency, from health; an empty value leaves the last one standing. */
+export function setDefaultCurrency (code) {
+  if (typeof code === 'string' && code.trim()) fallback = code.trim().toUpperCase()
+}
+
+/** What money with no currency of its own is shown in right now. */
+export function defaultCurrency () {
+  return fallback
+}
 
 /**
  * Options for an Intl formatter, or for a Spectrum NumberField's `formatOptions`.
@@ -20,7 +30,7 @@ const FALLBACK = 'USD'
  * @returns {object} `{ style: 'currency', currency }`
  */
 export function moneyOptions (currency) {
-  return { style: 'currency', currency: currency || FALLBACK }
+  return { style: 'currency', currency: currency || fallback }
 }
 
 /**

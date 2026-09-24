@@ -190,3 +190,14 @@ test('only an import with products moves the last-import time; the partner refre
   await invoke(admin, cols, { method: 'POST', path: '/import', body: { products: [], partners: [] } })
   assert.notEqual((await invoke(health, cols)).body.lastImportAt, before)
 })
+
+test('health answers the document numbering (the next numbers, nothing reserved) and the currency money falls back to', async () => {
+  const before = await invoke(health, cols)
+  assert.deepEqual(before.body.numbering, { salesOrder: '0000001000', shipment: '8000000001', invoice: '9000000001' })
+  // No mirror has named a website for the company code yet: no currency of the ERP's own.
+  assert.equal(before.body.currency, null)
+  await invoke(admin, cols, { method: 'POST', path: 'import', body: { products: [], partners: [], structure: { websites: [{ code: 'base', name: 'Main', salesOrg: '1000', salesOrgName: null, storeInfo: { currency: 'EUR', countryId: 'DE', vatNumber: null, address: null } }] } } })
+  const after = await invoke(health, cols)
+  assert.equal(after.body.currency, 'EUR')
+  assert.deepEqual(after.body.numbering, before.body.numbering)
+})

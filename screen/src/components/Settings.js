@@ -83,9 +83,52 @@ function WarehousesCard ({ structure, saving, onRename }) {
   )
 }
 
+/**
+ * Document numbering: each document type's range and its next number, read without
+ * reserving it (lib/counters peek). Every ERP audience knows number ranges; a counter never
+ * rewinds, not even across a wipe, so a number an order carries from before a reset cannot
+ * be handed out again. Beside it, the currency money with no currency of its own is shown in.
+ */
+function NumberingCard ({ numbering, currency }) {
+  if (!numbering) return null
+  const ranges = [
+    { label: 'Sales orders', key: 'salesOrder', from: '0000001000' },
+    { label: 'Shipments', key: 'shipment', from: '8000000001' },
+    { label: 'Invoices', key: 'invoice', from: '9000000001' }
+  ]
+  return (
+    <Card title='Document numbering'>
+      <Flex direction='column' gap='size-200'>
+        <Flex gap='size-400' wrap>
+          {ranges.map((r) => (
+            <Field key={r.key} label={`${r.label} · from ${r.from}`}>
+              <Text UNSAFE_className='erp-key'>{numbering[r.key]}</Text>
+            </Field>
+          ))}
+        </Flex>
+        <Text UNSAFE_className='erp-subtle'>The next number of each range. A counter never rewinds, not even across a wipe, so no number is handed out twice.</Text>
+        <Field label='Currency'>
+          {currency
+            ? `${currency} — money with no currency of its own (list prices, credit limits) is shown in the company code's currency`
+            : "USD until a sync names the website the company code sells through; then that website's base currency"}
+        </Field>
+      </Flex>
+    </Card>
+  )
+}
+
 export default function Settings ({ api, onChanged, onPreview }) {
   const [settings, setSettings] = useState(null)
   const [structure, setStructure] = useState(null)
+  // The next document numbers and the ERP's own currency, from the same health read.
+  const [numbering, setNumbering] = useState(null)
+  const [currency, setCurrency] = useState(null)
+  // What every health read hands the cards.
+  const takeHealth = useCallback((health) => {
+    setStructure(health.structure || null)
+    setNumbering(health.numbering || null)
+    setCurrency(health.currency || null)
+  }, [])
   const [renaming, setRenaming] = useState(null)
   const [sync, setSync] = useState(null)
   const [error, setError] = useState(null)
@@ -107,7 +150,7 @@ export default function Settings ({ api, onChanged, onPreview }) {
     clearTimeout(timer.current)
     try {
       const health = await api.health()
-      setStructure(health.structure || null)
+      takeHealth(health)
       const next = health.sync || null
       setSync(next)
       setStalled(Boolean(next && ACTIVE.has(next.state) && Date.now() - Date.parse(next.updatedAt) > STALL_MS))
@@ -120,7 +163,7 @@ export default function Settings ({ api, onChanged, onPreview }) {
     } catch (e) {
       setError(e)
     }
-  }, [api, onChanged])
+  }, [api, onChanged, takeHealth])
 
   useEffect(() => {
     api.settings().then((loaded) => {
@@ -130,16 +173,16 @@ export default function Settings ({ api, onChanged, onPreview }) {
       if (loaded.sync && ACTIVE.has(loaded.sync.state)) follow()
     }).catch(setError)
     // The Organisation and Warehouses cards read the structure the ERP derives.
-    api.health().then((health) => setStructure(health.structure || null)).catch(setError)
+    api.health().then(takeHealth).catch(setError)
     return () => clearTimeout(timer.current)
-  }, [api, follow])
+  }, [api, follow, takeHealth])
 
   async function renameWarehouse (code, name) {
     setRenaming(code)
     try {
       await api.saveSettings({ warehouses: { [code]: { name } } })
       const health = await api.health()
-      setStructure(health.structure || null)
+      takeHealth(health)
       setError(null)
       toastSaved('Warehouse renamed')
       onChanged()
@@ -258,6 +301,8 @@ export default function Settings ({ api, onChanged, onPreview }) {
                   </Text>
                 </Flex>
               </Card>
+
+              <NumberingCard numbering={numbering} currency={currency} />
             </div>
 
             <div className='erp-settings-column'>

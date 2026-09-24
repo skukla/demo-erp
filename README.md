@@ -14,7 +14,7 @@ What it holds, in SAP's words:
 | Pricing conditions | contract prices, contract discounts, max-discount ceilings | created here |
 | Sales orders | created by the integration from Commerce orders; confirmed, shipped (in parts — each a **shipment** document, `8000000001`+), invoiced once whole (an **invoice** document, `9000000001`+) or cancelled here. Only the header word and the quantities are stored; shipping, billing and the outward `status` are derived from them | numbers are the ERP's, never reused |
 | Events | the ERP's outbound event log: every change it publishes (price, stock, credit limit, block, order status), delivered or pending | |
-| Settings | display name; warehouse names of the ERP's own (a code seen in an import takes the Commerce source name once); the structure the last mirror sent (websites and their sales organisations); Sync records and Wipe all records. The Organisation card (company code, sales organisations with counts, warehouses) is derived on read (`lib/structure.js`) | |
+| Settings | display name; warehouse names of the ERP's own (a code seen in an import takes the Commerce source name once); the structure the last mirror sent (websites and their sales organisations); Sync records and Wipe all records. The Organisation card (company code, sales organisations with counts, warehouses) is derived on read (`lib/structure.js`); the Document numbering card shows each range's next number without reserving it (`lib/counters.js peek`); money with no currency of its own is shown in the company code's currency (health `currency`) | |
 
 Records are transitory, and Commerce is the master the demo is prepared in: the ERP only
 looks like the system of record. Every import (at install, on a Commerce change, on reset)

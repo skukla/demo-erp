@@ -255,6 +255,9 @@ const health = {
   displayName: settings.displayName,
   appearance: settings.appearance,
   counts: { products: products.length, businessPartners: partners.length, salesOrders: orders.length, pricingConditions: conditions.length },
+  // The next document numbers, nothing reserved (lib/counters peek), and the company code's currency.
+  numbering: { salesOrder: '0000001008', shipment: '8000000005', invoice: '9000000002' },
+  currency: 'USD',
   eventsPending: events.filter((e) => e.direction === 'out' && !e.delivered && !e.failed).length,
   lastImportAt: settings.lastImportAt,
   sync: null

@@ -5,6 +5,7 @@ const { COLLECTIONS } = require('../../lib/db')
 const { pending } = require('../../lib/events')
 const { workList } = require('../../lib/work')
 const { describeStructure } = require('../../lib/structure')
+const { peek } = require('../../lib/counters')
 
 async function handler ({ cols, settings }) {
   const counts = {}
@@ -18,10 +19,14 @@ async function handler ({ cols, settings }) {
   const work = await workList(cols)
   // The selling structure (company code, sales organisations, warehouses), derived on read.
   const structure = await describeStructure(cols)
+  // The next document numbers (nothing reserved) and the currency money with no currency
+  // of its own is shown in: the company code's, from the website mapped to it.
+  const numbering = await peek(cols)
+  const currency = structure.companyCode.currency || null
   // The appearance rides along here rather than behind its own request: the screen
   // already waits on health before it draws, so the shell bar paints in the SC's own
   // palette instead of flashing the default first.
-  return ok({ ok: true, displayName: settings.displayName, appearance: settings.appearance, eventsPending, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, sync: settings.sync || null, counts, work, structure })
+  return ok({ ok: true, displayName: settings.displayName, appearance: settings.appearance, eventsPending, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, sync: settings.sync || null, counts, work, structure, numbering, currency })
 }
 
 exports.handler = handler
