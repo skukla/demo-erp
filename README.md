@@ -22,6 +22,11 @@ overwrites the fields it carries. `POST admin/wipe` removes everything except th
 and the order-number counter; the integration then re-imports from Commerce. The counter never
 rewinds, so an order number a Commerce order carries from before a reset cannot collide.
 
+**What the Commerce instance needs for each story** (one ERP, the business structure, two
+ERPs) is written for the SC in the integration's
+[`docs/demo-setup.md`](https://github.com/skukla/commerce-erp-integration/blob/main/docs/demo-setup.md),
+with the Admin path, the API check and the undo for every requirement.
+
 ## API
 
 Web actions under one runtime package, all `require-adobe-auth` (a caller presents an IMS token
@@ -30,16 +35,17 @@ one exception is `screen`, below, which serves the ERP's own page.
 
 | Action | Routes |
 |---|---|
-| `health` | `GET` name, counts, last import/wipe |
-| `settings` | `GET`, `PATCH { displayName? }` |
-| `admin` | `POST /wipe`, `POST /import { products[], partners[], projectName? }` |
-| `products` | `GET`, `GET /:sku`, `PATCH /:sku { listPrice?, stock? }` |
+| `health` | `GET` name, counts, last import/wipe, the work waiting (Home's cues), and `structure`: the company code, each sales organisation with its website and counts, each warehouse with its ERP name, Commerce source name and product count (`lib/structure.js`, derived on read) |
+| `settings` | `GET`, `PATCH { displayName?, warehouses?: { [code]: { name } } }` (rename a warehouse; Commerce keeps its own source name) |
+| `admin` | `POST /wipe`, `POST /import { products[], partners[], stock[], structure?, projectName?, origin? }` (any of the three arrays; `stock` moves quantities per warehouse on products the ERP has; `structure.websites[]` is what the full mirror saw, kept as `settings.structureMirror`; `origin: { event }` names the Commerce event behind a partial import), `POST /sync { state, phase?, partners?, products?, error? }` (the integration reports a sync in progress) |
+| `products` | `GET`, `GET /:sku`, `PATCH /:sku { listPrice?, stock? }`, `DELETE /:sku` (a product deleted in Commerce) |
 | `partners` | `GET`, `GET /:id` (the customer document: the record plus `credit` { limit, exposure, available } — null for a customer with no Commerce company — its `orders` and its `conditions`), `PATCH /:id { creditLimit?, blocking?, paymentTerms? }` (import rows may carry `emailDomain`; quotes resolve the partner by id, company, email domain, then customer group) |
-| `pricing` | `GET` conditions, `POST` a condition, `DELETE /:id`, `POST /quote { partnerId? \| commerceCompanyId? \| customerGroupId?, lines:[{sku, qty}] }` |
-| `orders` | `GET`, `GET /:number` (the document: derived `status`, `shippingStatus`, `billingStatus`, `overall`, `can`, its `shipments` and `invoice`), `POST { commerceOrderId, commerceIncrementId?, partnerId?, lines, currency?, total? }` (idempotent), `POST /:number/confirm`, `POST /:number/cancel { reason }`, `POST /:number/shipments { lines:[{item, qty}], warehouse? }`, `POST /:number/shipments/:shipment/post`, `POST /:number/lines/:item/close { reason }`, `POST /:number/invoice`, `POST /:number/credit/release`, `POST /:number/credit/reject` (an over-limit or blocked customer's order is created and HELD, not refused; a hold stops Confirm until released, and Reject cancels with the reason Credit rejected), `POST /:number/status { status, reason? }` (the whole-order move; predates shipments and stays) |
+| `pricing` | `GET` conditions, `POST` a condition (`kind`, `partnerId?`, `sku?`, `price` or `percent`, `validFrom?`, `validTo?`, `minQty?`, `salesOrg?` — a scope to one sales organisation; blank means every one), `DELETE /:id`, `POST /quote { partnerId? \| commerceCompanyId? \| customerGroupId?, lines:[{sku, qty}], date?, salesOrg? }` (a scoped condition applies only to a quote through its sales organisation) |
+| `orders` | `GET`, `GET /:number` (the document: derived `status`, `shippingStatus`, `billingStatus`, `overall`, `can`, its `shipments` and `invoice`), `POST { commerceOrderId, commerceIncrementId?, partnerId?, lines, currency?, total?, salesOrg?, salesOrgName? }` (idempotent; the sales organisation is the website's, sent by the integration, `1000` when absent; the sold-to partner is widened to it), `POST /:number/confirm`, `POST /:number/cancel { reason }`, `POST /:number/shipments { lines:[{item, qty}], warehouse? }`, `POST /:number/shipments/:shipment/post`, `POST /:number/lines/:item/close { reason }`, `POST /:number/invoice`, `POST /:number/credit/release`, `POST /:number/credit/reject` (an over-limit or blocked customer's order is created and HELD, not refused; a hold stops Confirm until released, and Reject cancels with the reason Credit rejected), `POST /:number/credit/hold { reason?, origin }`, `POST /:number/status { status, reason? }` (the whole-order move; predates shipments and stays). Moves that happened in Commerce first carry `origin: { event, eventId? }` and raise no outbound event: `POST /:number/commerce-shipment { commerceShipmentId, items:[{ orderItemId, qty }], sourceCode?, origin }`, `POST /:number/commerce-invoice { commerceInvoiceId?, origin }`, cancel with the reason `Cancelled in Commerce`, `credit/hold` and `credit/release` |
 | `shipments` | `GET`, `GET /:number` — read-only; a shipment is created and posted on its order |
 | `invoices` | `GET`, `GET /:number` — read-only; the invoice is created on its order |
 | `events` | `GET` the event log (newest first, with the subscriber address, the pending and the failed counts), `POST /retry` redeliver pending events, `POST /requeue` give failed events another ten attempts |
+| `search` | `GET ?q=` the documents that match what was typed, best first (the shell's search bar) |
 
 Errors are `{ status: 'ERROR', errorCode, errorMessage }` with a 400/404/503/500.
 
