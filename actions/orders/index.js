@@ -11,6 +11,14 @@
  * POST orders/:number/invoice                   invoice the whole order, once every line is shipped or closed (201)
  * POST orders/:number/credit/release            let a held order proceed
  * POST orders/:number/credit/reject             cancel a held order, reason "Credit rejected"
+ * POST orders/:number/credit/hold               { reason?, origin }  an order put On Hold in Commerce is held here too
+ *
+ * A move that came from Commerce carries `origin: { event, eventId? }`: the ERP records it,
+ * journals it as received, and raises no outbound event for it (Commerce already has it):
+ * POST orders/:number/commerce-shipment         { commerceShipmentId, items:[{ orderItemId, qty }], sourceCode?, origin }
+ * POST orders/:number/commerce-invoice          { commerceInvoiceId?, origin }
+ * POST orders/:number/cancel                    { reason: "Cancelled in Commerce", origin }
+ * POST orders/:number/credit/release            { origin }
  * POST orders/:number/status                    { status, reason? } the whole-order move, for a caller that
  *                                               knows nothing of shipments; predates them and stays
  */
@@ -18,7 +26,7 @@ const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound, badRequest } = require('../../lib/errors')
 const { createOrder, listOrders, getOrder, describeOrder } = require('../../lib/orders')
-const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus, releaseCredit, rejectCredit } = require('../../lib/fulfilment')
+const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus, releaseCredit, rejectCredit, receiveShipment, holdFromCommerce } = require('../../lib/fulfilment')
 const { listPartners } = require('../../lib/partners')
 const { journalOrder } = require('../../lib/inbound')
 
@@ -36,14 +44,18 @@ async function listRows (cols) {
 /** The moves on one order, by the path segment after its number. Each answers the document. */
 async function move (cols, number, segments, body, params) {
   const [, verb, id, action] = segments
+  const origin = body.origin ? { origin: body.origin } : {}
   if (verb === 'confirm') return confirmOrder(cols, number, params)
-  if (verb === 'cancel') return cancelOrder(cols, number, body.reason, params)
+  if (verb === 'cancel') return cancelOrder(cols, number, body.reason, params, origin)
   if (verb === 'invoice') return createInvoice(cols, number, params)
+  if (verb === 'commerce-shipment') return receiveShipment(cols, number, body, params)
+  if (verb === 'commerce-invoice') return createInvoice(cols, number, params, { ...origin, commerceInvoiceId: body.commerceInvoiceId })
   if (verb === 'shipments' && !id) return createShipment(cols, number, body, params)
   if (verb === 'shipments' && id && action === 'post') return postShipment(cols, number, id, params)
   if (verb === 'lines' && id && action === 'close') return closeRemaining(cols, number, id, body.reason, params)
-  if (verb === 'credit' && id === 'release') return releaseCredit(cols, number, params)
+  if (verb === 'credit' && id === 'release') return releaseCredit(cols, number, params, origin)
   if (verb === 'credit' && id === 'reject') return rejectCredit(cols, number, params)
+  if (verb === 'credit' && id === 'hold') return holdFromCommerce(cols, number, params, { ...origin, reason: body.reason })
   if (verb === 'status') {
     if (!body.status) throw badRequest('status is required')
     const order = await setStatus(cols, number, body.status, params, { reason: body.reason })
@@ -54,7 +66,7 @@ async function move (cols, number, segments, body, params) {
 }
 
 /** The moves that make a document answer 201. */
-const CREATES = new Set(['shipments', 'invoice'])
+const CREATES = new Set(['shipments', 'invoice', 'commerce-shipment', 'commerce-invoice'])
 
 async function handler ({ cols, method, segments, body, params }) {
   const number = segments[0] || null

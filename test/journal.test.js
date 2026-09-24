@@ -49,6 +49,8 @@ test('what arrives from Commerce is named by what it is, with the wire name kept
   assert.equal(inboundName('observer.catalog_product_save_commit_after'), 'Product from Commerce')
   assert.equal(inboundName('catalog_stock_update'), 'Stock from Commerce')
   assert.equal(inboundName('observer.sales_order_save_commit_after'), 'Order from Commerce')
+  assert.equal(inboundName('observer.sales_order_shipment_save_after'), 'Shipment from Commerce')
+  assert.equal(inboundName('observer.sales_order_invoice_save_after'), 'Invoice from Commerce')
   assert.equal(inboundName('observer.company_save_commit_after'), 'Company from Commerce')
   assert.equal(inboundName('Sync from Commerce'), 'Sync from Commerce')
   assert.equal(inboundName('something.else'), 'From Commerce')
