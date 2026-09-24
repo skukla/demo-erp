@@ -2,7 +2,8 @@
  * GET  pricing                 the pricing conditions
  * POST pricing                 create or replace a condition
  * DELETE pricing/:id           remove one
- * POST pricing/quote           { partnerId?, commerceCompanyId?, customerGroupId?, lines:[{sku, qty}] }
+ * POST pricing/quote           { partnerId?, commerceCompanyId?, customerGroupId?, lines:[{sku, qty}], date? }
+ *                              date (YYYY-MM-DD) is the day priced on — today when absent
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
@@ -19,7 +20,8 @@ async function handler ({ cols, method, segments, body }) {
     const [products, partner, conditions] = await Promise.all([
       listProducts(cols), resolvePartner(cols, body), listConditions(cols)
     ])
-    return ok(quote({ products, partner, conditions, lines: body.lines }))
+    const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : undefined
+    return ok(quote({ products, partner, conditions, lines: body.lines, date }))
   }
   if (method === 'POST' && segments.length === 0) return ok(await upsertCondition(cols, body), 201)
   if (method === 'DELETE' && segments[0]) return ok({ deleted: await deleteCondition(cols, segments[0]) })

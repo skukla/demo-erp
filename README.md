@@ -102,9 +102,13 @@ npx playwright install chromium                          # once per machine
 UPDATE_SCREEN_FINGERPRINTS=1 node --test test/screens.test.js   # after an intended change; review the fixture diff
 ```
 
-It runs with `npm test`. The fingerprint is taken once the screen has stopped moving (two
-samples 300 ms apart that agree); the rows behind each one are written under the OS temp
-directory for diffing when a check fails.
+It runs with `npm test`. The fingerprint is taken once the screen has stopped moving (three
+samples 300 ms apart that agree, with the pointer parked off the grid and element sizes left
+out, since Spectrum's headers settle a fraction of a pixel apart between runs). A screen that
+differs on one load is loaded once more in a fresh page and fails only when it differs twice;
+the rows behind every fingerprint are written under the OS temp directory
+(`demo-erp-screen-rows/`), and a first mismatch is kept beside them as `<screen>.mismatch.txt`
+for diffing.
 
 ## The screen
 

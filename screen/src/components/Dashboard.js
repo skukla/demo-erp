@@ -29,7 +29,7 @@ export default function Dashboard ({ health, reloading }) {
             <Stat label='Products' value={counts.products ?? 0} />
             <Stat label='Customers' value={counts.businessPartners ?? 0} />
             <Stat label='Sales Orders' value={counts.salesOrders ?? 0} />
-            <Stat label='Pricing Rules' value={counts.pricingConditions ?? 0} />
+            <Stat label='Pricing rules' value={counts.pricingConditions ?? 0} />
             {/* Waiting to be delivered, not the journal's size: it also holds
                 delivered and incoming entries. */}
             <Stat label='Events Pending' value={health.eventsPending ?? 0} />

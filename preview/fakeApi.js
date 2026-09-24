@@ -135,9 +135,11 @@ const events = [
 ]
 
 const conditions = [
-  { _id: 'c1', id: 'c1', kind: 'contractPrice', partnerId: 'C000101', sku: 'P000001', price: 79 },
-  { _id: 'c2', id: 'c2', kind: 'contractDiscount', partnerId: 'C000102', sku: null, percent: 12 },
-  { _id: 'c3', id: 'c3', kind: 'maxDiscount', partnerId: null, sku: null, percent: 25 }
+  { _id: 'c1', id: 'c1', kind: 'contractPrice', partnerId: 'C000101', sku: 'P000001', price: 79, validFrom: '2026-09-01', validTo: '2026-12-31', minQty: 10 },
+  { _id: 'c2', id: 'c2', kind: 'contractDiscount', partnerId: 'C000102', sku: null, percent: 12, validFrom: null, validTo: null, minQty: null },
+  { _id: 'c3', id: 'c3', kind: 'maxDiscount', partnerId: null, sku: null, percent: 25, validFrom: null, validTo: null, minQty: null },
+  { _id: 'c4', id: 'c4', kind: 'contractPrice', partnerId: 'C000104', sku: 'P000008', price: 49, validFrom: '2026-11-01', validTo: null, minQty: null },
+  { _id: 'c5', id: 'c5', kind: 'contractDiscount', partnerId: 'C000103', sku: null, percent: 8, validFrom: '2026-01-01', validTo: '2026-06-30', minQty: null }
 ]
 
 const settings = {
@@ -169,18 +171,26 @@ const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
 const specificity = (c) => (c.partnerId ? 2 : 0) + (c.sku ? 1 : 0)
 const matchesCondition = (c, partnerId, sku) =>
   (!c.partnerId || c.partnerId === partnerId) && (!c.sku || c.sku === sku)
+const dayText = (d) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`))
+function ruledOut (c, { date, qty }) {
+  if (c.validFrom && date < c.validFrom) return `not valid until ${dayText(c.validFrom)}`
+  if (c.validTo && date > c.validTo) return `expired on ${dayText(c.validTo)}`
+  if (c.minQty && qty < c.minQty) return `minimum quantity ${c.minQty}, this line is ${qty}`
+  return null
+}
 
-function mostSpecific (kind, partnerId, sku) {
+function mostSpecific (kind, partnerId, sku, context) {
   return conditions
-    .filter((c) => c.kind === kind && matchesCondition(c, partnerId, sku))
+    .filter((c) => c.kind === kind && matchesCondition(c, partnerId, sku) && !ruledOut(c, context))
     .sort((a, b) => specificity(b) - specificity(a))[0]
 }
 
-function priceLine (product, partnerId, qty) {
+function priceLine (product, partnerId, qty, date) {
   const listPrice = Number(product.listPrice) || 0
-  const price = mostSpecific('contractPrice', partnerId, product.sku)
-  const discount = mostSpecific('contractDiscount', partnerId, product.sku)
-  const ceiling = mostSpecific('maxDiscount', partnerId, product.sku)
+  const context = { date, qty }
+  const price = mostSpecific('contractPrice', partnerId, product.sku, context)
+  const discount = mostSpecific('contractDiscount', partnerId, product.sku, context)
+  const ceiling = mostSpecific('maxDiscount', partnerId, product.sku, context)
   const maxDiscountPercent = ceiling ? Number(ceiling.percent) : DEFAULT_MAX_DISCOUNT
   let contractPrice = listPrice
   let source = 'list'
@@ -197,6 +207,18 @@ function priceLine (product, partnerId, qty) {
     source = 'ceiling'
   }
   const discountPercent = listPrice > 0 ? round2(((listPrice - contractPrice) / listPrice) * 100) : 0
+  const applied = new Set([ceiling, price || discount].filter(Boolean))
+  const outranked = (c) => {
+    if (c.kind === 'contractDiscount' && price) return 'a contract price takes precedence'
+    if (c.kind === 'contractPrice' && price) return 'a more specific contract price applies'
+    if (c.kind === 'contractDiscount' && discount) return 'a more specific discount applies'
+    if (c.kind === 'maxDiscount' && ceiling) return 'a more specific discount limit applies'
+    return null
+  }
+  const notApplied = conditions
+    .filter((c) => matchesCondition(c, partnerId, product.sku) && !applied.has(c) && (c.partnerId === partnerId || c.kind === 'maxDiscount' || !c.partnerId))
+    .map((c) => ({ id: c._id, kind: c.kind, reason: ruledOut(c, context) || outranked(c) }))
+    .filter((c) => c.reason)
   return {
     sku: product.sku,
     qty,
@@ -205,7 +227,8 @@ function priceLine (product, partnerId, qty) {
     discountPercent,
     maxDiscountPercent,
     source,
-    lineTotal: round2(contractPrice * qty)
+    lineTotal: round2(contractPrice * qty),
+    notApplied
   }
 }
 
@@ -378,7 +401,7 @@ export const fakeApi = {
   conditions: async () => { await wait(); return copy(conditions) },
   saveCondition: async (condition) => {
     await wait()
-    const saved = { ...condition, id: `c${nextConditionId++}`, _id: `c${nextConditionId}` }
+    const saved = { validFrom: null, validTo: null, minQty: null, ...condition, id: `c${nextConditionId++}`, _id: `c${nextConditionId}` }
     conditions.push(saved)
     return copy(saved)
   },
@@ -388,15 +411,17 @@ export const fakeApi = {
     if (at >= 0) conditions.splice(at, 1)
     return { deleted: at >= 0 }
   },
-  quote: async ({ partnerId, lines }) => {
+  quote: async ({ partnerId, lines, date }) => {
     await wait()
+    const on = date || new Date().toISOString().slice(0, 10)
     const priced = (lines || []).map((line) => {
       const product = productOf(line.sku)
       if (!product) return { sku: line.sku, qty: line.qty ?? 1, unknown: true }
-      return priceLine(product, partnerId, line.qty ?? 1)
+      return priceLine(product, partnerId, line.qty ?? 1, on)
     })
     return {
       partnerId: partnerId || partners[0].id,
+      date: on,
       lines: priced,
       total: round2(priced.reduce((sum, l) => sum + (l.lineTotal || 0), 0))
     }

@@ -1,58 +1,58 @@
 {
   "dashboard": {
     "elements": 18,
-    "hash": "69d339e453099e7304ec9b80ad2fe2a835679d08239fb7a331ad5ddfcbed65d5"
+    "hash": "7d7461488729c1b4ebb1690faa1d13c89b3906ab67d036a356072d8134e5e6bc"
   },
   "orders": {
     "elements": 322,
-    "hash": "3465483ac7d3d2efc5917e3a11ac254ac92975e70297ac23048f8e61d4211c2c"
+    "hash": "4f518a370fb533266a9dd2ec0ca97fb366ef08687e4139ac930f5b044b0bd79c"
   },
   "orders:document": {
     "elements": 163,
-    "hash": "cfdf5ab5c2c686a133024b45f38ffc02c36096267c887d2240aacf0fe1b075bd"
+    "hash": "e789f392d30af4d065aab669fd006c3adb91a0883588827bd69f9a16cd029aad"
   },
   "shipments": {
     "elements": 215,
-    "hash": "026eeb8fa07a3a2077e62efa91b106f3436311ea529b46e1200eb80ab044f41d"
+    "hash": "892ab70e041edd0f68262f058dae254f8528b22feeeda05786eed145a3678b18"
   },
   "shipments:document": {
     "elements": 92,
-    "hash": "aebdaceca1993f223d86da838e756bca442995568769f7ed3cc172f180207f2b"
+    "hash": "7873596b35996234c4f9ee1205e10bface866dd45244fce849eb1467f4ac3c8a"
   },
   "invoices": {
     "elements": 123,
-    "hash": "10d1d80ccd3e78dd163b409496a87e0294f73ff2bfeb5146d60650fa1e39039d"
+    "hash": "1e0936cc9a8ef6a2bfddc05231f98afdb29d5420fdad4ca4aecd68c9e3ee28d2"
   },
   "invoices:document": {
     "elements": 125,
-    "hash": "8655e6f72e771047038d124b56cee1de2e1a7430dfe5f8c8309871a3ba4be522"
+    "hash": "6d6ae5a51f2785fe6c97e40a0619dadd44809bb2ef3a8f41e982af29041b1b75"
   },
   "products": {
     "elements": 615,
-    "hash": "db218148eb471c90c0f8c638762df646c5eae783193be7445edcde2be5db4b0f"
+    "hash": "92e886f75fd4bc2d394b549312321e42a5d3632721c43992014815528e6a2634"
   },
   "products:document": {
     "elements": 138,
-    "hash": "1ad450efabb0d40a71d4aad44ef44119f67bd20c8ba6c58a29af3faf5b75bcc5"
+    "hash": "7f802621a6ed582efef643288c781df029f45736cb9ee38fc2ddd32c38c53132"
   },
   "partners": {
     "elements": 245,
-    "hash": "77cd247836257d437686b67d99ba4311dfb51d91395842541a7803ae3e000914"
+    "hash": "008d8b6265d450829dd9245bed7eb372c7a82d42b5f019b13816afff1426704a"
   },
   "partners:document": {
     "elements": 176,
-    "hash": "32b4513c30a8a8104e97c00fd7f2ad6c2dbc2d44bef2e24e2127130ca9888e12"
+    "hash": "597c927e4a5c66520eb9c124353336eef61387076514666fa6886ec7aa9a6524"
   },
   "pricing": {
-    "elements": 128,
-    "hash": "5dd81306bc22d55a143daad0277ddec2e0660258240a3872c6f784538b36f137"
+    "elements": 288,
+    "hash": "442e6b6f964649759af43a6e068bc13484eaca8b0cdf0db23b9978b2e787eca1"
   },
   "events": {
     "elements": 226,
-    "hash": "15f3478ee7483f4079c6a163aa0e92778fc98b7ce248329ff3c3373b7e178b74"
+    "hash": "56def7a584d3f6b6f25ffe7f992c4f4140b2d6389463d52ad2b10dbab83e1934"
   },
   "settings": {
     "elements": 141,
-    "hash": "2a834b1b2848b7f5c5d74c57874602a7135a509c8a77156cf1e2ee93ff61f8a6"
+    "hash": "1c615b7122659974bb337cc765be0cd37b2e2e537960c32ab593d4b0d2aa59e9"
   }
 }

@@ -404,6 +404,16 @@
   color: var(--ink-2);
 }
 
+/* A list of sentences with no bullets: the price test's "did not apply" lines. */
+.erp-plain-list {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
 /* Every rule Spectrum draws, dividers inside cards included, takes the one colour. */
 [class*="spectrum-Divider"] {
   background: var(--line) !important;

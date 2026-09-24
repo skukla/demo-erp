@@ -44,3 +44,23 @@ export function amountText (rule) {
   if (rule.kind === 'contractPrice') return money(rule.price)
   return `${rule.percent}%`
 }
+
+/* Validity reads as a date range with open ends left open: "1 Oct 2026 → 31 Dec 2026",
+   "from 1 Oct 2026", "until 31 Dec 2026", or "always". */
+const day = (iso) => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`))
+
+export function validityText (rule) {
+  if (rule.validFrom && rule.validTo) return `${day(rule.validFrom)} → ${day(rule.validTo)}`
+  if (rule.validFrom) return `from ${day(rule.validFrom)}`
+  if (rule.validTo) return `until ${day(rule.validTo)}`
+  return 'always'
+}
+
+/** Active · Scheduled · Expired on a day (YYYY-MM-DD), the way lib/pricing decides it. */
+export function statusOf (rule, today) {
+  if (rule.validFrom && today < rule.validFrom) return { text: 'Scheduled', variant: 'info' }
+  if (rule.validTo && today > rule.validTo) return { text: 'Expired', variant: 'neutral' }
+  return { text: 'Active', variant: 'positive' }
+}
+
+export const todayIso = () => new Date().toISOString().slice(0, 10)

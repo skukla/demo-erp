@@ -36,14 +36,16 @@ const SCREENS = [
   { key: 'invoices', heading: /^Invoices$/, opens: /^Invoice \d{10}$/ },
   { key: 'products', heading: /^Products$/, opens: /.+/ },
   { key: 'partners', heading: /^Customers$/, opens: /.+/ },
-  { key: 'pricing', heading: /^Pricing Rules$/ },
+  { key: 'pricing', heading: /^Pricing$/ },
   { key: 'events', heading: /^Event Journal$/ },
   { key: 'settings', heading: /^Settings$/ }
 ]
 
 /* The style properties that describe layout and look without describing text. */
 const STYLE_PROPS = [
-  'display', 'position', 'width', 'height', 'padding', 'margin', 'gap',
+  // Not width/height as strings: they carry sub-pixels that flicker (34px vs 34.2969px
+  // on a Spectrum header cell between two identical runs); the rounded rect below has them.
+  'display', 'position', 'padding', 'margin', 'gap',
   'color', 'background-color', 'border-color', 'border-radius',
   'font-size', 'font-weight', 'text-transform', 'letter-spacing', 'opacity'
 ]
@@ -75,6 +77,8 @@ async function open (hash) {
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console.error: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
   await page.goto(`${preview.url}#${hash}`)
+  // Park the pointer on empty canvas: a header cell under the mouse grows its resizer.
+  await page.mouse.move(VIEWPORT.width - 8, VIEWPORT.height - 8)
   await settled(page)
   return { page, context, problems }
 }
@@ -105,17 +109,23 @@ async function rowsOf (page) {
 const digest = (rows) => crypto.createHash('sha256').update(rows.join('\n')).digest('hex')
 
 /**
- * The fingerprint once the screen has stopped moving: two samples 300 ms apart that
+ * The fingerprint once the screen has stopped moving: three samples 300 ms apart that
  * agree. Spectrum's grids size their columns a frame or two after mount, and a sample
  * taken mid-settle differed between two otherwise identical runs (2026-09-24).
  */
 async function fingerprint (page) {
   let rows = await rowsOf(page)
-  for (let i = 0; i < 12; i++) {
+  let agreed = 0
+  for (let i = 0; i < 16; i++) {
     await page.waitForTimeout(300)
     const again = await rowsOf(page)
-    if (digest(again) === digest(rows)) return { elements: rows.length, hash: digest(rows), rows }
-    rows = again
+    if (digest(again) === digest(rows)) {
+      agreed += 1
+      if (agreed >= 2) return { elements: rows.length, hash: digest(rows), rows }
+    } else {
+      agreed = 0
+      rows = again
+    }
   }
   return { elements: rows.length, hash: digest(rows), rows }
 }
@@ -123,13 +133,35 @@ async function fingerprint (page) {
 /** The rows behind the last recorded fingerprint, kept beside the fixture for a diff. */
 const ROWS_DIR = path.join(require('os').tmpdir(), 'demo-erp-screen-rows')
 
-function check (name, actual) {
+const rowsFile = (name, suffix = '') => path.join(ROWS_DIR, `${name.replace(':', '-')}${suffix}.txt`)
+
+/** True when the fingerprint matches the recorded one (or nothing is recorded yet). */
+function matches (name, actual) {
   const { rows, ...summary } = actual
   seen[name] = summary
   fs.mkdirSync(ROWS_DIR, { recursive: true })
-  fs.writeFileSync(path.join(ROWS_DIR, `${name.replace(':', '-')}.txt`), rows.join('\n'))
-  if (UPDATE || !recorded[name]) return
-  assert.deepEqual(summary, recorded[name], `${name}: the screen's look changed (rows written to ${ROWS_DIR}). If that was intended, re-accept with UPDATE_SCREEN_FINGERPRINTS=1 and review the fixture diff.`)
+  fs.writeFileSync(rowsFile(name), rows.join('\n'))
+  if (UPDATE || !recorded[name]) return true
+  return summary.hash === recorded[name].hash && summary.elements === recorded[name].elements
+}
+
+/**
+ * One screen's fingerprint must match the recorded one. A first mismatch is kept on disk
+ * (`<name>.mismatch.txt`, never overwritten by a later pass) and the screen is loaded once
+ * more in a fresh page: a look that differs on one load out of two is a render that had
+ * not finished, not a change to the screen. Only two mismatches in a row fail.
+ */
+async function check (name, hash, first) {
+  if (matches(name, first)) return
+  fs.copyFileSync(rowsFile(name), rowsFile(name, '.mismatch'))
+  const again = await open(hash)
+  try {
+    const second = await fingerprint(again.page)
+    const message = `${name}: the screen's look changed twice in a row (rows in ${ROWS_DIR}, the first mismatch beside them as .mismatch.txt). If that was intended, re-accept with UPDATE_SCREEN_FINGERPRINTS=1 and review the fixture diff.`
+    assert.equal(matches(name, second), true, message)
+  } finally {
+    await again.context.close()
+  }
 }
 
 for (const screen of SCREENS) {
@@ -139,7 +171,7 @@ for (const screen of SCREENS) {
       const heading = await page.textContent('.erp-content h1')
       assert.match(heading.trim(), screen.heading)
       assert.deepEqual(problems, [], `${screen.key} console`)
-      check(screen.key, await fingerprint(page))
+      await check(screen.key, screen.key, await fingerprint(page))
 
       if (screen.opens) {
         // Rows that open a record say so with erp-key; the first one is enough.
@@ -148,7 +180,8 @@ for (const screen of SCREENS) {
         const docHeading = await page.textContent('.erp-content h1')
         assert.match(docHeading.trim(), screen.opens, `${screen.key}: opening the first row`)
         assert.deepEqual(problems, [], `${screen.key} document console`)
-        check(`${screen.key}:document`, await fingerprint(page))
+        // The record's own hash (after the click) is what a retry reopens.
+        await check(`${screen.key}:document`, new URL(page.url()).hash.slice(1), await fingerprint(page))
       }
     } finally {
       await context.close()

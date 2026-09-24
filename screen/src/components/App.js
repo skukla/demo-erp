@@ -47,7 +47,7 @@ const AREAS = [
     items: [
       { key: 'products', label: 'Products', Component: Products },
       { key: 'partners', label: 'Customers', Component: Partners },
-      { key: 'pricing', label: 'Pricing Rules', Component: Pricing }
+      { key: 'pricing', label: 'Pricing', Component: Pricing }
     ]
   },
   { group: 'Monitoring', items: [{ key: 'events', label: 'Event Journal', Component: Events }] },

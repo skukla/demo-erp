@@ -129,7 +129,7 @@ function PricingCard ({ conditions, onNavigate }) {
   return (
     <Card
       title='Pricing'
-      actions={onNavigate && <Link isQuiet onPress={() => onNavigate('pricing')}>Pricing Rules →</Link>}
+      actions={onNavigate && <Link isQuiet onPress={() => onNavigate('pricing')}>Pricing →</Link>}
     >
       {conditions.length === 0
         ? <Text>No pricing rules are agreed with this customer; it pays list price.</Text>
