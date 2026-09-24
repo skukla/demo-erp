@@ -16,9 +16,8 @@ import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
-import { statusText } from './OrderHeader'
+import { statusLight, statusText } from './OrderHeader'
 
-const LIGHT = { created: 'neutral', confirmed: 'info', shipped: 'notice', invoiced: 'positive', cancelled: 'negative' }
 /* Business Central calls this the External Document No.; it is the customer's own
    reference for the order, which is exactly what the Commerce increment id is. */
 const reference = (o) => o.commerceIncrementId || o.commerceOrderId || '—'
@@ -98,7 +97,7 @@ export default function Orders ({ api, onChanged }) {
               <Cell>{o.partnerName ? `${o.partnerId} · ${o.partnerName}` : (o.partnerId || '—')}</Cell>
               <Cell>{(o.lines || []).length}</Cell>
               <Cell>{money(o.total, o.currency)}</Cell>
-              <Cell><StatusLight variant={LIGHT[o.status] || 'neutral'}>{statusText(o.status)}</StatusLight></Cell>
+              <Cell><StatusLight variant={statusLight(o.status)}>{statusText(o.status)}</StatusLight></Cell>
             </Row>
           )}
         </TableBody>

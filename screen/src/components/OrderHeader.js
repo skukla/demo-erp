@@ -4,29 +4,24 @@
  * customer, the dates and the terms here; the line items come underneath.
  */
 import React from 'react'
-import { Grid, Flex, Text, StatusLight } from '@adobe/react-spectrum'
+import { Grid, StatusLight } from '@adobe/react-spectrum'
 import Card from './Card'
+import Field from './Field'
 import { formatDate } from '../formatStamp'
 
-/** One labelled fact. An absent value reads as a dash, never as an empty gap. */
-function Field ({ label, children }) {
-  // alignItems start, not the default stretch: a status badge is as wide as its word,
-  // and a flex column would otherwise pull it across the whole field.
-  return (
-    <Flex direction='column' gap='size-25' alignItems='start'>
-      <Text UNSAFE_className='erp-field-label'>{label}</Text>
-      {typeof children === 'string' || typeof children === 'number'
-        ? <Text>{children}</Text>
-        : (children || <Text>—</Text>)}
-    </Flex>
-  )
-}
-
+/* How an order's status reads and what colour it wears — in ONE place, read by the list,
+   the document and the customer's order card. Three copies of the colour map was two
+   too many. */
 const STATUS_TEXT = { created: 'Open', confirmed: 'Confirmed', shipped: 'Shipped', invoiced: 'Invoiced', cancelled: 'Cancelled' }
 const LIGHT = { created: 'neutral', confirmed: 'info', shipped: 'notice', invoiced: 'positive', cancelled: 'negative' }
 
 export function statusText (status) {
   return STATUS_TEXT[status] || status
+}
+
+/** The StatusLight variant for an order status. */
+export function statusLight (status) {
+  return LIGHT[status] || 'neutral'
 }
 
 export default function OrderHeader ({ order }) {
@@ -52,7 +47,7 @@ export default function OrderHeader ({ order }) {
         <Field label='Payment terms'>{partner ? partner.paymentTerms : '—'}</Field>
         <Field label='Currency'>{order.currency || 'USD'}</Field>
         <Field label='Status'>
-        <StatusLight variant={LIGHT[order.status] || 'neutral'} marginStart='size-0'>
+        <StatusLight variant={statusLight(order.status)} marginStart='size-0'>
           {statusText(order.status)}
         </StatusLight>
       </Field>

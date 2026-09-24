@@ -203,6 +203,32 @@ function describe (order) {
 }
 const refuse = () => Promise.reject(new Error('The preview holds stand-in records; nothing here writes.'))
 
+/* The customer document, shaped the way lib/partners.js `describePartner` shapes it.
+   Kept in step by hand for the same reason describe() is. */
+const OPEN = new Set(['created', 'confirmed', 'shipped'])
+function describePartner (partner) {
+  const own = orders
+    .filter((o) => o.partnerId === partner.id)
+    .sort((a, b) => (a.number < b.number ? 1 : -1))
+    .map((o) => ({
+      number: o.number,
+      createdAt: o.createdAt,
+      status: o.status,
+      commerceOrderId: o.commerceOrderId,
+      commerceIncrementId: o.commerceIncrementId,
+      currency: o.currency,
+      net: cents((o.lines || []).reduce((sum, l) => sum + l.qty * l.price, 0))
+    }))
+  const exposure = cents(own.filter((o) => OPEN.has(o.status)).reduce((sum, o) => sum + o.net, 0))
+  const limit = Number(partner.creditLimit) || 0
+  return {
+    ...partner,
+    credit: partner.commerceCompanyId ? { limit, exposure, available: cents(limit - exposure) } : null,
+    orders: own,
+    conditions: conditions.filter((c) => c.partnerId === partner.id)
+  }
+}
+
 /** Everything screen/src/api.js offers, answered from the records above. */
 export const fakeApi = {
   health: async () => { await wait(); return copy(health) },
@@ -223,7 +249,15 @@ export const fakeApi = {
   product: async (sku) => copy(products.find((p) => p.sku === sku)),
   patchProduct: refuse,
   partners: async () => { await wait(); return copy(partners) },
-  patchPartner: refuse,
+  partner: async (id) => { await wait(); return copy(describePartner(partners.find((p) => p.id === id))) },
+  // A write the preview allows: the customer document's actions are what it is for.
+  patchPartner: async (id, patch) => {
+    await wait()
+    const partner = partners.find((p) => p.id === id)
+    if (patch.creditLimit !== undefined) partner.creditLimit = Number(patch.creditLimit)
+    if (patch.blocked !== undefined) partner.blocked = Boolean(patch.blocked)
+    return copy(partner)
+  },
   conditions: async () => { await wait(); return copy(conditions) },
   saveCondition: async (condition) => {
     await wait()

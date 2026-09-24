@@ -309,9 +309,9 @@
  * gets a pointer instead.
  *
  * NOT rows, though. Spectrum marks EVERY row pressable whether or not an onAction is
- * wired, so the attribute cannot be trusted to mean the row does something: Customers
- * and Pricing Rules would have offered a click that does nothing. The three grids whose
- * rows open a record say so themselves, with `erp-rows-open`.
+ * wired, so the attribute cannot be trusted to mean the row does something: Pricing
+ * Rules would offer a click that does nothing. The grids whose rows open a record say
+ * so themselves, with `erp-rows-open`.
  */
 [data-react-aria-pressable="true"]:not([role="row"]),
 [data-react-aria-pressable="true"]:not([role="row"]) * {

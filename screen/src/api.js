@@ -33,6 +33,7 @@ export function makeApi (screenKey, base = screenBase()) {
     product: (sku) => call('products', { path: `/${encodeURIComponent(sku)}` }),
     patchProduct: (sku, patch) => call('products', { method: 'PATCH', path: `/${encodeURIComponent(sku)}`, body: patch }),
     partners: () => call('partners'),
+    partner: (id) => call('partners', { path: `/${encodeURIComponent(id)}` }),
     patchPartner: (id, patch) => call('partners', { method: 'PATCH', path: `/${encodeURIComponent(id)}`, body: patch }),
     conditions: () => call('pricing'),
     saveCondition: (condition) => call('pricing', { method: 'POST', body: condition }),

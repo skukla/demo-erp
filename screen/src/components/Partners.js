@@ -1,5 +1,7 @@
 /*
- * Customers: the list.
+ * Customers: the list. Choose a row to open the customer's document (CustomerDetail);
+ * credit limit and blocked can still be edited here, in the row, for a quick change
+ * while preparing a demo.
  *
  * The screen says "customer" because that is the word an SAP, Business Central or
  * NetSuite user reads without translating. The stored collection keeps its own name
@@ -11,9 +13,10 @@
  * every customer showed $0.00 beside a real credit limit. Real exposure is derived
  * from open orders, which needs order line quantities that do not exist yet.
  */
-import React from 'react'
+import React, { useState } from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, Switch } from '@adobe/react-spectrum'
 import Frame from './Frame'
+import CustomerDetail from './CustomerDetail'
 import EditableNumber from './EditableNumber'
 import SavingValue from './SavingValue'
 import { saveInPlace } from './saveInPlace'
@@ -52,10 +55,12 @@ const PARTNER_GRID = {
   sort: { column: 'id', direction: 'ascending' }
 }
 
-export default function Partners ({ api, onChanged }) {
+export default function Partners ({ api, onChanged, onNavigate }) {
   const widths = useColumnWidths('partners', PARTNER_COLUMNS)
-  const { rows, error, updateRow } = useLoad(() => api.partners(), [api])
+  const { rows, error, reload, updateRow } = useLoad(() => api.partners(), [api])
   const view = useGridView(rows, PARTNER_GRID)
+  // The customer opened from the list, as Orders opens an order.
+  const [openId, setOpenId] = useState(null)
   function save (id, patch) {
     const isRow = (row) => row.id === id
     const before = rows.find(isRow)
@@ -67,10 +72,26 @@ export default function Partners ({ api, onChanged }) {
       saved: 'Customer saved'
     })
   }
+  if (openId) {
+    return (
+      <CustomerDetail
+        key={openId}
+        api={api}
+        id={openId}
+        onBack={() => { setOpenId(null); reload() }}
+        onChanged={onChanged}
+        onNavigate={onNavigate}
+      />
+    )
+  }
+
   return (
     <Frame title='Customers' error={error} loading={!rows}>
       <GridSearch placeholder='Customer, name or company' view={view} />
-      <TableView {...widths.tableProps} {...view.tableProps} aria-label='Customers' density='compact' overflowMode='wrap' marginTop='size-200'>
+      <TableView {...widths.tableProps} {...view.tableProps}
+        aria-label='Customers' density='compact' overflowMode='wrap' marginTop='size-200'
+        UNSAFE_className='erp-rows-open'
+        selectionMode='none' onAction={(key) => setOpenId(String(key))}>
         <TableHeader>
           <Column key='id' {...widths.columnProps('id')} allowsSorting>Customer</Column>
           <Column key='name' {...widths.columnProps('name')} allowsSorting>Name</Column>
@@ -83,7 +104,7 @@ export default function Partners ({ api, onChanged }) {
         <TableBody items={view.items}>
           {(p) => (
             <Row key={p.id}>
-              <Cell>{p.id}</Cell>
+              <Cell><span className='erp-key'>{p.id}</span></Cell>
               {/* The default customer's stored name already says walk-in; no suffix. */}
               <Cell>{p.name}</Cell>
               <Cell>{p.commerceCompanyId || '—'}</Cell>

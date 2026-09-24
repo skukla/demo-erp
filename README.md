@@ -10,7 +10,7 @@ What it holds, in SAP's words:
 | Collection | What it is | Who owns the values |
 |---|---|---|
 | Products | products: SKU, description, plant, **list price**, **stock** | mirrored from Commerce; edited here for the demo, and every Commerce change overwrites the ERP again |
-| Business partners | accounts (sold-to): name, sales org, payment terms, **credit limit**, credit used, **blocked** | mirrored from Commerce (companies, credit, status); edited here for the demo; one default partner for walk-in customers |
+| Business partners | accounts (sold-to): name, sales org, payment terms, **credit limit**, **blocked**; credit exposure is derived from open orders, never stored | mirrored from Commerce (companies, credit, status); edited here for the demo; one default partner for walk-in customers |
 | Pricing conditions | contract prices, contract discounts, max-discount ceilings | created here |
 | Sales orders | created by the integration from Commerce orders; **status** moved here (created → confirmed → shipped → invoiced, or cancelled) | number is the ERP's, never reused |
 | Events | the ERP's outbound event log: every change it publishes (price, stock, credit limit, block, order status), delivered or pending | |
@@ -34,7 +34,7 @@ one exception is `screen`, below, which serves the ERP's own page.
 | `settings` | `GET`, `PATCH { displayName? }` |
 | `admin` | `POST /wipe`, `POST /import { products[], partners[], projectName? }` |
 | `products` | `GET`, `GET /:sku`, `PATCH /:sku { listPrice?, stock? }` |
-| `partners` | `GET`, `GET /:id`, `PATCH /:id { creditLimit?, blocked?, paymentTerms? }` (import rows may carry `emailDomain`; quotes resolve the partner by id, company, email domain, then customer group) |
+| `partners` | `GET`, `GET /:id` (the customer document: the record plus `credit` { limit, exposure, available } — null for a customer with no Commerce company — its `orders` and its `conditions`), `PATCH /:id { creditLimit?, blocked?, paymentTerms? }` (import rows may carry `emailDomain`; quotes resolve the partner by id, company, email domain, then customer group) |
 | `pricing` | `GET` conditions, `POST` a condition, `DELETE /:id`, `POST /quote { partnerId? \| commerceCompanyId? \| customerGroupId?, lines:[{sku, qty}] }` |
 | `orders` | `GET`, `GET /:number`, `POST { commerceOrderId, commerceIncrementId?, partnerId?, lines, currency?, total? }` (idempotent), `POST /:number/status { status }` |
 | `events` | `GET` the event log (newest first, with the subscriber address, the pending and the failed counts), `POST /retry` redeliver pending events, `POST /requeue` give failed events another ten attempts |

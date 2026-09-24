@@ -62,7 +62,11 @@ function CancelOrder ({ reasons, onCancel, isDisabled }) {
   )
 }
 
-export default function OrderDetail ({ api, number, onBack, onChanged }) {
+/**
+ * @param {object} props `backLabel` names where Back goes: the list by default, or the
+ *   customer the order was opened from.
+ */
+export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', onBack, onChanged }) {
   const { rows, error, reload } = useLoad(async () => [await api.order(number)], [api, number])
   const order = rows && rows[0]
   const [moveError, setMoveError] = useState(null)
@@ -86,7 +90,7 @@ export default function OrderDetail ({ api, number, onBack, onChanged }) {
       <>
         <ActionButton isQuiet onPress={onBack} marginBottom='size-150'>
           <ChevronLeft />
-          <Text>Sales Orders</Text>
+          <Text>{backLabel}</Text>
         </ActionButton>
         {error
           ? (
@@ -106,7 +110,7 @@ export default function OrderDetail ({ api, number, onBack, onChanged }) {
     <>
       <ActionButton isQuiet onPress={onBack} marginBottom='size-150'>
         <ChevronLeft />
-        <Text>Sales Orders</Text>
+        <Text>{backLabel}</Text>
       </ActionButton>
       <div className='erp-page-header'>
         <Heading level={1} marginY={0}>Sales Order {order.number}</Heading>
