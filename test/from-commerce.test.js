@@ -129,3 +129,22 @@ test('the routes: commerce-shipment and commerce-invoice answer 201, cancel and 
   assert.equal(cancelled.body.status, 'cancelled')
   assert.deepEqual(await outbound(), [])
 })
+
+test("the ERP's own shipment, shipped in Commerce by the integration, comes back as a Commerce shipment event and is matched, not shipped twice", async () => {
+  const { createShipment, postShipment } = require('../lib/fulfilment')
+  const order = await confirmOrder(cols, (await createOrder(cols, input)).number)
+  const withOwn = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 5 }], warehouse: 'east' })
+  const posted = await postShipment(cols, order.number, withOwn.shipments[0].number)
+  assert.deepEqual(await outbound(), ['order.confirmed', 'order.shipped'])
+  // Commerce's event for the shipment the integration made from the ERP's: same lines, no Commerce id yet.
+  const matched = await receiveShipment(cols, order.number, { commerceShipmentId: '900', items: [{ orderItemId: 1, qty: 5 }], sourceCode: 'east', ...origin(SHIPMENT_EVENT) })
+  assert.equal(matched.shipments.length, 1)
+  assert.equal(matched.shipments[0].number, posted.shipments[0].number)
+  assert.equal(matched.shipments[0].commerceShipmentId, '900')
+  assert.deepEqual(matched.lines.map((l) => l.shippedQty), [5, 0], 'nothing shipped twice')
+  // A genuinely new Commerce shipment for the rest is still recorded.
+  const more = await receiveShipment(cols, order.number, { commerceShipmentId: '901', items: [{ orderItemId: 1, qty: 7 }, { orderItemId: 2, qty: 4 }], ...origin(SHIPMENT_EVENT) })
+  assert.equal(more.shipments.length, 2)
+  assert.deepEqual(more.lines.map((l) => l.shippedQty), [12, 4])
+  assert.equal((await recent(cols)).find((e) => e.direction === 'in' && /is ERP shipment/.test(e.summary)).summary, `Commerce shipment 900 is ERP shipment ${posted.shipments[0].number} on sales order ${order.number}; nothing shipped twice`)
+})
