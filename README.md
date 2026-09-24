@@ -69,7 +69,12 @@ starts again.
 subscribers: its routes, the shapes of an import, a quote and an order, every event it
 publishes with the keys its payload carries, and the delivery rules. `test/contract.test.js`
 fails when the code drifts from it, and the Commerce integration vendors a copy and tests its
-handlers against it, so the two repositories cannot drift apart silently.
+handlers against it, so the two repositories cannot drift apart silently. Version 2
+(2026-09-24) names the business-structure fields: a partner's sales organisations, legal
+identity and website; a `structure` import of Commerce's websites and Store Information; a
+sales organisation on the order. `test/records-shape.test.js` pins what the ERP STORES
+against `test/fixtures/record-shapes.json`, so a field can only appear or vanish on purpose
+(`UPDATE_RECORD_SHAPES=1` rewrites the fixture; review the diff).
 
 ## Storage
 

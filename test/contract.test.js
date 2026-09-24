@@ -68,3 +68,14 @@ test('delivery rules match the code', () => {
   const { webhookUrl } = require('../lib/events')
   assert.ok(webhookUrl({ EVENTS_WEBHOOK_URL: 'https://x.example' + contract.delivery.webhookPath }).endsWith(contract.delivery.webhookPath))
 })
+
+test('the contract is at version 2: the business-structure fields are named on partners, orders and the structure import', () => {
+  assert.equal(contract.contractVersion, 2)
+  for (const key of ['salesOrgs', 'legalName', 'vatTaxId', 'resellerId', 'legalAddress', 'website']) assert.ok(contract.import.partners.includes(key), key)
+  assert.deepEqual(contract.import.structure, ['websites'])
+  assert.deepEqual(contract.import.structureWebsite, ['code', 'name', 'salesOrg', 'salesOrgName', 'storeInfo'])
+  for (const key of ['salesOrg', 'salesOrgName']) {
+    assert.ok(contract.order.request.includes(key), key)
+    assert.ok(contract.order.response.includes(key), key)
+  }
+})

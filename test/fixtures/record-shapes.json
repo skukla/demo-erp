@@ -1,0 +1,152 @@
+{
+  "partner": [
+    "_id",
+    "blocking",
+    "commerceCompanyId",
+    "creditLimit",
+    "customerGroupId",
+    "emailDomain",
+    "id",
+    "name",
+    "paymentTerms",
+    "salesOrg",
+    "updatedAt"
+  ],
+  "walkInPartner": [
+    "_id",
+    "blocking",
+    "commerceCompanyId",
+    "creditLimit",
+    "customerGroupId",
+    "id",
+    "isDefault",
+    "name",
+    "paymentTerms",
+    "salesOrg",
+    "updatedAt"
+  ],
+  "product": [
+    "_id",
+    "listPrice",
+    "name",
+    "sku",
+    "type",
+    "unit",
+    "updatedAt",
+    "warehouses"
+  ],
+  "warehouse": [
+    "code",
+    "name",
+    "quantity"
+  ],
+  "order": [
+    "_id",
+    "commerceIncrementId",
+    "commerceOrderId",
+    "createdAt",
+    "creditDecidedAt",
+    "creditReason",
+    "creditStatus",
+    "currency",
+    "header",
+    "history",
+    "invoice",
+    "lines",
+    "number",
+    "partnerId",
+    "shipments",
+    "status",
+    "total"
+  ],
+  "orderLine": [
+    "closedQty",
+    "commerceItemId",
+    "item",
+    "price",
+    "qty",
+    "shippedQty",
+    "sku"
+  ],
+  "shipment": [
+    "createdAt",
+    "lines",
+    "number",
+    "postedAt",
+    "status",
+    "warehouse"
+  ],
+  "shipmentLine": [
+    "commerceItemId",
+    "item",
+    "qty",
+    "sku"
+  ],
+  "invoice": [
+    "createdAt",
+    "lines",
+    "net",
+    "number",
+    "shipments",
+    "status",
+    "tax",
+    "total"
+  ],
+  "invoiceLine": [
+    "amount",
+    "item",
+    "price",
+    "qty",
+    "sku"
+  ],
+  "historyEntry": [
+    "at",
+    "status"
+  ],
+  "contractPrice": [
+    "_id",
+    "kind",
+    "minQty",
+    "partnerId",
+    "price",
+    "sku",
+    "updatedAt",
+    "validFrom",
+    "validTo"
+  ],
+  "contractDiscount": [
+    "_id",
+    "kind",
+    "minQty",
+    "partnerId",
+    "percent",
+    "sku",
+    "updatedAt",
+    "validFrom",
+    "validTo"
+  ],
+  "maxDiscount": [
+    "_id",
+    "kind",
+    "minQty",
+    "partnerId",
+    "percent",
+    "sku",
+    "updatedAt",
+    "validFrom",
+    "validTo"
+  ],
+  "settings": [
+    "_id",
+    "appearance",
+    "displayName",
+    "displayNameEdited",
+    "lastImportAt",
+    "lastWipeAt"
+  ],
+  "appearance": [
+    "logo",
+    "nav",
+    "palette"
+  ]
+}
