@@ -453,6 +453,27 @@ function describeInvoice (order, inv) {
 
 /* The customer document, shaped the way lib/partners.js `describePartner` shapes it. */
 const OPEN = new Set(['created', 'confirmed', 'shipped'])
+
+/* A customer row for the list (lib/partners withCredit): exposure and what is left, by the
+   document's rule; null for the walk-in account, which has no credit relationship. */
+function withCredit (partner) {
+  if (!partner.commerceCompanyId) return { ...partner, exposure: null, available: null }
+  const { credit } = describePartner(partner)
+  return { ...partner, exposure: credit.exposure, available: credit.available }
+}
+
+/* The two derived states a sales order row shows (lib/orders shippingStatus, overallStatus). */
+function shippingStatus (o) {
+  const shipped = o.lines.reduce((sum, l) => sum + (l.shippedQty || 0), 0)
+  const open = o.lines.reduce((sum, l) => sum + Math.max(0, l.qty - (l.shippedQty || 0) - (l.closedQty || 0)), 0)
+  if (shipped === 0) return 'none'
+  return open > 0 ? 'partial' : 'full'
+}
+function overallStatus (o) {
+  if (o.header === 'cancelled') return 'Cancelled'
+  if (o.invoice) return 'Completed'
+  return o.header === 'confirmed' ? 'In process' : 'Open'
+}
 function describePartner (partner) {
   const own = orders
     .filter((o) => o.partnerId === partner.id)
@@ -536,7 +557,7 @@ export const fakeApi = {
     })
   },
   patchProduct: refuse,
-  partners: async () => { await wait(); return copy(partners) },
+  partners: async () => { await wait(); return copy(partners.map(withCredit)) },
   partner: async (id) => { await wait(); return copy(describePartner(partnerOf(id))) },
   patchPartner: async (id, patch) => {
     await wait()
@@ -578,6 +599,9 @@ export const fakeApi = {
     return copy(orders.map((o) => ({
       ...o,
       status: deriveStatus(o),
+      shippingStatus: shippingStatus(o),
+      billingStatus: o.invoice ? (o.invoice.status === 'credited' ? 'credited' : 'invoiced') : 'none',
+      overall: overallStatus(o),
       can: abilities(o),
       partnerName: (partnerOf(o.partnerId) || {}).name || null
     })))
@@ -693,6 +717,8 @@ export const fakeApi = {
       postedAt: s.postedAt,
       status: s.status,
       warehouse: s.warehouse,
+      warehouseName: s.warehouse ? ((settings.warehouses[s.warehouse] || {}).name || s.warehouse) : null,
+      partnerName: (partnerOf(o.partnerId) || {}).name || null,
       lines: s.lines.length,
       qty: s.lines.reduce((sum, l) => sum + l.qty, 0)
     }))).sort((a, b) => (a.number < b.number ? 1 : -1)))
@@ -712,6 +738,7 @@ export const fakeApi = {
       legacy: false,
       orderNumber: o.number,
       partnerId: o.partnerId,
+      partnerName: (partnerOf(o.partnerId) || {}).name || null,
       createdAt: o.invoice.createdAt,
       status: o.invoice.status,
       currency: o.currency,

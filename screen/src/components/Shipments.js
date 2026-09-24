@@ -13,23 +13,28 @@ import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { formatDate } from '../formatStamp'
 
 const SHIPMENT_COLUMNS = [
-  { key: 'number', width: 165 },
-  { key: 'date', width: 140 },
-  { key: 'order', width: '1fr', minWidth: 170 },
+  { key: 'number', width: 150 },
+  { key: 'date', width: 130 },
+  { key: 'order', width: 150 },
+  { key: 'partner', width: '2fr', minWidth: 200 },
   { key: 'warehouse', width: '1fr', minWidth: 160 },
-  { key: 'qty', width: 110 },
-  { key: 'status', width: 130 }
+  { key: 'qty', width: 100 },
+  { key: 'status', width: 120 }
 ]
+
+/* A shipment list without who it went to is a warehouse's view, not a sales view. */
+const soldTo = (s) => (s.partnerName ? `${s.partnerId} · ${s.partnerName}` : (s.partnerId || '—'))
 
 const statusText = (s) => (s.status === 'posted' ? 'Posted' : 'Open')
 
 const SHIPMENT_GRID = {
-  fields: [(s) => s.number, (s) => s.orderNumber, (s) => s.warehouse, (s) => statusText(s)],
+  fields: [(s) => s.number, (s) => s.orderNumber, (s) => s.partnerId, (s) => s.partnerName, (s) => s.warehouseName || s.warehouse, (s) => statusText(s)],
   values: {
     number: (s) => s.number,
     date: (s) => Date.parse(s.postedAt || s.createdAt) || 0,
     order: (s) => s.orderNumber,
-    warehouse: (s) => s.warehouse || '',
+    partner: (s) => s.partnerId || '',
+    warehouse: (s) => s.warehouseName || s.warehouse || '',
     qty: (s) => s.qty,
     status: (s) => statusText(s)
   },
@@ -62,7 +67,7 @@ export default function Shipments ({ api, query = {}, onChanged, onNavigate }) {
 
   return (
     <Frame title='Shipments' error={error} loading={!rows}>
-      <GridSearch placeholder='Shipment, order or warehouse' view={view}>
+      <GridSearch placeholder='Shipment, order, customer or warehouse' view={view}>
         <Picker aria-label='Status' label='Show' selectedKey={show} onSelectionChange={(k) => setShow(String(k))} items={SHOW}>
           {(x) => <Item key={x.key}>{x.label}</Item>}
         </Picker>
@@ -75,6 +80,7 @@ export default function Shipments ({ api, query = {}, onChanged, onNavigate }) {
           <Column key='number' {...widths.columnProps('number')} allowsSorting>Shipment</Column>
           <Column key='date' {...widths.columnProps('date')} allowsSorting>Shipment date</Column>
           <Column key='order' {...widths.columnProps('order')} allowsSorting>Sales order</Column>
+          <Column key='partner' {...widths.columnProps('partner')} allowsSorting>Sold-to</Column>
           <Column key='warehouse' {...widths.columnProps('warehouse')} allowsSorting>Ship-from</Column>
           <Column key='qty' {...widths.columnProps('qty')} align='end' allowsSorting>Quantity</Column>
           <Column key='status' {...widths.columnProps('status')} allowsSorting>Status</Column>
@@ -85,7 +91,8 @@ export default function Shipments ({ api, query = {}, onChanged, onNavigate }) {
               <Cell><span className='erp-key'>{s.number}</span></Cell>
               <Cell>{formatDate(s.postedAt || s.createdAt)}</Cell>
               <Cell>{s.orderNumber}</Cell>
-              <Cell>{s.warehouse || '—'}</Cell>
+              <Cell>{soldTo(s)}</Cell>
+              <Cell>{s.warehouseName || s.warehouse || '—'}</Cell>
               <Cell>{s.qty}</Cell>
               <Cell><StatusLight variant={s.status === 'posted' ? 'positive' : 'notice'}>{statusText(s)}</StatusLight></Cell>
             </Row>

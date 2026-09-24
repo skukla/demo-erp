@@ -303,6 +303,34 @@ test('the product page is a master record: basic data, open orders, committed an
   }
 })
 
+test('the lists say what the document behind each row is in the middle of', async () => {
+  const headers = async (hash) => {
+    const { page, context, problems } = await open(hash)
+    try {
+      const text = await page.locator('[role="columnheader"]').allTextContents()
+      assert.deepEqual(problems, [], `${hash} console`)
+      return text
+    } finally {
+      await context.close()
+    }
+  }
+  const orders = await headers('orders')
+  assert.ok(orders.includes('Shipping') && orders.includes('Billing') && !orders.includes('Lines'), `orders: ${orders.join(' | ')}`)
+  const shipments = await headers('shipments')
+  assert.ok(shipments.includes('Sold-to'), `shipments: ${shipments.join(' | ')}`)
+  const invoices = await headers('invoices')
+  assert.ok(invoices.includes('Sold-to'), `invoices: ${invoices.join(' | ')}`)
+  const customers = await headers('partners')
+  assert.ok(customers.includes('Exposure') && customers.includes('Available'), `customers: ${customers.join(' | ')}`)
+  // The shipment's ship-from prints the ERP's own name for the plant, not Commerce's source name.
+  const { page, context } = await open('shipments')
+  try {
+    assert.match(await page.locator('[role="grid"]').textContent(), /Plant 1000 · Seattle DC/)
+  } finally {
+    await context.close()
+  }
+})
+
 test('the title line stays while a long list scrolls under it', async () => {
   const { page, context } = await open('products')
   try {

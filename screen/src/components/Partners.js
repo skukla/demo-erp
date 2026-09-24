@@ -24,7 +24,7 @@ import { saveInPlace } from './saveInPlace'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
-import { moneyOptions } from '../money'
+import { money, moneyOptions } from '../money'
 
 // One object, not one per render: a Spectrum number field compares this by identity.
 const MONEY = moneyOptions()
@@ -32,14 +32,18 @@ const MONEY = moneyOptions()
 /* Wide enough for the header plus its sort chevron; see Orders.js. */
 /* Name takes twice the slack of the two id columns beside it; the switch at the end
    takes none, which is why it is a fixed width. */
+/* A credit limit with no exposure beside it says nothing (UI audit §Customers): Exposure
+   and Available joined the list, and the Commerce company id moved to the document, where
+   it is one fact among the customer's identity. Eight columns fit a 1,440px window. */
 const PARTNER_COLUMNS = [
-  { key: 'id', width: 150 },
-  { key: 'name', width: '2fr', minWidth: 200 },
-  { key: 'commerce', width: '1fr', minWidth: 195 },
-  { key: 'salesOrgs', width: '1fr', minWidth: 190 },
-  { key: 'terms', width: 165 },
-  { key: 'creditLimit', width: 170 },
-  { key: 'blocking', width: 210 }
+  { key: 'id', width: 120 },
+  { key: 'name', width: '2fr', minWidth: 180 },
+  { key: 'salesOrgs', width: '1fr', minWidth: 140 },
+  { key: 'terms', width: 110 },
+  { key: 'creditLimit', width: 140 },
+  { key: 'exposure', width: 130 },
+  { key: 'available', width: 130 },
+  { key: 'blocking', width: 165 }
 ]
 
 const PARTNER_GRID = {
@@ -47,10 +51,11 @@ const PARTNER_GRID = {
   values: {
     id: (p) => p.id,
     name: (p) => p.name,
-    commerce: (p) => p.commerceCompanyId || '',
     salesOrgs: (p) => (p.salesOrgs || []).join(','),
     terms: (p) => p.paymentTerms || '',
     creditLimit: (p) => p.creditLimit || 0,
+    exposure: (p) => p.exposure ?? -1,
+    available: (p) => p.available ?? Number.NEGATIVE_INFINITY,
     blocking: (p) => blockingText(p.blocking)
   },
   sort: { column: 'id', direction: 'ascending' }
@@ -100,10 +105,11 @@ export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
         <TableHeader>
           <Column key='id' {...widths.columnProps('id')} allowsSorting>Customer</Column>
           <Column key='name' {...widths.columnProps('name')} allowsSorting>Name</Column>
-          <Column key='commerce' {...widths.columnProps('commerce')} allowsSorting>Commerce company</Column>
           <Column key='salesOrgs' {...widths.columnProps('salesOrgs')} allowsSorting>Sales organisations</Column>
           <Column key='terms' {...widths.columnProps('terms')} allowsSorting>Payment terms</Column>
           <Column key='creditLimit' {...widths.columnProps('creditLimit')} align='end' allowsSorting>Credit limit</Column>
+          <Column key='exposure' {...widths.columnProps('exposure')} align='end' allowsSorting>Exposure</Column>
+          <Column key='available' {...widths.columnProps('available')} align='end' allowsSorting>Available</Column>
           <Column key='blocking' {...widths.columnProps('blocking')} allowsSorting>Blocking</Column>
         </TableHeader>
         <TableBody items={view.items}>
@@ -112,10 +118,11 @@ export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
               <Cell><span className='erp-key'>{p.id}</span></Cell>
               {/* The default customer's stored name already says walk-in; no suffix. */}
               <Cell>{p.name}</Cell>
-              <Cell>{p.commerceCompanyId || '—'}</Cell>
               <Cell>{salesOrgsText(p)}</Cell>
               <Cell>{p.paymentTerms}</Cell>
               <Cell><EditableNumber label='Credit limit' value={p.creditLimit} isSaving={p.saving === 'creditLimit'} step={100} formatOptions={MONEY} onSave={(v) => save(p.id, { creditLimit: v })} /></Cell>
+              <Cell>{p.exposure === null || p.exposure === undefined ? '—' : money(p.exposure)}</Cell>
+              <Cell>{p.available === null || p.available === undefined ? '—' : money(p.available)}</Cell>
               <Cell><StatusLight variant={p.blocking === 'open' ? 'neutral' : 'negative'}>{blockingText(p.blocking)}</StatusLight></Cell>
             </Row>
           )}

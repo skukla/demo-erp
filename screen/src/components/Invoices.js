@@ -16,19 +16,23 @@ import { money } from '../money'
 const INVOICE_COLUMNS = [
   { key: 'number', width: 165 },
   { key: 'date', width: 140 },
-  { key: 'order', width: '1fr', minWidth: 170 },
+  { key: 'order', width: 150 },
+  { key: 'partner', width: '2fr', minWidth: 220 },
   { key: 'total', width: 150 },
   { key: 'status', width: 130 }
 ]
 
+const soldTo = (i) => (i.partnerName ? `${i.partnerId} · ${i.partnerName}` : (i.partnerId || '—'))
+
 const statusText = (i) => (i.status === 'credited' ? 'Credited' : 'Open')
 
 const INVOICE_GRID = {
-  fields: [(i) => i.number, (i) => i.orderNumber, (i) => statusText(i)],
+  fields: [(i) => i.number, (i) => i.orderNumber, (i) => i.partnerId, (i) => i.partnerName, (i) => statusText(i)],
   values: {
     number: (i) => i.number || '',
     date: (i) => Date.parse(i.createdAt) || 0,
     order: (i) => i.orderNumber,
+    partner: (i) => i.partnerId || '',
     total: (i) => i.total || 0,
     status: (i) => statusText(i)
   },
@@ -48,7 +52,7 @@ export default function Invoices ({ api, query = {}, onChanged, onNavigate }) {
 
   return (
     <Frame title='Invoices' error={error} loading={!rows}>
-      <GridSearch placeholder='Invoice or order' view={view} />
+      <GridSearch placeholder='Invoice, order or customer' view={view} />
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Invoices' density='compact' overflowMode='wrap' marginTop='size-200'
         UNSAFE_className='erp-rows-open'
@@ -57,6 +61,7 @@ export default function Invoices ({ api, query = {}, onChanged, onNavigate }) {
           <Column key='number' {...widths.columnProps('number')} allowsSorting>Invoice</Column>
           <Column key='date' {...widths.columnProps('date')} allowsSorting>Billing date</Column>
           <Column key='order' {...widths.columnProps('order')} allowsSorting>Sales order</Column>
+          <Column key='partner' {...widths.columnProps('partner')} allowsSorting>Sold-to</Column>
           <Column key='total' {...widths.columnProps('total')} align='end' allowsSorting>Total</Column>
           <Column key='status' {...widths.columnProps('status')} allowsSorting>Status</Column>
         </TableHeader>
@@ -66,6 +71,7 @@ export default function Invoices ({ api, query = {}, onChanged, onNavigate }) {
               <Cell>{i.number ? <span className='erp-key'>{i.number}</span> : 'Invoiced in Commerce'}</Cell>
               <Cell>{formatDate(i.createdAt)}</Cell>
               <Cell>{i.orderNumber}</Cell>
+              <Cell>{soldTo(i)}</Cell>
               <Cell>{money(i.total, i.currency)}</Cell>
               <Cell><StatusLight variant={i.status === 'credited' ? 'notice' : 'positive'}>{statusText(i)}</StatusLight></Cell>
             </Row>

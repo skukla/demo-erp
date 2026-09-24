@@ -25,7 +25,7 @@
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound, badRequest } = require('../../lib/errors')
-const { createOrder, listOrders, getOrder, describeOrder } = require('../../lib/orders')
+const { createOrder, listOrders, getOrder, describeOrder, shippingStatus, billingStatus, overallStatus } = require('../../lib/orders')
 const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus, releaseCredit, rejectCredit, receiveShipment, holdFromCommerce } = require('../../lib/fulfilment')
 const { listPartners } = require('../../lib/partners')
 const { journalOrder } = require('../../lib/inbound')
@@ -38,7 +38,9 @@ const { journalOrder } = require('../../lib/inbound')
 async function listRows (cols) {
   const orders = await listOrders(cols)
   const names = new Map((await listPartners(cols)).map((p) => [p.id, p.name]))
-  return orders.map((o) => ({ ...o, partnerName: names.get(o.partnerId) || null }))
+  // The two derived states and the overall word, so a row says where the order stands
+  // without being opened (UI audit §Sales Orders).
+  return orders.map((o) => ({ ...o, partnerName: names.get(o.partnerId) || null, shippingStatus: shippingStatus(o), billingStatus: billingStatus(o), overall: overallStatus(o) }))
 }
 
 /** The moves on one order, by the path segment after its number. Each answers the document. */

@@ -16,7 +16,7 @@ import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
-import { statusLight, statusText } from './OrderHeader'
+import { statusLight, statusText, shippingBadge, billingBadge } from './OrderHeader'
 
 /* Business Central calls this the External Document No.; it is the customer's own
    reference for the order, which is exactly what the Commerce increment id is. */
@@ -25,14 +25,18 @@ const reference = (o) => o.commerceIncrementId || o.commerceOrderId || '—'
 /* Each sortable header carries a chevron, which eats about 24px of its width: a
    column sized to its title alone truncates the title. */
 /* Sold-to now carries an id AND a name, so it takes twice the slack of Reference. */
+/* Lines (a count nobody sorted by) gave way to Shipping and Billing: the two derived
+   states an order's single Status word hides (UI audit §Sales Orders). Eight columns fit
+   a 1,440px window with the rail open. */
 const ORDER_COLUMNS = [
-  { key: 'number', width: 165 },
-  { key: 'date', width: 140 },
-  { key: 'reference', width: '1fr', minWidth: 150 },
-  { key: 'partner', width: '2fr', minWidth: 230 },
-  { key: 'lines', width: 80 },
-  { key: 'total', width: 130 },
-  { key: 'status', width: 140 }
+  { key: 'number', width: 150 },
+  { key: 'date', width: 120 },
+  { key: 'reference', width: '1fr', minWidth: 130 },
+  { key: 'partner', width: '2fr', minWidth: 210 },
+  { key: 'shipping', width: 135 },
+  { key: 'billing', width: 125 },
+  { key: 'total', width: 125 },
+  { key: 'status', width: 130 }
 ]
 
 const ORDER_GRID = {
@@ -42,7 +46,8 @@ const ORDER_GRID = {
     date: (o) => Date.parse(o.createdAt) || 0,
     reference: (o) => reference(o),
     partner: (o) => o.partnerId || '',
-    lines: (o) => (o.lines || []).length,
+    shipping: (o) => shippingBadge(o.shippingStatus)[0],
+    billing: (o) => billingBadge(o.billingStatus)[0],
     total: (o) => o.total || 0,
     status: (o) => statusText(o.status)
   },
@@ -61,15 +66,26 @@ const WORK = [
 ]
 const workKey = (asked) => (WORK.some((w) => w.key === asked) ? asked : 'all')
 
+/* Where the order stands, in the one word its header shows (lib/orders overallStatus). */
+const STAGES = [
+  { key: 'all', label: 'Every stage' },
+  { key: 'Open', label: 'Open' },
+  { key: 'In process', label: 'In process' },
+  { key: 'Completed', label: 'Completed' },
+  { key: 'Cancelled', label: 'Cancelled' }
+]
+
 export default function Orders ({ api, query = {}, onChanged, onNavigate }) {
   const widths = useColumnWidths('orders', ORDER_COLUMNS)
   const { rows, error, reload } = useLoad(() => api.orders(), [api])
   const [work, setWork] = useState(() => workKey(query.work))
+  const [stage, setStage] = useState('all')
   const shown = useMemo(() => {
     const chosen = WORK.find((w) => w.key === work)
-    if (!rows || !chosen || !chosen.can) return rows
-    return rows.filter((o) => o.can && o.can[chosen.can])
-  }, [rows, work])
+    const byWork = !rows || !chosen || !chosen.can ? rows : rows.filter((o) => o.can && o.can[chosen.can])
+    if (!byWork || stage === 'all') return byWork
+    return byWork.filter((o) => o.overall === stage)
+  }, [rows, work, stage])
   const view = useGridView(shown, ORDER_GRID)
   // The documents opened from the list: the order, then whatever it opens (Documents.js).
   const trail = useTrail('Sales Orders')
@@ -85,6 +101,9 @@ export default function Orders ({ api, query = {}, onChanged, onNavigate }) {
         <Picker aria-label='Work' label='Show' selectedKey={work} onSelectionChange={(k) => setWork(String(k))} items={WORK}>
           {(w) => <Item key={w.key}>{w.label}</Item>}
         </Picker>
+        <Picker aria-label='Stage' label='Stage' selectedKey={stage} onSelectionChange={(k) => setStage(String(k))} items={STAGES}>
+          {(s) => <Item key={s.key}>{s.label}</Item>}
+        </Picker>
       </GridSearch>
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Sales Orders' density='compact' overflowMode='wrap' marginTop='size-200'
@@ -99,7 +118,8 @@ export default function Orders ({ api, query = {}, onChanged, onNavigate }) {
               External Document No., which is longer still. */}
           <Column key='reference' {...widths.columnProps('reference')} allowsSorting>Reference</Column>
           <Column key='partner' {...widths.columnProps('partner')} allowsSorting>Sold-to</Column>
-          <Column key='lines' {...widths.columnProps('lines')} align='end' allowsSorting>Lines</Column>
+          <Column key='shipping' {...widths.columnProps('shipping')} allowsSorting>Shipping</Column>
+          <Column key='billing' {...widths.columnProps('billing')} allowsSorting>Billing</Column>
           <Column key='total' {...widths.columnProps('total')} align='end' allowsSorting>Net amount</Column>
           <Column key='status' {...widths.columnProps('status')} allowsSorting>Status</Column>
         </TableHeader>
@@ -110,7 +130,8 @@ export default function Orders ({ api, query = {}, onChanged, onNavigate }) {
               <Cell>{formatDate(o.createdAt)}</Cell>
               <Cell>{reference(o)}</Cell>
               <Cell>{o.partnerName ? `${o.partnerId} · ${o.partnerName}` : (o.partnerId || '—')}</Cell>
-              <Cell>{(o.lines || []).length}</Cell>
+              <Cell><StatusLight variant={shippingBadge(o.shippingStatus)[1]}>{shippingBadge(o.shippingStatus)[0]}</StatusLight></Cell>
+              <Cell><StatusLight variant={billingBadge(o.billingStatus)[1]}>{billingBadge(o.billingStatus)[0]}</StatusLight></Cell>
               <Cell>{money(o.total, o.currency)}</Cell>
               <Cell><StatusLight variant={statusLight(o.status)}>{statusText(o.status)}</StatusLight></Cell>
             </Row>

@@ -1,16 +1,16 @@
 /*
- * GET   partners                 the list
+ * GET   partners                 the list, each with `exposure` and `available` (null for a customer with no credit)
  * GET   partners/:id             one customer as its document shows it (lib/partners describePartner)
  * PATCH partners/:id             { creditLimit?, blocking?, paymentTerms? } — blocking is open · shipping · invoicing · all
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound } = require('../../lib/errors')
-const { listPartners, getPartner, patchPartner, describePartner } = require('../../lib/partners')
+const { listPartners, getPartner, patchPartner, describePartner, withCredit } = require('../../lib/partners')
 
 async function handler ({ cols, method, segments, body, params }) {
   const id = segments[0] || null
-  if (method === 'GET' && !id) return ok({ items: await listPartners(cols) })
+  if (method === 'GET' && !id) return ok({ items: await withCredit(cols, await listPartners(cols)) })
   if (method === 'GET') {
     const partner = await getPartner(cols, id)
     if (!partner) throw notFound(`Customer ${id}`)

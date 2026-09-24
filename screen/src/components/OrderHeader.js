@@ -29,6 +29,16 @@ export function statusLight (status) {
 
 const SHIPPING = { none: ['Not shipped', 'neutral'], partial: ['Partly shipped', 'notice'], full: ['Fully shipped', 'positive'] }
 const BILLING = { none: ['Not invoiced', 'neutral'], invoiced: ['Invoiced', 'positive'], credited: ['Credited', 'notice'] }
+
+/** [text, StatusLight variant] for a shipping state; the list and the header read the same map. */
+export function shippingBadge (state) {
+  return SHIPPING[state] || SHIPPING.none
+}
+
+/** [text, StatusLight variant] for a billing state. */
+export function billingBadge (state) {
+  return BILLING[state] || BILLING.none
+}
 const OVERALL = { Open: 'neutral', 'In process': 'info', Completed: 'positive', Cancelled: 'negative' }
 /* SAP's three credit states on a document. Absent for a customer with no credit. */
 const CREDIT = { approved: ['Approved', 'positive'], held: ['On credit hold', 'negative'], released: ['Released', 'info'] }
