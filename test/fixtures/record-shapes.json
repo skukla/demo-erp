@@ -7,10 +7,15 @@
     "customerGroupId",
     "emailDomain",
     "id",
+    "legalAddress",
+    "legalName",
     "name",
     "paymentTerms",
-    "salesOrg",
-    "updatedAt"
+    "resellerId",
+    "salesOrgs",
+    "updatedAt",
+    "vatTaxId",
+    "website"
   ],
   "walkInPartner": [
     "_id",
@@ -20,10 +25,15 @@
     "customerGroupId",
     "id",
     "isDefault",
+    "legalAddress",
+    "legalName",
     "name",
     "paymentTerms",
-    "salesOrg",
-    "updatedAt"
+    "resellerId",
+    "salesOrgs",
+    "updatedAt",
+    "vatTaxId",
+    "website"
   ],
   "product": [
     "_id",
@@ -55,6 +65,8 @@
     "lines",
     "number",
     "partnerId",
+    "salesOrg",
+    "salesOrgName",
     "shipments",
     "status",
     "total"
@@ -109,6 +121,7 @@
     "minQty",
     "partnerId",
     "price",
+    "salesOrg",
     "sku",
     "updatedAt",
     "validFrom",
@@ -120,6 +133,7 @@
     "minQty",
     "partnerId",
     "percent",
+    "salesOrg",
     "sku",
     "updatedAt",
     "validFrom",
@@ -131,6 +145,7 @@
     "minQty",
     "partnerId",
     "percent",
+    "salesOrg",
     "sku",
     "updatedAt",
     "validFrom",
@@ -142,7 +157,9 @@
     "displayName",
     "displayNameEdited",
     "lastImportAt",
-    "lastWipeAt"
+    "lastWipeAt",
+    "structureMirror",
+    "warehouses"
   ],
   "appearance": [
     "logo",

@@ -10,11 +10,11 @@ What it holds, in SAP's words:
 | Collection | What it is | Who owns the values |
 |---|---|---|
 | Products | products: SKU, description, plant, **list price**, **stock** | mirrored from Commerce; edited here for the demo, and every Commerce change overwrites the ERP again |
-| Business partners | accounts (sold-to): name, sales org, payment terms, **credit limit**, **blocking** (open · shipping · invoicing · all — Commerce's boolean imports as all); credit exposure is derived from open orders, never stored | mirrored from Commerce (companies, credit, status); edited here for the demo; one default partner for walk-in customers |
+| Business partners | accounts (sold-to): name, **sales organisations** (the websites the company buys through), legal identity (legal name, VAT/tax id, reseller id, legal address, website), payment terms, **credit limit**, **blocking** (open · shipping · invoicing · all — Commerce's boolean imports as all); credit exposure is derived from open orders, never stored | mirrored from Commerce (companies, credit, status, legal fields, the admin's website); edited here for the demo; one default partner for walk-in customers, in every sales organisation |
 | Pricing conditions | contract prices, contract discounts, max-discount ceilings | created here |
 | Sales orders | created by the integration from Commerce orders; confirmed, shipped (in parts — each a **shipment** document, `8000000001`+), invoiced once whole (an **invoice** document, `9000000001`+) or cancelled here. Only the header word and the quantities are stored; shipping, billing and the outward `status` are derived from them | numbers are the ERP's, never reused |
 | Events | the ERP's outbound event log: every change it publishes (price, stock, credit limit, block, order status), delivered or pending | |
-| Settings | display name; Sync records and Wipe all records | |
+| Settings | display name; warehouse names of the ERP's own (a code seen in an import takes the Commerce source name once); the structure the last mirror sent (websites and their sales organisations); Sync records and Wipe all records. The Organisation card (company code, sales organisations with counts, warehouses) is derived on read (`lib/structure.js`) | |
 
 Records are transitory, and Commerce is the master the demo is prepared in: the ERP only
 looks like the system of record. Every import (at install, on a Commerce change, on reset)

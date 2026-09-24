@@ -2,8 +2,9 @@
  * GET  pricing                 the pricing conditions
  * POST pricing                 create or replace a condition
  * DELETE pricing/:id           remove one
- * POST pricing/quote           { partnerId?, commerceCompanyId?, customerGroupId?, lines:[{sku, qty}], date? }
- *                              date (YYYY-MM-DD) is the day priced on — today when absent
+ * POST pricing/quote           { partnerId?, commerceCompanyId?, customerGroupId?, lines:[{sku, qty}], date?, salesOrg? }
+ *                              date (YYYY-MM-DD) is the day priced on — today when absent; salesOrg scopes
+ *                              the conditions to one sales organisation (a condition with none applies to all)
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
@@ -21,7 +22,8 @@ async function handler ({ cols, method, segments, body }) {
       listProducts(cols), resolvePartner(cols, body), listConditions(cols)
     ])
     const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : undefined
-    return ok(quote({ products, partner, conditions, lines: body.lines, date }))
+    const salesOrg = typeof body.salesOrg === 'string' && body.salesOrg.trim() ? body.salesOrg.trim() : undefined
+    return ok(quote({ products, partner, conditions, lines: body.lines, date, salesOrg }))
   }
   if (method === 'POST' && segments.length === 0) return ok(await upsertCondition(cols, body), 201)
   if (method === 'DELETE' && segments[0]) return ok({ deleted: await deleteCondition(cols, segments[0]) })

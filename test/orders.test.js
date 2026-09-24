@@ -129,7 +129,8 @@ test('an order Commerce sent no total for is its lines, and carries no tax', asy
 test('the document names the customer, and says so plainly when there is none', async () => {
   await importPartners(cols, [{ id: 'C2', name: 'Northwind Trading', creditLimit: 50000 }])
   const withPartner = await describeOrder(cols, await createOrder(cols, { commerceOrderId: '94', partnerId: 'C2', lines: [] }))
-  assert.deepEqual(withPartner.partner, { id: 'C2', name: 'Northwind Trading', paymentTerms: 'NET30', salesOrg: '1000' })
+  assert.deepEqual(withPartner.partner, { id: 'C2', name: 'Northwind Trading', paymentTerms: 'NET30' })
+  assert.equal(withPartner.salesOrg, '1000')
 
   const none = await describeOrder(cols, await createOrder(memoryCollections(), { commerceOrderId: '95', lines: [] }))
   assert.equal(none.partner, null)
