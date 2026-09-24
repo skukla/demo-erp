@@ -1,7 +1,7 @@
 /*
  * GET   partners                 the list
  * GET   partners/:id             one customer as its document shows it (lib/partners describePartner)
- * PATCH partners/:id             { creditLimit?, blocked?, paymentTerms? }
+ * PATCH partners/:id             { creditLimit?, blocking?, paymentTerms? } — blocking is open · shipping · invoicing · all
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')

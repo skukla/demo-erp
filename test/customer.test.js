@@ -30,13 +30,14 @@ test('credit exposure is the net of orders not yet invoiced and not cancelled; a
   const doc = await describePartner(cols, await getPartner(cols, 'C1'))
 
   // Net, not what Commerce charged: exposure is what the customer owes for goods.
-  assert.deepEqual(doc.credit, { limit: 1000, exposure: 200, available: 800 })
+  assert.deepEqual(doc.credit, { limit: 1000, exposure: 200, available: 800, held: 0 })
 })
 
-test('exposure can exceed the limit, and available then reads below zero rather than hiding it', async () => {
-  await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 3, price: 400 }] })
-  const doc = await describePartner(cols, await getPartner(cols, 'C1'))
-  assert.deepEqual(doc.credit, { limit: 1000, exposure: 1200, available: -200 })
+test('an order that would take exposure past the limit is held and not yet counted; released, it counts and available reads below zero', async () => {
+  const over = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 3, price: 400 }] })
+  assert.deepEqual((await describePartner(cols, await getPartner(cols, 'C1'))).credit, { limit: 1000, exposure: 0, available: 1000, held: 1 })
+  await require('../lib/fulfilment').releaseCredit(cols, over.number)
+  assert.deepEqual((await describePartner(cols, await getPartner(cols, 'C1'))).credit, { limit: 1000, exposure: 1200, available: -200, held: 0 })
 })
 
 test('a customer with no Commerce company has no credit — the card is absent, not zero', async () => {
@@ -54,7 +55,7 @@ test('the document lists this customer\'s orders newest first, each with its net
   const doc = await describePartner(cols, await getPartner(cols, 'C1'))
 
   assert.deepEqual(doc.orders.map((o) => [o.number, o.net, o.status]), [['0000001001', 5, 'created'], ['0000001000', 20, 'created']])
-  assert.deepEqual(Object.keys(doc.orders[0]).sort(), ['commerceIncrementId', 'commerceOrderId', 'createdAt', 'currency', 'net', 'number', 'status'])
+  assert.deepEqual(Object.keys(doc.orders[0]).sort(), ['commerceIncrementId', 'commerceOrderId', 'createdAt', 'creditStatus', 'currency', 'net', 'number', 'status'])
 })
 
 test('the document carries the pricing conditions agreed with this customer and no others', async () => {

@@ -28,11 +28,12 @@ test('the payload of each raised event carries exactly the contract keys', async
   await importProducts(cols, [{ sku: 'A1', name: 'A', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
   await importPartners(cols, [{ id: 'C1', name: 'One', commerceCompanyId: '1' }])
   await patchProduct(cols, 'A1', { listPrice: 11, warehouses: [{ code: 'default', quantity: 6 }] })
-  await patchPartner(cols, 'C1', { creditLimit: 5, blocked: true })
   const order = await createOrder(cols, { commerceOrderId: '9', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 11, commerceItemId: 3 }] })
   await setStatus(cols, order.number, 'confirmed')
   await setStatus(cols, order.number, 'shipped')
   await setStatus(cols, order.number, 'invoiced')
+  // After the order flow: a blocked customer's new orders are held, and a hold stops Confirm.
+  await patchPartner(cols, 'C1', { creditLimit: 5, blocking: 'all' })
   const cancelled = await createOrder(cols, { commerceOrderId: '10', lines: [] })
   await setStatus(cols, cancelled.number, 'cancelled', undefined, { reason: 'Customer request' })
   const entries = await pending(cols)

@@ -9,6 +9,8 @@
  * POST orders/:number/shipments/:shipment/post  post it: the goods leave, the shipment event goes out
  * POST orders/:number/lines/:item/close         { reason } give up on what is still open on a line
  * POST orders/:number/invoice                   invoice the whole order, once every line is shipped or closed (201)
+ * POST orders/:number/credit/release            let a held order proceed
+ * POST orders/:number/credit/reject             cancel a held order, reason "Credit rejected"
  * POST orders/:number/status                    { status, reason? } the whole-order move, for a caller that
  *                                               knows nothing of shipments; predates them and stays
  */
@@ -16,7 +18,7 @@ const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound, badRequest } = require('../../lib/errors')
 const { createOrder, listOrders, getOrder, describeOrder } = require('../../lib/orders')
-const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus } = require('../../lib/fulfilment')
+const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus, releaseCredit, rejectCredit } = require('../../lib/fulfilment')
 const { listPartners } = require('../../lib/partners')
 const { journalOrder } = require('../../lib/inbound')
 
@@ -40,6 +42,8 @@ async function move (cols, number, segments, body, params) {
   if (verb === 'shipments' && !id) return createShipment(cols, number, body, params)
   if (verb === 'shipments' && id && action === 'post') return postShipment(cols, number, id, params)
   if (verb === 'lines' && id && action === 'close') return closeRemaining(cols, number, id, body.reason, params)
+  if (verb === 'credit' && id === 'release') return releaseCredit(cols, number, params)
+  if (verb === 'credit' && id === 'reject') return rejectCredit(cols, number, params)
   if (verb === 'status') {
     if (!body.status) throw badRequest('status is required')
     const order = await setStatus(cols, number, body.status, params, { reason: body.reason })

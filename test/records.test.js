@@ -27,12 +27,12 @@ test('import creates then updates; what Commerce sends wins, what it omits keeps
 
 test('a partner re-import takes the credit limit and block Commerce reports', async () => {
   await importPartners(cols, [{ id: 'C2', name: 'Kukla', creditLimit: 100 }])
-  await patchPartner(cols, 'C2', { creditLimit: 500, blocked: true, paymentTerms: 'NET60' })
+  await patchPartner(cols, 'C2', { creditLimit: 500, blocking: 'all', paymentTerms: 'NET60' })
   await importPartners(cols, [{ id: 'C2', name: 'Kukla Studios', creditLimit: 250, blocked: false }])
   const partner = await getPartner(cols, 'C2')
   assert.equal(partner.name, 'Kukla Studios')
   assert.equal(partner.creditLimit, 250)
-  assert.equal(partner.blocked, false)
+  assert.equal(partner.blocking, 'open')
   assert.equal(partner.paymentTerms, 'NET60')
 })
 
@@ -66,7 +66,7 @@ test('partners resolve by id, Commerce company, email domain, customer group, th
 
 test('credit limit and block changes raise company events carrying the Commerce company id', async () => {
   await importPartners(cols, [{ id: 'P1', commerceCompanyId: '7' }])
-  await patchPartner(cols, 'P1', { creditLimit: 1000, blocked: true })
+  await patchPartner(cols, 'P1', { creditLimit: 1000, blocking: 'all' })
   const entries = await pending(cols)
   assert.deepEqual(entries.map((e) => e.event), ['be-observer.company_credit_update', 'be-observer.company_status_update'])
   assert.deepEqual(entries[0].value, { partnerId: 'P1', companyId: '7', creditLimit: 1000 })
