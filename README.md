@@ -26,6 +26,9 @@ rewinds, so an order number a Commerce order carries from before a reset cannot 
 ERPs) is written for the SC in the integration's
 [`docs/demo-setup.md`](https://github.com/skukla/commerce-erp-integration/blob/main/docs/demo-setup.md),
 with the Admin path, the API check and the undo for every requirement.
+The walk-through of the demo itself, ERP screen by screen and then Commerce from the other side,
+is [`docs/walkthrough.md`](https://github.com/skukla/commerce-erp-integration/blob/main/docs/walkthrough.md)
+in the same repository.
 
 ## API
 
