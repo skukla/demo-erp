@@ -205,12 +205,27 @@
 }
 
 .erp-page-header {
+  /* The title line stays put while the page scrolls under it (Fiori's dynamic page
+     header does the same): a long list or document never loses its name and its
+     actions. It is a direct child of the scrolling .erp-content, which is what makes
+     `sticky` work; the negative margin and matching padding keep its resting place
+     exactly where it was and give it the canvas as a background once it is stuck. */
+  position: sticky;
+  /* Sticky offsets are measured from the scroll container's CONTENT edge, so with the
+     canvas padding above, `top: 0` would stop the title a padding's height short of the
+     shell bar and let rows show through above it (seen 2026-09-24). The negative top
+     puts the stuck header flush against the bar, and its own padding fills the gap. */
+  top: calc(-1 * var(--space-5));
+  z-index: 3;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
   align-items: center;
   justify-content: space-between;
+  padding-top: var(--space-5);
+  margin-top: calc(-1 * var(--space-5));
   margin-bottom: var(--space-4);
+  background: var(--surface-canvas);
 }
 
 .erp-page-actions {
@@ -531,7 +546,10 @@
   }
 
   .erp-page-header {
+    top: calc(-1 * var(--space-4));
     align-items: flex-start;
+    padding-top: var(--space-4);
+    margin-top: calc(-1 * var(--space-4));
   }
 }
 

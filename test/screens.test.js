@@ -256,3 +256,21 @@ test('the journal names the document each entry belongs to, and opens it', async
     await context.close()
   }
 })
+
+test('the title line stays while a long list scrolls under it', async () => {
+  const { page, context } = await open('products')
+  try {
+    const before = await page.locator('.erp-content h1').boundingBox()
+    // A shorter window, so the twenty stand-in products overflow by a few hundred pixels.
+    await page.setViewportSize({ width: VIEWPORT.width, height: 560 })
+    const scrolled = await page.locator('.erp-content').evaluate((el) => { el.scrollTop = 300; return el.scrollTop })
+    assert.ok(scrolled >= 250, `the products list scrolled ${scrolled}px; it should be long enough to scroll 300`)
+    await page.waitForTimeout(150)
+    const after = await page.locator('.erp-content h1').boundingBox()
+    const content = await page.locator('.erp-content').boundingBox()
+    assert.ok(after.y >= content.y && after.y <= before.y, `title moved from ${before.y} to ${after.y}; content top ${content.y}`)
+    assert.ok(after.y < content.y + 80, 'the title is within the top of the content, not scrolled away')
+  } finally {
+    await context.close()
+  }
+})
