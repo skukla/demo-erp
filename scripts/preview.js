@@ -17,7 +17,14 @@ const esbuild = require('esbuild')
 const ROOT = path.join(__dirname, '..')
 const PORT = Number(process.env.PREVIEW_PORT || 8975)
 
-async function serve () {
+/**
+ * Build the preview and serve it. Exported so a test can start it on a free port and
+ * stop it again (test/screens.test.js); run as a script it serves on PREVIEW_PORT.
+ *
+ * @param {object} [options] `port` (0 = any free port)
+ * @returns {Promise<{ url: string, port: number, close: () => Promise<void> }>}
+ */
+async function startPreview ({ port = PORT } = {}) {
   const context = await esbuild.context({
     entryPoints: [path.join(ROOT, 'preview', 'main.js')],
     bundle: true,
@@ -57,12 +64,22 @@ async function serve () {
     request.pipe(onward, { end: true })
   })
 
-  proxy.listen(PORT, () => {
-    console.log(`preview: http://localhost:${PORT}/`)
-  })
+  await new Promise((resolve) => proxy.listen(port, resolve))
+  const bound = proxy.address().port
+  return {
+    url: `http://127.0.0.1:${bound}/`,
+    port: bound,
+    close: () => new Promise((resolve) => proxy.close(() => context.dispose().then(resolve, resolve)))
+  }
 }
 
-serve().catch((error) => {
-  console.error(error.message)
-  process.exit(1)
-})
+module.exports = { startPreview }
+
+if (require.main === module) {
+  startPreview()
+    .then(({ url }) => console.log(`preview: ${url}`))
+    .catch((error) => {
+      console.error(error.message)
+      process.exit(1)
+    })
+}

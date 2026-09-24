@@ -89,6 +89,23 @@ Two deploy-time inputs: `ERP_DISPLAY_NAME`, what the ERP calls itself (default "
 `ERP_SCREEN_KEY`, the key that opens the screen. Demo Builder writes the name from what the SC
 enters and generates the key; by hand, set both in the app's env file before deploying. A redeploy with a new name renames the ERP unless someone renamed it on its screen.
 
+### Every screen, looked at by a machine
+
+`test/screens.test.js` starts the preview on a free port, drives Playwright's headless
+Chromium through every area and the first document behind each list, and asserts per
+screen: it rendered, the console is clean, and its computed-style fingerprint equals the
+one in `test/fixtures/screen-fingerprints.json`. A CSS or layout change therefore has to
+be accepted on purpose:
+
+```bash
+npx playwright install chromium                          # once per machine
+UPDATE_SCREEN_FINGERPRINTS=1 node --test test/screens.test.js   # after an intended change; review the fixture diff
+```
+
+It runs with `npm test`. The fingerprint is taken once the screen has stopped moving (two
+samples 300 ms apart that agree); the rows behind each one are written under the OS temp
+directory for diffing when a check fails.
+
 ## The screen
 
 How the ERP and its integration fit together:
