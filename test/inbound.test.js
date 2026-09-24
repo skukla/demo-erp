@@ -148,3 +148,26 @@ test('an origin without an id is journaled without one, rather than failing', as
   const [entry] = await recent(cols)
   assert.equal('eventId' in entry, false)
 })
+
+test('a stock-only import moves quantities on products the ERP has, reports the SKUs it does not, leaves the last-import time alone, and is journaled per SKU', async () => {
+  await invoke(admin, cols, { method: 'POST', path: '/import', body: { products: [{ sku: 'A1', name: 'Widget', listPrice: 9, warehouses: warehouses(['default', 5], ['east', 3]) }] } })
+  const before = (await invoke(health, cols)).body.lastImportAt
+  assert.ok(before, 'the products import stamped the last-import time')
+
+  const res = await invoke(admin, cols, {
+    method: 'POST',
+    path: '/import',
+    body: { stock: [{ sku: 'A1', warehouses: warehouses(['default', 5], ['east', 12]) }, { sku: 'ZZ', warehouses: warehouses(['default', 1]) }], origin: { event: 'inventory source items, read every minute' } }
+  })
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(res.body.stock, { updated: 1, unknown: ['ZZ'] })
+  const product = await getProduct(cols, 'A1')
+  assert.deepEqual(product.warehouses.map((w) => [w.code, w.quantity]), [['default', 5], ['east', 12]])
+  assert.equal(product.name, 'Widget')
+  assert.equal(product.listPrice, 9)
+  assert.equal((await invoke(health, cols)).body.lastImportAt, before, 'a stock refresh is not a full import')
+  assert.equal(await cols.products.countDocuments({}), 1, 'the unknown SKU was not created')
+  const [entry] = await recent(cols)
+  assert.equal(entry.direction, 'in')
+  assert.equal(entry.summary, 'Stock of A1: default 5, east 12. Stock of ZZ not applied (the ERP has no such product)')
+})
