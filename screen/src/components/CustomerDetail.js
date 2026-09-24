@@ -14,15 +14,13 @@
  */
 import React, { useState } from 'react'
 import {
-  ActionButton, Button, Content, Grid, Heading, InlineAlert, Link, StatusLight, Text, View,
+  Button, Grid, Link, StatusLight, Text, View,
   TableView, TableHeader, Column, TableBody, Row, Cell
 } from '@adobe/react-spectrum'
-import ChevronLeft from '@spectrum-icons/workflow/ChevronLeft'
 import Card from './Card'
 import Field from './Field'
+import DocumentPage from './DocumentPage'
 import EditableNumber from './EditableNumber'
-import OrderDetail from './OrderDetail'
-import PageLoading from './PageLoading'
 import { useLoad } from './useLoad'
 import { toastFailed, toastSaved } from './toast'
 import { statusLight, statusText } from './OrderHeader'
@@ -138,11 +136,14 @@ function PricingCard ({ conditions, onNavigate }) {
   )
 }
 
-export default function CustomerDetail ({ api, id, onBack, onChanged, onNavigate }) {
+/**
+ * @param {object} props `id` the customer; `onOpen(kind, number)` opens one of its orders
+ *   on the same trail, so Back from the order returns here.
+ */
+export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBack, onOpen, onChanged, onNavigate }) {
   const { rows, error, reload, updateRow } = useLoad(async () => [await api.partner(id)], [api, id])
   const customer = rows && rows[0]
   const [busy, setBusy] = useState(false)
-  const [openOrder, setOpenOrder] = useState(null)
 
   /* An edit shows at once and settles on the ERP's answer. The answer is the customer
      record alone (PATCH answers no document), so the document is read again afterwards
@@ -164,88 +165,48 @@ export default function CustomerDetail ({ api, id, onBack, onChanged, onNavigate
     setBusy(false)
   }
 
-  if (openOrder) {
-    return (
-      <OrderDetail
-        key={openOrder}
-        api={api}
-        number={openOrder}
-        backLabel={customer ? customer.name : 'Customer'}
-        onBack={() => { setOpenOrder(null); reload() }}
-        onChanged={onChanged}
-      />
-    )
-  }
-
-  const back = (
-    <ActionButton isQuiet onPress={onBack} marginBottom='size-150'>
-      <ChevronLeft />
-      <Text>Customers</Text>
-    </ActionButton>
-  )
-
-  if (!customer) {
-    return (
-      <>
-        {back}
-        {error
-          ? (
-            <InlineAlert variant='negative'>
-              <Heading>Something went wrong</Heading>
-              <Content>{error.message}</Content>
-            </InlineAlert>
-            )
-          : <PageLoading label='Loading customer' />}
-      </>
-    )
-  }
-
   return (
-    <>
-      {back}
-      <div className='erp-page-header'>
-        <div>
-          <Heading level={1} marginY={0}>{customer.name}</Heading>
-          <Text UNSAFE_className='erp-subtle'>Customer {customer.id}</Text>
-        </div>
-        {/* The walk-in account cannot be blocked: nothing in Commerce answers to it. */}
-        {customer.credit && (
-          <div className='erp-page-actions'>
-            <Button
-              variant={customer.blocked ? 'secondary' : 'negative'}
-              isDisabled={busy}
-              onPress={() => patch({ blocked: !customer.blocked }, customer.blocked ? 'Customer unblocked' : 'Customer blocked')}
-            >
-              {customer.blocked ? 'Unblock' : 'Block customer'}
-            </Button>
-          </div>
-        )}
-      </div>
-      {error && (
-        <InlineAlert variant='negative' marginBottom='size-200'>
-          <Heading>Something went wrong</Heading>
-          <Content>{error.message}</Content>
-        </InlineAlert>
+    <DocumentPage
+      backLabel={backLabel}
+      onBack={onBack}
+      title={customer ? customer.name : ''}
+      subtitle={customer ? `Customer ${customer.id}` : undefined}
+      error={error}
+      loading={!customer}
+      actions={customer && customer.credit && (
+        /* The walk-in account cannot be blocked: nothing in Commerce answers to it. */
+        <Button
+          variant={customer.blocked ? 'secondary' : 'negative'}
+          isDisabled={busy}
+          onPress={() => patch({ blocked: !customer.blocked }, customer.blocked ? 'Customer unblocked' : 'Customer blocked')}
+        >
+          {customer.blocked ? 'Unblock' : 'Block customer'}
+        </Button>
       )}
-      <Card>
-        <Grid columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }} gap='size-250'>
-          <Field label='Customer'>{customer.id}</Field>
-          <Field label='Name'>{customer.name}</Field>
-          {/* SAP's partner functions: in the simplest case the customer is its own
-              sold-to, and every account here is one. Saying so is the ERP texture. */}
-          <Field label='Partner type'>Sold-to</Field>
-          <Field label='Commerce company'>{customer.commerceCompanyId || '—'}</Field>
-          <Field label='Customer group'>{customer.customerGroupId || '—'}</Field>
-          <Field label='Email domain'>{customer.emailDomain || '—'}</Field>
-          <Field label='Sales organisation'>{customer.salesOrg || '—'}</Field>
-          <Field label='Payment terms'>{customer.paymentTerms || '—'}</Field>
-        </Grid>
-      </Card>
-      {customer.credit && (
-        <CreditCard customer={customer} onLimit={(creditLimit) => patch({ creditLimit }, 'Credit limit saved')} />
+    >
+      {customer && (
+        <>
+          <Card>
+            <Grid columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }} gap='size-250'>
+              <Field label='Customer'>{customer.id}</Field>
+              <Field label='Name'>{customer.name}</Field>
+              {/* SAP's partner functions: in the simplest case the customer is its own
+                  sold-to, and every account here is one. Saying so is the ERP texture. */}
+              <Field label='Partner type'>Sold-to</Field>
+              <Field label='Commerce company'>{customer.commerceCompanyId || '—'}</Field>
+              <Field label='Customer group'>{customer.customerGroupId || '—'}</Field>
+              <Field label='Email domain'>{customer.emailDomain || '—'}</Field>
+              <Field label='Sales organisation'>{customer.salesOrg || '—'}</Field>
+              <Field label='Payment terms'>{customer.paymentTerms || '—'}</Field>
+            </Grid>
+          </Card>
+          {customer.credit && (
+            <CreditCard customer={customer} onLimit={(creditLimit) => patch({ creditLimit }, 'Credit limit saved')} />
+          )}
+          <OrdersCard orders={customer.orders || []} onOpen={(number) => onOpen('order', number)} />
+          <PricingCard conditions={customer.conditions || []} onNavigate={onNavigate} />
+        </>
       )}
-      <OrdersCard orders={customer.orders || []} onOpen={setOpenOrder} />
-      <PricingCard conditions={customer.conditions || []} onNavigate={onNavigate} />
-    </>
+    </DocumentPage>
   )
 }

@@ -23,16 +23,25 @@ import Dashboard from './Dashboard'
 import Products from './Products'
 import Partners from './Partners'
 import Orders from './Orders'
+import Shipments from './Shipments'
+import Invoices from './Invoices'
 import Pricing from './Pricing'
 import Settings from './Settings'
 import Events from './Events'
 
 /* The menu, as an ERP arranges one: a home, then areas under the part of the business
-   they belong to. Shipments and Invoices land under Sales when they exist, which is the
-   other reason to group now rather than when the list is ten long. */
+   they belong to. Sales runs in document order — order, shipment, invoice — which is
+   the order the demo walks them in. */
 const AREAS = [
   { group: null, items: [{ key: 'dashboard', label: 'Dashboard', Component: Dashboard }] },
-  { group: 'Sales', items: [{ key: 'orders', label: 'Sales Orders', Component: Orders }] },
+  {
+    group: 'Sales',
+    items: [
+      { key: 'orders', label: 'Sales Orders', Component: Orders },
+      { key: 'shipments', label: 'Shipments', Component: Shipments },
+      { key: 'invoices', label: 'Invoices', Component: Invoices }
+    ]
+  },
   {
     group: 'Master Data',
     items: [

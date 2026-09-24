@@ -7,10 +7,10 @@
  * order from the order's own document, where you can see what you are about to change.
  * The buttons moved there when the document arrived.
  */
-import React, { useState } from 'react'
+import React from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight } from '@adobe/react-spectrum'
 import Frame from './Frame'
-import OrderDetail from './OrderDetail'
+import { useTrail, OpenDocument } from './Documents'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
 import { useGridView, GridSearch } from './GridView'
@@ -49,23 +49,15 @@ const ORDER_GRID = {
   sort: { column: 'number', direction: 'descending' }
 }
 
-export default function Orders ({ api, onChanged }) {
+export default function Orders ({ api, onChanged, onNavigate }) {
   const widths = useColumnWidths('orders', ORDER_COLUMNS)
   const { rows, error, reload } = useLoad(() => api.orders(), [api])
   const view = useGridView(rows, ORDER_GRID)
-  // The order opened from the list, as Products opens a product.
-  const [openNumber, setOpenNumber] = useState(null)
+  // The documents opened from the list: the order, then whatever it opens (Documents.js).
+  const trail = useTrail('Sales Orders')
 
-  if (openNumber) {
-    return (
-      <OrderDetail
-        key={openNumber}
-        api={api}
-        number={openNumber}
-        onBack={() => { setOpenNumber(null); reload() }}
-        onChanged={onChanged}
-      />
-    )
+  if (trail.top) {
+    return <OpenDocument trail={trail} api={api} onChanged={onChanged} onNavigate={onNavigate} onClose={reload} />
   }
 
   return (
@@ -74,7 +66,7 @@ export default function Orders ({ api, onChanged }) {
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Sales Orders' density='compact' overflowMode='wrap' marginTop='size-200'
         UNSAFE_className='erp-rows-open'
-        selectionMode='none' onAction={(key) => setOpenNumber(String(key))}>
+        selectionMode='none' onAction={(key) => trail.open('order', String(key))}>
         <TableHeader>
           <Column key='number' {...widths.columnProps('number')} allowsSorting>Sales order</Column>
           <Column key='date' {...widths.columnProps('date')} allowsSorting>Order date</Column>

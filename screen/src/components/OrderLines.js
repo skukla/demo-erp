@@ -3,55 +3,116 @@
  *
  * Lines are numbered 10, 20, 30 — every ERP numbers them in tens — and each carries the
  * product's description and its base unit, because a quantity with no unit is not a
- * quantity an ERP would print.
+ * quantity an ERP would print. Shipped and Open are the two quantities a fulfilment
+ * story turns on; they are the ERP's own numbers, never typed here.
+ *
+ * Close remaining sits on the line it closes: giving up on 3 of 4 EA is a decision about
+ * that line, and the reason is recorded on it.
  */
-import React from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, Flex, Text, View } from '@adobe/react-spectrum'
+import React, { useState } from 'react'
+import {
+  TableView, TableHeader, Column, TableBody, Row, Cell, Text,
+  ActionButton, Button, ButtonGroup, Content, Dialog, DialogTrigger, Divider, Heading, Item, Picker
+} from '@adobe/react-spectrum'
 import { money } from '../money'
 import Card from './Card'
+import Totals from './Totals'
 
 /* The lines are printed, not browsed: no resizing and no sorting, so the headers carry
    no chevrons to suggest otherwise. An order's lines are in their own order — that is
    what the item numbers mean — and reordering them would be a lie about the document.
    Widths go straight on the Columns; Spectrum gives the description whatever is left. */
 
-
-/** One figure in the totals block: a label on the left, the amount right-aligned. */
-function Total ({ label, amount, currency, strong }) {
+/** Close what is still open on one line: pick a reason, then confirm. */
+function CloseRemaining ({ line, reasons, onClose, isDisabled }) {
+  const [reason, setReason] = useState(reasons[0])
   return (
-    <Flex justifyContent='space-between' gap='size-400'>
-      <Text UNSAFE_className={strong ? undefined : 'erp-subtle'}>
-        {strong ? <strong>{label}</strong> : label}
-      </Text>
-      <Text>{strong ? <strong>{money(amount, currency)}</strong> : money(amount, currency)}</Text>
-    </Flex>
+    <DialogTrigger>
+      <ActionButton isQuiet isDisabled={isDisabled}>Close remaining</ActionButton>
+      {(close) => (
+        <Dialog>
+          <Heading>Close {line.openQty} {line.unit} on Item {line.item}?</Heading>
+          <Divider />
+          <Content>
+            <Text>
+              The {line.openQty} {line.unit} of {line.name} still open will not ship. The order can then be
+              invoiced once every other line has shipped. Commerce invoices the order as placed.
+            </Text>
+            <Picker
+              label='Reason'
+              items={reasons.map((r) => ({ id: r }))}
+              selectedKey={reason}
+              onSelectionChange={(key) => setReason(String(key))}
+              marginTop='size-200'
+              width='100%'
+            >
+              {(item) => <Item key={item.id}>{item.id}</Item>}
+            </Picker>
+          </Content>
+          <ButtonGroup>
+            <Button variant='secondary' onPress={close}>Keep it open</Button>
+            <Button variant='negative' onPress={() => { close(); onClose(reason) }}>Close remaining</Button>
+          </ButtonGroup>
+        </Dialog>
+      )}
+    </DialogTrigger>
   )
 }
 
-export default function OrderLines ({ order }) {
+/** What a line's Open cell says: the quantity, or why there is none left. */
+function openText (line) {
+  if (line.openQty > 0) return String(line.openQty)
+  if (line.closedQty > 0) return `0 · ${line.closedQty} closed`
+  return '0'
+}
+
+/* Dynamic columns, not JSX children with a conditional among them: Spectrum's table
+   builds its collection from the children it is handed, and a `false` where a Column or
+   Cell should be leaves a hole it then reads (`isRowHeader` of undefined) and crashes.
+   The Close column is in the list only while a line can still be closed. */
+const LINE_COLUMNS = [
+  { key: 'item', label: 'Item', width: 80 },
+  { key: 'sku', label: 'Product', width: 150 },
+  { key: 'name', label: 'Description', width: '1fr', minWidth: 200 },
+  { key: 'qty', label: 'Order qty', width: 110, align: 'end' },
+  { key: 'shipped', label: 'Shipped', width: 110, align: 'end' },
+  { key: 'open', label: 'Open', width: 130, align: 'end' },
+  { key: 'unit', label: 'Base unit', width: 100 },
+  { key: 'price', label: 'Net price', width: 130, align: 'end' },
+  { key: 'amount', label: 'Net amount', width: 140, align: 'end' }
+]
+const CLOSE_COLUMN = { key: 'close', label: ' ', width: 170, align: 'end' }
+
+export default function OrderLines ({ order, onCloseLine, busy }) {
   const lines = order.lines || []
+  const canClose = Boolean(order.can && order.can.close && onCloseLine)
+  const columns = canClose ? [...LINE_COLUMNS, CLOSE_COLUMN] : LINE_COLUMNS
+
+  function cell (line, key) {
+    if (key === 'open') return openText(line)
+    if (key === 'price') return money(line.price, order.currency)
+    if (key === 'amount') return money(line.amount, order.currency)
+    if (key === 'shipped') return line.shippedQty
+    if (key === 'close') {
+      return line.openQty > 0
+        ? <CloseRemaining line={line} reasons={order.closeReasons || []} isDisabled={busy} onClose={(reason) => onCloseLine(line.item, reason)} />
+        : null
+    }
+    return line[key]
+  }
+
   return (
     <Card>
-      <TableView aria-label='Order lines' density='compact' overflowMode='wrap'>
-        <TableHeader>
-          <Column key='item' width={90}>Item</Column>
-          <Column key='sku' width={170}>Product</Column>
-          <Column key='name' width='1fr' minWidth={220}>Description</Column>
-          <Column key='qty' width={130} align='end'>Order qty</Column>
-          <Column key='unit' width={110}>Base unit</Column>
-          <Column key='price' width={150} align='end'>Net price</Column>
-          <Column key='amount' width={160} align='end'>Net amount</Column>
+      {/* Keyed on the column set as well: the table builds its column model once, so a
+          Column that appears or disappears on a later render needs a remount. */}
+      <TableView key={canClose ? 'lines-closable' : 'lines'} aria-label='Order lines' density='compact' overflowMode='wrap'>
+        <TableHeader columns={columns}>
+          {(c) => <Column key={c.key} width={c.width} minWidth={c.minWidth} align={c.align}>{c.label}</Column>}
         </TableHeader>
         <TableBody items={lines.map((l) => ({ ...l, id: l.item }))}>
           {(line) => (
             <Row key={line.item}>
-              <Cell>{line.item}</Cell>
-              <Cell>{line.sku}</Cell>
-              <Cell>{line.name}</Cell>
-              <Cell>{line.qty}</Cell>
-              <Cell>{line.unit}</Cell>
-              <Cell>{money(line.price, order.currency)}</Cell>
-              <Cell>{money(line.amount, order.currency)}</Cell>
+              {(key) => <Cell>{cell(line, key)}</Cell>}
             </Row>
           )}
         </TableBody>
@@ -59,16 +120,7 @@ export default function OrderLines ({ order }) {
       {lines.length === 0 && (
         <Text marginTop='size-200'>This order has no lines.</Text>
       )}
-      {/* Net is the lines. Total is what Commerce charged. The ERP does not calculate
-          tax; it reports the difference, which is why the row is absent when there is
-          none rather than printing a zero it did not work out. */}
-      <View marginTop='size-300' marginStart='auto' width='size-3600'>
-        <Flex direction='column' gap='size-100'>
-          <Total label='Net amount' amount={order.net} currency={order.currency} />
-          {order.tax !== 0 && <Total label='Tax' amount={order.tax} currency={order.currency} />}
-          <Total label='Total' amount={order.total} currency={order.currency} strong />
-        </Flex>
-      </View>
+      <Totals net={order.net} tax={order.tax} total={order.total} currency={order.currency} />
     </Card>
   )
 }

@@ -12,7 +12,7 @@ What it holds, in SAP's words:
 | Products | products: SKU, description, plant, **list price**, **stock** | mirrored from Commerce; edited here for the demo, and every Commerce change overwrites the ERP again |
 | Business partners | accounts (sold-to): name, sales org, payment terms, **credit limit**, **blocked**; credit exposure is derived from open orders, never stored | mirrored from Commerce (companies, credit, status); edited here for the demo; one default partner for walk-in customers |
 | Pricing conditions | contract prices, contract discounts, max-discount ceilings | created here |
-| Sales orders | created by the integration from Commerce orders; **status** moved here (created → confirmed → shipped → invoiced, or cancelled) | number is the ERP's, never reused |
+| Sales orders | created by the integration from Commerce orders; confirmed, shipped (in parts — each a **shipment** document, `8000000001`+), invoiced once whole (an **invoice** document, `9000000001`+) or cancelled here. Only the header word and the quantities are stored; shipping, billing and the outward `status` are derived from them | numbers are the ERP's, never reused |
 | Events | the ERP's outbound event log: every change it publishes (price, stock, credit limit, block, order status), delivered or pending | |
 | Settings | display name; Sync records and Wipe all records | |
 
@@ -36,7 +36,9 @@ one exception is `screen`, below, which serves the ERP's own page.
 | `products` | `GET`, `GET /:sku`, `PATCH /:sku { listPrice?, stock? }` |
 | `partners` | `GET`, `GET /:id` (the customer document: the record plus `credit` { limit, exposure, available } — null for a customer with no Commerce company — its `orders` and its `conditions`), `PATCH /:id { creditLimit?, blocked?, paymentTerms? }` (import rows may carry `emailDomain`; quotes resolve the partner by id, company, email domain, then customer group) |
 | `pricing` | `GET` conditions, `POST` a condition, `DELETE /:id`, `POST /quote { partnerId? \| commerceCompanyId? \| customerGroupId?, lines:[{sku, qty}] }` |
-| `orders` | `GET`, `GET /:number`, `POST { commerceOrderId, commerceIncrementId?, partnerId?, lines, currency?, total? }` (idempotent), `POST /:number/status { status }` |
+| `orders` | `GET`, `GET /:number` (the document: derived `status`, `shippingStatus`, `billingStatus`, `overall`, `can`, its `shipments` and `invoice`), `POST { commerceOrderId, commerceIncrementId?, partnerId?, lines, currency?, total? }` (idempotent), `POST /:number/confirm`, `POST /:number/cancel { reason }`, `POST /:number/shipments { lines:[{item, qty}], warehouse? }`, `POST /:number/shipments/:shipment/post`, `POST /:number/lines/:item/close { reason }`, `POST /:number/invoice`, `POST /:number/status { status, reason? }` (the whole-order move; predates shipments and stays) |
+| `shipments` | `GET`, `GET /:number` — read-only; a shipment is created and posted on its order |
+| `invoices` | `GET`, `GET /:number` — read-only; the invoice is created on its order |
 | `events` | `GET` the event log (newest first, with the subscriber address, the pending and the failed counts), `POST /retry` redeliver pending events, `POST /requeue` give failed events another ten attempts |
 
 Errors are `{ status: 'ERROR', errorCode, errorMessage }` with a 400/404/503/500.

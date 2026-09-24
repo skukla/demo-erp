@@ -13,10 +13,10 @@
  * every customer showed $0.00 beside a real credit limit. Real exposure is derived
  * from open orders, which needs order line quantities that do not exist yet.
  */
-import React, { useState } from 'react'
+import React from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, Switch } from '@adobe/react-spectrum'
 import Frame from './Frame'
-import CustomerDetail from './CustomerDetail'
+import { useTrail, OpenDocument } from './Documents'
 import EditableNumber from './EditableNumber'
 import SavingValue from './SavingValue'
 import { saveInPlace } from './saveInPlace'
@@ -59,8 +59,8 @@ export default function Partners ({ api, onChanged, onNavigate }) {
   const widths = useColumnWidths('partners', PARTNER_COLUMNS)
   const { rows, error, reload, updateRow } = useLoad(() => api.partners(), [api])
   const view = useGridView(rows, PARTNER_GRID)
-  // The customer opened from the list, as Orders opens an order.
-  const [openId, setOpenId] = useState(null)
+  // The customer opened from the list, and the orders opened from the customer.
+  const trail = useTrail('Customers')
   function save (id, patch) {
     const isRow = (row) => row.id === id
     const before = rows.find(isRow)
@@ -72,17 +72,8 @@ export default function Partners ({ api, onChanged, onNavigate }) {
       saved: 'Customer saved'
     })
   }
-  if (openId) {
-    return (
-      <CustomerDetail
-        key={openId}
-        api={api}
-        id={openId}
-        onBack={() => { setOpenId(null); reload() }}
-        onChanged={onChanged}
-        onNavigate={onNavigate}
-      />
-    )
+  if (trail.top) {
+    return <OpenDocument trail={trail} api={api} onChanged={onChanged} onNavigate={onNavigate} onClose={reload} />
   }
 
   return (
@@ -91,7 +82,7 @@ export default function Partners ({ api, onChanged, onNavigate }) {
       <TableView {...widths.tableProps} {...view.tableProps}
         aria-label='Customers' density='compact' overflowMode='wrap' marginTop='size-200'
         UNSAFE_className='erp-rows-open'
-        selectionMode='none' onAction={(key) => setOpenId(String(key))}>
+        selectionMode='none' onAction={(key) => { const row = (rows || []).find((p) => p.id === String(key)); trail.open('customer', String(key), row && row.name) }}>
         <TableHeader>
           <Column key='id' {...widths.columnProps('id')} allowsSorting>Customer</Column>
           <Column key='name' {...widths.columnProps('name')} allowsSorting>Name</Column>

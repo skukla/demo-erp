@@ -123,6 +123,28 @@ application:
               require-adobe-auth: true
               include-ims-credentials: true
               final: true
+          shipments:
+            function: actions/shipments/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          invoices:
+            function: actions/invoices/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
           # The screen and its data calls. No Adobe sign-in: the key Demo Builder puts in
           # the link it opens is this action's access control (lib/screen.js).
           screen:

@@ -9,6 +9,8 @@ const handlers = {
   partners: require('../partners'),
   pricing: require('../pricing'),
   orders: require('../orders'),
+  shipments: require('../shipments'),
+  invoices: require('../invoices'),
   events: require('../events')
 }
 

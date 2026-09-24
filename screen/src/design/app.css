@@ -329,6 +329,81 @@
   color: var(--accent);
 }
 
+/* ---- Links between documents ---------------------------------------------------
+ * A document number that opens its document, set as text: a field value, not a button.
+ * A plain <button> rather than Spectrum's Link, which demands exactly one string child
+ * and styles itself for prose, not for a labelled field.
+ */
+.erp-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent);
+  font-weight: var(--type-key-weight);
+  cursor: pointer;
+  text-align: start;
+}
+
+.erp-link:hover {
+  text-decoration: underline;
+}
+
+.erp-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ---- Document flow -------------------------------------------------------------
+ * What an order became, as a row of boxes: the order, each shipment, the invoice. SAP
+ * draws this as a tree; a demo order has a handful of documents, and a row reads left
+ * to right in the order things happened.
+ */
+.erp-doc-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.erp-doc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 200px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-surface);
+  background: var(--surface-canvas);
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+}
+
+.erp-doc-open {
+  cursor: pointer;
+}
+
+.erp-doc-open:hover {
+  border-color: var(--accent);
+}
+
+.erp-doc-title {
+  font-weight: var(--type-key-weight);
+}
+
+.erp-doc-open .erp-doc-title {
+  color: var(--accent);
+}
+
+.erp-doc-meta {
+  font-size: var(--type-micro-size);
+  color: var(--ink-2);
+}
+
 /* Every rule Spectrum draws, dividers inside cards included, takes the one colour. */
 [class*="spectrum-Divider"] {
   background: var(--line) !important;

@@ -2,6 +2,10 @@
  * The header of a sales order document: the facts about the whole order, which an ERP
  * prints as labelled fields above the lines. SAP and Business Central both put the
  * customer, the dates and the terms here; the line items come underneath.
+ *
+ * Three statuses, not one: overall, shipping and billing. SAP's order header carries
+ * exactly that triple, and it is what lets an order read as "confirmed, partly shipped,
+ * not yet billed" instead of one word that has to mean all three.
  */
 import React from 'react'
 import { Grid, StatusLight } from '@adobe/react-spectrum'
@@ -10,8 +14,7 @@ import Field from './Field'
 import { formatDate } from '../formatStamp'
 
 /* How an order's status reads and what colour it wears — in ONE place, read by the list,
-   the document and the customer's order card. Three copies of the colour map was two
-   too many. */
+   the document and the customer's order card. */
 const STATUS_TEXT = { created: 'Open', confirmed: 'Confirmed', shipped: 'Shipped', invoiced: 'Invoiced', cancelled: 'Cancelled' }
 const LIGHT = { created: 'neutral', confirmed: 'info', shipped: 'notice', invoiced: 'positive', cancelled: 'negative' }
 
@@ -24,8 +27,18 @@ export function statusLight (status) {
   return LIGHT[status] || 'neutral'
 }
 
-export default function OrderHeader ({ order }) {
+const SHIPPING = { none: ['Not shipped', 'neutral'], partial: ['Partly shipped', 'notice'], full: ['Fully shipped', 'positive'] }
+const BILLING = { none: ['Not invoiced', 'neutral'], invoiced: ['Invoiced', 'positive'], credited: ['Credited', 'notice'] }
+const OVERALL = { Open: 'neutral', 'In process': 'info', Completed: 'positive', Cancelled: 'negative' }
+
+function Status ({ variant, children }) {
+  return <StatusLight variant={variant} marginStart='size-0'>{children}</StatusLight>
+}
+
+export default function OrderHeader ({ order, onOpen }) {
   const partner = order.partner
+  const [shippingText, shippingLight] = SHIPPING[order.shippingStatus] || SHIPPING.none
+  const [billingText, billingLight] = BILLING[order.billingStatus] || BILLING.none
   return (
     <Card>
       <Grid
@@ -38,7 +51,13 @@ export default function OrderHeader ({ order }) {
           id is. Business Central heads the same field External Document No. */}
         <Field label='Customer reference'>{order.commerceIncrementId || order.commerceOrderId || '—'}</Field>
 
-        <Field label='Sold-to'>{partner ? `${partner.id} · ${partner.name}` : '—'}</Field>
+        <Field label='Sold-to'>
+          {partner
+            ? (onOpen
+                ? <button type='button' className='erp-link' onClick={() => onOpen('customer', partner.id, partner.name)}>{`${partner.id} · ${partner.name}`}</button>
+                : `${partner.id} · ${partner.name}`)
+            : '—'}
+        </Field>
       {/* SAP's own default: in the simplest case the customer takes every partner
           function itself. Saying so is honest and it is the field an ERP eye looks for. */}
         <Field label='Ship-to'>Same as sold-to</Field>
@@ -46,12 +65,10 @@ export default function OrderHeader ({ order }) {
 
         <Field label='Payment terms'>{partner ? partner.paymentTerms : '—'}</Field>
         <Field label='Currency'>{order.currency || 'USD'}</Field>
-        <Field label='Status'>
-        <StatusLight variant={statusLight(order.status)} marginStart='size-0'>
-          {statusText(order.status)}
-        </StatusLight>
-      </Field>
+        <Field label='Overall status'><Status variant={OVERALL[order.overall] || 'neutral'}>{order.overall || statusText(order.status)}</Status></Field>
 
+        <Field label='Shipping status'><Status variant={shippingLight}>{shippingText}</Status></Field>
+        <Field label='Billing status'><Status variant={billingLight}>{billingText}</Status></Field>
         {order.cancelReason && <Field label='Cancellation reason'>{order.cancelReason}</Field>}
       </Grid>
     </Card>
