@@ -287,3 +287,26 @@ test('a parent takes a name but not a price or stock; a variant takes all three'
 test('an unknown product type is refused', async () => {
   await assert.rejects(importProducts(cols, [{ sku: 'K', type: 'bundle' }]), { statusCode: 400 })
 })
+
+test('a product Commerce deleted leaves the ERP; a deleted parent leaves its variants as products of their own; an unknown SKU is a 404', async () => {
+  const { deleteProduct, importProducts, getProduct, listProducts } = require('../lib/products')
+  const { invoke } = require('./helpers/memory-db')
+  const products = require('../actions/products')
+  await importProducts(cols, [
+    { sku: 'PARENT', name: 'Knit', type: 'configurable' },
+    { sku: 'PARENT-S', name: 'Knit S', parentSku: 'PARENT', variantAttributes: [{ label: 'Size', value: 'S' }], listPrice: 10 },
+    { sku: 'PARENT-M', name: 'Knit M', parentSku: 'PARENT', variantAttributes: [{ label: 'Size', value: 'M' }], listPrice: 10 },
+    { sku: 'LONE', name: 'Belt', listPrice: 5 }
+  ])
+  assert.deepEqual(await deleteProduct(cols, 'LONE'), { sku: 'LONE', unlinked: [] })
+  assert.equal(await getProduct(cols, 'LONE'), null)
+  const res = await invoke(products, cols, { method: 'DELETE', path: '/PARENT', body: { origin: { event: 'observer.catalog_product_delete_commit_after' } } })
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(res.body, { sku: 'PARENT', unlinked: ['PARENT-M', 'PARENT-S'] })
+  const listed = (await listProducts(cols)).map((p) => [p.sku, p.type, p.parentSku || null])
+  assert.deepEqual(listed, [['PARENT-M', 'simple', null], ['PARENT-S', 'simple', null]])
+  assert.equal((await invoke(products, cols, { method: 'DELETE', path: '/PARENT' })).statusCode, 404)
+  const { recent } = require('../lib/events')
+  const [entry] = await recent(cols)
+  assert.equal(entry.summary, 'Product PARENT removed (deleted in Commerce); its 2 variant(s) stay as products of their own')
+})
