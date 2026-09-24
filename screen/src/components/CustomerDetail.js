@@ -14,7 +14,7 @@
  */
 import React, { useState } from 'react'
 import {
-  Button, Grid, Link, StatusLight, Text, View,
+  Grid, Item, Link, Picker, StatusLight, Text, View,
   TableView, TableHeader, Column, TableBody, Row, Cell
 } from '@adobe/react-spectrum'
 import Card from './Card'
@@ -29,6 +29,15 @@ import { formatDate } from '../formatStamp'
 import { money, moneyOptions } from '../money'
 
 const MONEY = moneyOptions()
+
+/* Business Central's four levels, in plainer words, each saying what it stops. */
+export const BLOCKING_LEVELS = [
+  { id: 'open', label: 'Open', help: 'Everything allowed' },
+  { id: 'shipping', label: 'Blocked for shipping', help: 'New orders arrive on credit hold; nothing new ships; existing shipments can still be invoiced' },
+  { id: 'invoicing', label: 'Blocked for invoicing', help: 'New orders on hold; nothing ships; no new invoices' },
+  { id: 'all', label: 'Blocked for all business', help: 'Nothing proceeds' }
+]
+export const blockingText = (level) => (BLOCKING_LEVELS.find((l) => l.id === level) || BLOCKING_LEVELS[0]).label
 
 function CreditCard ({ customer, onLimit }) {
   const { credit } = customer
@@ -56,10 +65,16 @@ function CreditCard ({ customer, onLimit }) {
             {over ? 'Over limit' : 'Within limit'}
           </StatusLight>
         </Field>
-        <Field label='Blocked'>
-          <StatusLight variant={customer.blocked ? 'negative' : 'neutral'} marginStart='size-0'>
-            {customer.blocked ? 'Blocked' : 'Open'}
+        <Field label='Blocking'>
+          <StatusLight variant={customer.blocking === 'open' ? 'neutral' : 'negative'} marginStart='size-0'>
+            {blockingText(customer.blocking)}
           </StatusLight>
+        </Field>
+        {/* SAP's work list of blocked documents, for this customer. */}
+        <Field label='Orders on credit hold'>
+          {credit.held > 0
+            ? <StatusLight variant='negative' marginStart='size-0'>{`${credit.held} held`}</StatusLight>
+            : 'None'}
         </Field>
       </Grid>
       {/* View, not a margin on Text: Spectrum's Text takes no layout props. */}
@@ -96,7 +111,11 @@ function OrdersCard ({ orders, onOpen }) {
                   <Cell>{formatDate(o.createdAt)}</Cell>
                   <Cell>{o.commerceIncrementId || o.commerceOrderId || '—'}</Cell>
                   <Cell>{money(o.net, o.currency)}</Cell>
-                  <Cell><StatusLight variant={statusLight(o.status)}>{statusText(o.status)}</StatusLight></Cell>
+                  <Cell>
+                    {o.creditStatus === 'held' && o.status !== 'cancelled'
+                      ? <StatusLight variant='negative'>On credit hold</StatusLight>
+                      : <StatusLight variant={statusLight(o.status)}>{statusText(o.status)}</StatusLight>}
+                  </Cell>
                 </Row>
               )}
             </TableBody>
@@ -174,14 +193,18 @@ export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBa
       error={error}
       loading={!customer}
       actions={customer && customer.credit && (
-        /* The walk-in account cannot be blocked: nothing in Commerce answers to it. */
-        <Button
-          variant={customer.blocked ? 'secondary' : 'negative'}
+        /* The blocking level is the one decision made on this document; the walk-in account
+           cannot be blocked, since nothing in Commerce answers to it. */
+        <Picker
+          aria-label='Blocking level'
+          items={BLOCKING_LEVELS}
+          selectedKey={customer.blocking}
           isDisabled={busy}
-          onPress={() => patch({ blocked: !customer.blocked }, customer.blocked ? 'Customer unblocked' : 'Customer blocked')}
+          onSelectionChange={(key) => patch({ blocking: String(key) }, `Customer ${blockingText(String(key)).toLowerCase()}`)}
+          width='size-3000'
         >
-          {customer.blocked ? 'Unblock' : 'Block customer'}
-        </Button>
+          {(level) => <Item key={level.id} textValue={level.label}><Text>{level.label}</Text><Text slot='description'>{level.help}</Text></Item>}
+        </Picker>
       )}
     >
       {customer && (

@@ -96,6 +96,10 @@ export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', 
       loading={!order}
       actions={order && (
         <>
+          {/* SAP's pair on a blocked document. Release lets the order proceed; Reject cancels it
+              with the reason Commerce hears. Confirm is not offered while the hold stands. */}
+          {can.release && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.releaseCredit(number), 'Credit hold released')}>Release</Button>}
+          {can.reject && <Button variant='negative' isDisabled={busy} onPress={() => act(() => api.rejectCredit(number), 'Order rejected — Credit rejected')}>Reject</Button>}
           {can.confirm && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.confirmOrder(number), 'Order confirmed')}>Confirm</Button>}
           {can.ship && <CreateShipment key={order.shipments.length} order={order} isDisabled={busy} onCreate={(body) => act(() => api.createShipment(number, body), 'Shipment created — post it to ship the goods')} />}
           {can.invoice && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.createInvoice(number), 'Invoice created')}>Create invoice</Button>}

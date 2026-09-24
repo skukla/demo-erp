@@ -42,16 +42,16 @@ const products = NAMES.map(([name, price], i) => {
 })
 
 const partners = [
-  { id: 'P000000', name: 'Walk-in customers', salesOrg: '1000', commerceCompanyId: null, customerGroupId: null, paymentTerms: 'NET30', creditLimit: 0, blocked: false, isDefault: true },
-  { id: 'C000101', name: 'Northwind Trading', salesOrg: '1000', commerceCompanyId: '4', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 50000, blocked: false },
-  { id: 'C000102', name: 'Contoso Supply', salesOrg: '1000', commerceCompanyId: '7', customerGroupId: '2', paymentTerms: 'NET60', creditLimit: 120000, blocked: false },
-  { id: 'C000103', name: 'Fabrikam Retail', salesOrg: '2000', commerceCompanyId: '9', customerGroupId: '3', paymentTerms: 'NET15', creditLimit: 25000, blocked: true },
-  { id: 'C000104', name: 'Adventure Works', salesOrg: '2000', commerceCompanyId: '12', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 80000, blocked: false }
+  { id: 'P000000', name: 'Walk-in customers', salesOrg: '1000', commerceCompanyId: null, customerGroupId: null, paymentTerms: 'NET30', creditLimit: 0, blocking: 'open', isDefault: true },
+  { id: 'C000101', name: 'Northwind Trading', salesOrg: '1000', commerceCompanyId: '4', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 50000, blocking: 'open' },
+  { id: 'C000102', name: 'Contoso Supply', salesOrg: '1000', commerceCompanyId: '7', customerGroupId: '2', paymentTerms: 'NET60', creditLimit: 120000, blocking: 'open' },
+  { id: 'C000103', name: 'Fabrikam Retail', salesOrg: '2000', commerceCompanyId: '9', customerGroupId: '3', paymentTerms: 'NET15', creditLimit: 25000, blocking: 'all' },
+  { id: 'C000104', name: 'Adventure Works', salesOrg: '2000', commerceCompanyId: '12', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 80000, blocking: 'open' }
 ]
 
 /* The stored shape (lib/orders.js): a header word, quantities per line, the shipments
    and the invoice. The outward `status` is DERIVED below, as the ERP derives it. */
-const HEADERS = ['created', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'created', 'confirmed', 'confirmed']
+const HEADERS = ['created', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'created', 'confirmed', 'created']
 const cents = (value) => Math.round(value * 100) / 100
 const day = (d, h = 9) => new Date(Date.UTC(2026, 8, d, h, 12)).toISOString()
 const orders = HEADERS.map((header, i) => {
@@ -76,6 +76,10 @@ const orders = HEADERS.map((header, i) => {
     history: [{ status: 'created', at: day(4 + i) }],
     createdAt: day(4 + i)
   }
+  // Every order approved but the last, which arrived over the limit and waits on a decision.
+  order.creditStatus = i === 7 ? 'held' : 'approved'
+  order.creditReason = i === 7 ? 'Credit limit 80,000.00 exceeded by 1,240.00' : null
+  order.creditDecidedAt = null
   if (header === 'confirmed') order.history.push({ status: 'confirmed', at: day(4 + i, 11) })
   if (header === 'cancelled') {
     order.cancelReason = 'Customer request'
@@ -85,7 +89,7 @@ const orders = HEADERS.map((header, i) => {
 })
 
 /* Order 1002: fully shipped in two shipments and invoiced. 1003: one shipment posted,
-   one still open. 1007: partly shipped, the rest closed. */
+   one still open. 1006: partly shipped, the rest closed. 1007: on credit hold. */
 function seedShipment (order, number, lines, warehouse, posted) {
   const lineOf = (item) => order.lines.find((x) => x.item === item)
   order.shipments.push({
@@ -115,9 +119,9 @@ seedShipment(orders[2], '8000000002', [{ item: 20, qty: orders[2].lines[1].qty }
 }
 seedShipment(orders[3], '8000000003', [{ item: 10, qty: orders[3].lines[0].qty }], 'default', true)
 seedShipment(orders[3], '8000000004', [{ item: 20, qty: 1 }], 'default', false)
-seedShipment(orders[7], '8000000005', [{ item: 10, qty: orders[7].lines[0].qty }, { item: 20, qty: 1 }], 'default', true)
-orders[7].lines[1].closedQty = orders[7].lines[1].qty - 1
-orders[7].lines[1].closeReason = 'Out of stock'
+seedShipment(orders[6], '8000000005', [{ item: 10, qty: orders[6].lines[0].qty }, { item: 20, qty: 1 }], 'default', true)
+orders[6].lines[1].closedQty = orders[6].lines[1].qty - 1
+orders[6].lines[1].closeReason = 'Out of stock'
 let nextShipment = 8000000006
 let nextInvoice = 9000000002
 
@@ -232,12 +236,15 @@ function nextMoves (o) {
 function abilities (o) {
   const { shipped, open } = totalsOf(o)
   const live = o.header === 'confirmed' && !o.invoice
+  const held = o.creditStatus === 'held' && o.header !== 'cancelled'
   return {
-    confirm: o.header === 'created',
+    confirm: o.header === 'created' && !held,
     ship: live && open > 0,
     close: live && open > 0,
     invoice: live && open === 0 && shipped > 0,
-    cancel: o.header !== 'cancelled' && !o.invoice && shipped === 0
+    cancel: o.header !== 'cancelled' && !o.invoice && shipped === 0,
+    release: held,
+    reject: held
   }
 }
 const productOf = (sku) => products.find((p) => p.sku === sku)
@@ -267,6 +274,7 @@ function describe (order) {
     shippingStatus: shipped === 0 ? 'none' : (open > 0 ? 'partial' : 'full'),
     billingStatus: order.invoice ? (order.invoice.status === 'credited' ? 'credited' : 'invoiced') : 'none',
     overall: order.header === 'cancelled' ? 'Cancelled' : (order.invoice ? 'Completed' : (order.header === 'confirmed' ? 'In process' : 'Open')),
+    credit: order.creditStatus ? { status: order.creditStatus, reason: order.creditReason, decidedAt: order.creditDecidedAt } : null,
     can,
     shipments: order.shipments.map((s) => ({ ...s, lines: s.lines.map(named) })),
     invoice: order.invoice ? { ...order.invoice, lines: order.invoice.lines.map(named) } : null,
@@ -320,16 +328,18 @@ function describePartner (partner) {
       number: o.number,
       createdAt: o.createdAt,
       status: deriveStatus(o),
+      creditStatus: o.creditStatus ?? null,
       commerceOrderId: o.commerceOrderId,
       commerceIncrementId: o.commerceIncrementId,
       currency: o.currency,
       net: cents((o.lines || []).reduce((sum, l) => sum + l.qty * l.price, 0))
     }))
-  const exposure = cents(own.filter((o) => OPEN.has(o.status)).reduce((sum, o) => sum + o.net, 0))
+  const exposure = cents(own.filter((o) => OPEN.has(o.status) && o.creditStatus !== 'held').reduce((sum, o) => sum + o.net, 0))
+  const held = own.filter((o) => o.creditStatus === 'held' && o.status !== 'cancelled').length
   const limit = Number(partner.creditLimit) || 0
   return {
     ...partner,
-    credit: partner.commerceCompanyId ? { limit, exposure, available: cents(limit - exposure) } : null,
+    credit: partner.commerceCompanyId ? { limit, exposure, available: cents(limit - exposure), held } : null,
     orders: own,
     conditions: conditions.filter((c) => c.partnerId === partner.id)
   }
@@ -362,7 +372,7 @@ export const fakeApi = {
     await wait()
     const partner = partnerOf(id)
     if (patch.creditLimit !== undefined) partner.creditLimit = Number(patch.creditLimit)
-    if (patch.blocked !== undefined) partner.blocked = Boolean(patch.blocked)
+    if (patch.blocking !== undefined) partner.blocking = String(patch.blocking)
     return copy(partner)
   },
   conditions: async () => { await wait(); return copy(conditions) },
@@ -402,9 +412,26 @@ export const fakeApi = {
   order: async (number) => { await wait(); return copy(describe(orderOf(number))) },
   /* The moves the preview allows: they are what the documents are FOR, and a document
      whose buttons do nothing cannot be looked at properly. Each refuses as the ERP does. */
+  releaseCredit: async (number) => {
+    await wait()
+    const o = orderOf(number)
+    if (o.creditStatus !== 'held') fail('This order is not on credit hold.')
+    o.creditStatus = 'released'; o.creditDecidedAt = new Date().toISOString()
+    o.history.push({ status: 'released', at: o.creditDecidedAt })
+    return copy(describe(o))
+  },
+  rejectCredit: async (number) => {
+    await wait()
+    const o = orderOf(number)
+    if (o.creditStatus !== 'held') fail('This order is not on credit hold.')
+    o.header = 'cancelled'; o.cancelReason = 'Credit rejected'; o.creditDecidedAt = new Date().toISOString()
+    o.history.push({ status: 'cancelled', at: o.creditDecidedAt, reason: 'Credit rejected' })
+    return copy(describe(o))
+  },
   confirmOrder: async (number) => {
     await wait()
     const o = orderOf(number)
+    if (o.creditStatus === 'held') fail(`${o.creditReason}. Release the order first.`)
     if (o.header !== 'created') fail(`This order was ${o.header} already.`)
     o.header = 'confirmed'
     o.history.push({ status: 'confirmed', at: new Date().toISOString() })

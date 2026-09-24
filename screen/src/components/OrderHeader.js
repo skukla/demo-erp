@@ -8,7 +8,7 @@
  * not yet billed" instead of one word that has to mean all three.
  */
 import React from 'react'
-import { Grid, StatusLight } from '@adobe/react-spectrum'
+import { Grid, StatusLight, Text } from '@adobe/react-spectrum'
 import Card from './Card'
 import Field from './Field'
 import { formatDate } from '../formatStamp'
@@ -30,6 +30,8 @@ export function statusLight (status) {
 const SHIPPING = { none: ['Not shipped', 'neutral'], partial: ['Partly shipped', 'notice'], full: ['Fully shipped', 'positive'] }
 const BILLING = { none: ['Not invoiced', 'neutral'], invoiced: ['Invoiced', 'positive'], credited: ['Credited', 'notice'] }
 const OVERALL = { Open: 'neutral', 'In process': 'info', Completed: 'positive', Cancelled: 'negative' }
+/* SAP's three credit states on a document. Absent for a customer with no credit. */
+const CREDIT = { approved: ['Approved', 'positive'], held: ['On credit hold', 'negative'], released: ['Released', 'info'] }
 
 function Status ({ variant, children }) {
   return <StatusLight variant={variant} marginStart='size-0'>{children}</StatusLight>
@@ -69,6 +71,12 @@ export default function OrderHeader ({ order, onOpen }) {
 
         <Field label='Shipping status'><Status variant={shippingLight}>{shippingText}</Status></Field>
         <Field label='Billing status'><Status variant={billingLight}>{billingText}</Status></Field>
+        {order.credit && (
+          <Field label='Credit status'>
+            <Status variant={(CREDIT[order.credit.status] || CREDIT.approved)[1]}>{(CREDIT[order.credit.status] || CREDIT.approved)[0]}</Status>
+            {order.credit.reason && <Text UNSAFE_className='erp-subtle'>{order.credit.reason}</Text>}
+          </Field>
+        )}
         {order.cancelReason && <Field label='Cancellation reason'>{order.cancelReason}</Field>}
       </Grid>
     </Card>

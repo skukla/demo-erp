@@ -1,7 +1,8 @@
 /*
  * Customers: the list. Choose a row to open the customer's document (CustomerDetail);
- * credit limit and blocked can still be edited here, in the row, for a quick change
- * while preparing a demo.
+ * the credit limit can still be edited here, in the row, for a quick change while
+ * preparing a demo. Blocking is a decision made on the document, where its four levels
+ * can be read; here it is a badge.
  *
  * The screen says "customer" because that is the word an SAP, Business Central or
  * NetSuite user reads without translating. The stored collection keeps its own name
@@ -14,11 +15,11 @@
  * from open orders, which needs order line quantities that do not exist yet.
  */
 import React from 'react'
-import { TableView, TableHeader, Column, TableBody, Row, Cell, Switch } from '@adobe/react-spectrum'
+import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import { useTrail, OpenDocument } from './Documents'
+import { blockingText } from './CustomerDetail'
 import EditableNumber from './EditableNumber'
-import SavingValue from './SavingValue'
 import { saveInPlace } from './saveInPlace'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
@@ -38,7 +39,7 @@ const PARTNER_COLUMNS = [
   { key: 'salesOrg', width: '1fr', minWidth: 190 },
   { key: 'terms', width: 165 },
   { key: 'creditLimit', width: 170 },
-  { key: 'blocked', width: 110 }
+  { key: 'blocking', width: 210 }
 ]
 
 const PARTNER_GRID = {
@@ -50,7 +51,7 @@ const PARTNER_GRID = {
     salesOrg: (p) => p.salesOrg || '',
     terms: (p) => p.paymentTerms || '',
     creditLimit: (p) => p.creditLimit || 0,
-    blocked: (p) => (p.blocked ? 'Blocked' : 'Open')
+    blocking: (p) => blockingText(p.blocking)
   },
   sort: { column: 'id', direction: 'ascending' }
 }
@@ -90,7 +91,7 @@ export default function Partners ({ api, onChanged, onNavigate }) {
           <Column key='salesOrg' {...widths.columnProps('salesOrg')} allowsSorting>Sales organisation</Column>
           <Column key='terms' {...widths.columnProps('terms')} allowsSorting>Payment terms</Column>
           <Column key='creditLimit' {...widths.columnProps('creditLimit')} align='end' allowsSorting>Credit limit</Column>
-          <Column key='blocked' {...widths.columnProps('blocked')} allowsSorting>Blocked</Column>
+          <Column key='blocking' {...widths.columnProps('blocking')} allowsSorting>Blocking</Column>
         </TableHeader>
         <TableBody items={view.items}>
           {(p) => (
@@ -102,7 +103,7 @@ export default function Partners ({ api, onChanged, onNavigate }) {
               <Cell>{p.salesOrg || '—'}</Cell>
               <Cell>{p.paymentTerms}</Cell>
               <Cell><EditableNumber label='Credit limit' value={p.creditLimit} isSaving={p.saving === 'creditLimit'} step={100} formatOptions={MONEY} onSave={(v) => save(p.id, { creditLimit: v })} /></Cell>
-              <Cell><SavingValue isSaving={p.saving === 'blocked'}><Switch aria-label='Blocked' isSelected={Boolean(p.blocked)} onChange={(v) => save(p.id, { blocked: v })} /></SavingValue></Cell>
+              <Cell><StatusLight variant={p.blocking === 'open' ? 'neutral' : 'negative'}>{blockingText(p.blocking)}</StatusLight></Cell>
             </Row>
           )}
         </TableBody>
