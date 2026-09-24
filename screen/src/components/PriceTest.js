@@ -12,7 +12,7 @@
  */
 import React, { useState } from 'react'
 import { Button, Divider, Heading, NumberField, Text, TextField, View } from '@adobe/react-spectrum'
-import { RecordPicker, customerItems, productItems } from './AddPricingRule'
+import { RecordPicker, SalesOrgPicker, customerItems, productItems } from './AddPricingRule'
 import { ruleOf, todayIso } from './pricingRuleFormat'
 import { money } from '../money'
 
@@ -55,7 +55,7 @@ function Result ({ quote, nameFor }) {
   )
 }
 
-export default function PriceTest ({ api, customers, products = [], onError }) {
+export default function PriceTest ({ api, customers, products = [], salesOrgs = [], onError }) {
   /* The engine answers with the customer it RESOLVED to, which for a blank box is the
      walk-in account — and its id says nothing. The customers are already loaded by the
      page above, so the name is free. */
@@ -65,7 +65,7 @@ export default function PriceTest ({ api, customers, products = [], onError }) {
     return found ? found.name : id
   }
 
-  const [input, setInput] = useState({ partnerId: '', sku: '', qty: 1, date: todayIso() })
+  const [input, setInput] = useState({ partnerId: '', sku: '', qty: 1, date: todayIso(), salesOrg: '' })
   const [quote, setQuote] = useState(null)
   const [busy, setBusy] = useState(false)
   const set = (patch) => setInput((current) => ({ ...current, ...patch }))
@@ -73,7 +73,7 @@ export default function PriceTest ({ api, customers, products = [], onError }) {
   async function run () {
     setBusy(true)
     try {
-      setQuote(await api.quote({ partnerId: input.partnerId || undefined, date: input.date || undefined, lines: [{ sku: input.sku, qty: input.qty }] }))
+      setQuote(await api.quote({ partnerId: input.partnerId || undefined, date: input.date || undefined, salesOrg: input.salesOrg || undefined, lines: [{ sku: input.sku, qty: input.qty }] }))
       onError(null)
     } catch (e) {
       onError(e)
@@ -95,6 +95,11 @@ export default function PriceTest ({ api, customers, products = [], onError }) {
         <NumberField label='Quantity' value={input.qty} onChange={(qty) => set({ qty })} minValue={1} width='size-1600' />
         {/* The date the price is for — an order's date, in an ERP. Today by default. */}
         <TextField type='date' label='On' value={input.date} onChange={(date) => set({ date })} width='size-2000' />
+        {salesOrgs.length > 0 && (
+          <div style={{ width: 260 }}>
+            <SalesOrgPicker label='Through' salesOrgs={salesOrgs} selectedKey={input.salesOrg} onChange={(salesOrg) => set({ salesOrg })} />
+          </div>
+        )}
         <Button variant='secondary' onPress={run} isDisabled={!input.sku || busy}>
           {busy ? 'Pricing' : 'Price it'}
         </Button>

@@ -42,12 +42,22 @@ const products = NAMES.map(([name, price], i) => {
   }
 })
 
+/* The business structure the last mirror sent: two websites, each its own sales organisation
+   (lib/structure.js). Stand-in Store Information stays null, as the real one does: it is
+   not readable over REST. */
+const structureMirror = { websites: [
+  { code: 'base', name: 'Main Website', salesOrg: '1000', salesOrgName: 'Online US', storeInfo: { currency: 'USD', countryId: 'US', vatNumber: null, address: null } },
+  { code: 'eu', name: 'Europe', salesOrg: '2000', salesOrgName: 'Online EU', storeInfo: { currency: 'EUR', countryId: 'DE', vatNumber: null, address: null } }
+] }
+const salesOrgNames = { 1000: 'Online US', 2000: 'Online EU' }
+const noLegal = { legalName: null, vatTaxId: null, resellerId: null, legalAddress: null, website: null }
+
 const partners = [
-  { id: 'P000000', name: 'Walk-in customers', salesOrg: '1000', commerceCompanyId: null, customerGroupId: null, paymentTerms: 'NET30', creditLimit: 0, blocking: 'open', isDefault: true },
-  { id: 'C000101', name: 'Northwind Trading', salesOrg: '1000', commerceCompanyId: '4', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 50000, blocking: 'open' },
-  { id: 'C000102', name: 'Contoso Supply', salesOrg: '1000', commerceCompanyId: '7', customerGroupId: '2', paymentTerms: 'NET60', creditLimit: 120000, blocking: 'open' },
-  { id: 'C000103', name: 'Fabrikam Retail', salesOrg: '2000', commerceCompanyId: '9', customerGroupId: '3', paymentTerms: 'NET15', creditLimit: 25000, blocking: 'all' },
-  { id: 'C000104', name: 'Adventure Works', salesOrg: '2000', commerceCompanyId: '12', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 80000, blocking: 'open' }
+  { id: 'P000000', name: 'Walk-in customers', salesOrgs: ['*'], ...noLegal, commerceCompanyId: null, customerGroupId: null, paymentTerms: 'NET30', creditLimit: 0, blocking: 'open', isDefault: true },
+  { id: 'C000101', name: 'Northwind Trading', salesOrgs: ['1000'], legalName: 'Northwind Trading LLC', vatTaxId: 'US 83-1234567', resellerId: 'R-1042', legalAddress: { street: ['1 Harbor Way', 'Suite 400'], city: 'Seattle', region: 'WA', postcode: '98101', countryId: 'US', telephone: '206-555-0100' }, website: { id: 1, code: 'base' }, commerceCompanyId: '4', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 50000, blocking: 'open' },
+  { id: 'C000102', name: 'Contoso Supply', salesOrgs: ['1000', '2000'], legalName: 'Contoso Supply Inc.', vatTaxId: 'US 91-7654321', resellerId: null, legalAddress: { street: ['200 Market St'], city: 'San Francisco', region: 'CA', postcode: '94105', countryId: 'US', telephone: null }, website: { id: 1, code: 'base' }, commerceCompanyId: '7', customerGroupId: '2', paymentTerms: 'NET60', creditLimit: 120000, blocking: 'open' },
+  { id: 'C000103', name: 'Fabrikam Retail', salesOrgs: ['2000'], legalName: 'Fabrikam Retail GmbH', vatTaxId: 'DE 812345678', resellerId: 'R-2210', legalAddress: { street: ['Hauptstraße 5'], city: 'Berlin', region: null, postcode: '10115', countryId: 'DE', telephone: '+49 30 555 0100' }, website: { id: 2, code: 'eu' }, commerceCompanyId: '9', customerGroupId: '3', paymentTerms: 'NET15', creditLimit: 25000, blocking: 'all' },
+  { id: 'C000104', name: 'Adventure Works', salesOrgs: ['2000'], legalName: 'Adventure Works B.V.', vatTaxId: 'NL 001234567B01', resellerId: null, legalAddress: { street: ['Keizersgracht 100'], city: 'Amsterdam', region: null, postcode: '1015 AA', countryId: 'NL', telephone: null }, website: { id: 2, code: 'eu' }, commerceCompanyId: '12', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 80000, blocking: 'open' }
 ]
 
 /* The stored shape (lib/orders.js): a header word, quantities per line, the shipments
@@ -67,7 +77,10 @@ const orders = HEADERS.map((header, i) => {
     commerceIncrementId: `00000${300 + i}`,
     partnerId: partners[(i % 4) + 1].id,
     lines,
-    currency: 'USD',
+    // The website the order came through, as the integration's setting names it.
+    salesOrg: partners[(i % 4) + 1].salesOrgs[0],
+    salesOrgName: salesOrgNames[partners[(i % 4) + 1].salesOrgs[0]] || null,
+    currency: partners[(i % 4) + 1].salesOrgs[0] === '2000' ? 'EUR' : 'USD',
     // Every third order arrives with tax in its total, as a real Commerce order does,
     // so the document's Tax row is something that can be looked at.
     total: cents(lines.reduce((sum, l) => sum + l.qty * l.price, 0) * (i % 3 === 0 ? 1.0825 : 1)),
@@ -140,15 +153,53 @@ const conditions = [
   { _id: 'c2', id: 'c2', kind: 'contractDiscount', partnerId: 'C000102', sku: null, percent: 12, validFrom: null, validTo: null, minQty: null },
   { _id: 'c3', id: 'c3', kind: 'maxDiscount', partnerId: null, sku: null, percent: 25, validFrom: null, validTo: null, minQty: null },
   { _id: 'c4', id: 'c4', kind: 'contractPrice', partnerId: 'C000104', sku: 'P000008', price: 49, validFrom: '2026-11-01', validTo: null, minQty: null },
-  { _id: 'c5', id: 'c5', kind: 'contractDiscount', partnerId: 'C000103', sku: null, percent: 8, validFrom: '2026-01-01', validTo: '2026-06-30', minQty: null }
+  { _id: 'c5', id: 'c5', kind: 'contractDiscount', partnerId: 'C000103', sku: null, percent: 8, validFrom: '2026-01-01', validTo: '2026-06-30', minQty: null },
+  { _id: 'c6', id: 'c6', kind: 'contractDiscount', partnerId: 'C000102', sku: null, percent: 15, validFrom: null, validTo: null, minQty: null, salesOrg: '2000' }
 ]
+for (const c of conditions) if (c.salesOrg === undefined) c.salesOrg = null
 
 const settings = {
   displayName: 'Northwind ERP',
   appearance: { ...DEFAULT_APPEARANCE },
+  warehouses: { default: { name: 'Plant 1000 · Seattle DC' }, east: { name: 'East DC' } },
+  structureMirror,
   lastImportAt: new Date(Date.UTC(2026, 8, 22, 13, 58)).toISOString(),
   lastWipeAt: null,
   sync: null
+}
+
+/* The selling structure, derived as lib/structure.js derives it. */
+function describeStructure () {
+  const home = structureMirror.websites.find((w) => w.salesOrg === '1000') || structureMirror.websites[0]
+  const orgs = new Map()
+  const org = (code) => {
+    if (!orgs.has(code)) orgs.set(code, { code, name: null, websiteCode: null, customers: 0, orders: 0 })
+    return orgs.get(code)
+  }
+  for (const site of structureMirror.websites) {
+    const entry = org(site.salesOrg)
+    entry.name = entry.name || site.salesOrgName || site.name
+    entry.websiteCode = entry.websiteCode || site.code
+  }
+  for (const p of partners) for (const code of p.salesOrgs) if (code !== '*') org(code).customers += 1
+  for (const o of orders) org(o.salesOrg || '1000').orders += 1
+  const houses = new Map()
+  for (const p of products) {
+    for (const w of p.warehouses) {
+      if (!houses.has(w.code)) houses.set(w.code, { code: w.code, commerceName: w.name, products: 0 })
+      houses.get(w.code).products += 1
+    }
+  }
+  for (const [code, value] of Object.entries(settings.warehouses)) {
+    if (!houses.has(code)) houses.set(code, { code, commerceName: code, products: 0 })
+    houses.get(code).name = value.name
+  }
+  return {
+    companyCode: { code: '1000', name: settings.displayName, currency: home.storeInfo.currency, countryId: home.storeInfo.countryId, vatNumber: null, address: null },
+    salesOrgs: [...orgs.values()].sort((a, b) => a.code.localeCompare(b.code)),
+    warehouses: [...houses.values()].map((h) => ({ ...h, name: h.name || h.commerceName })).sort((a, b) => a.code.localeCompare(b.code)),
+    unmapped: []
+  }
 }
 
 /* Home's work list, as lib/work counts it: from the same abilities the documents read. */
@@ -197,9 +248,10 @@ const wait = () => new Promise((resolve) => setTimeout(resolve, LATENCY_MS))
 /* Pricing, mirroring lib/pricing.js so the preview answers what the ERP would. */
 const DEFAULT_MAX_DISCOUNT = 100
 const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
-const specificity = (c) => (c.partnerId ? 2 : 0) + (c.sku ? 1 : 0)
-const matchesCondition = (c, partnerId, sku) =>
-  (!c.partnerId || c.partnerId === partnerId) && (!c.sku || c.sku === sku)
+const specificity = (c) => (c.salesOrg ? 4 : 0) + (c.partnerId ? 2 : 0) + (c.sku ? 1 : 0)
+const matchesCondition = (c, partnerId, sku, salesOrg) =>
+  (!c.partnerId || c.partnerId === partnerId) && (!c.sku || c.sku === sku) && (!c.salesOrg || !salesOrg || c.salesOrg === salesOrg)
+const otherSalesOrg = (c, salesOrg) => (c.salesOrg && salesOrg && c.salesOrg !== salesOrg ? `for sales organisation ${c.salesOrg}; this is ${salesOrg}` : null)
 const dayText = (d) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`))
 function ruledOut (c, { date, qty }) {
   if (c.validFrom && date < c.validFrom) return `not valid until ${dayText(c.validFrom)}`
@@ -210,13 +262,13 @@ function ruledOut (c, { date, qty }) {
 
 function mostSpecific (kind, partnerId, sku, context) {
   return conditions
-    .filter((c) => c.kind === kind && matchesCondition(c, partnerId, sku) && !ruledOut(c, context))
+    .filter((c) => c.kind === kind && matchesCondition(c, partnerId, sku, context.salesOrg) && !ruledOut(c, context))
     .sort((a, b) => specificity(b) - specificity(a))[0]
 }
 
-function priceLine (product, partnerId, qty, date) {
+function priceLine (product, partnerId, qty, date, salesOrg) {
   const listPrice = Number(product.listPrice) || 0
-  const context = { date, qty }
+  const context = { date, qty, salesOrg }
   const price = mostSpecific('contractPrice', partnerId, product.sku, context)
   const discount = mostSpecific('contractDiscount', partnerId, product.sku, context)
   const ceiling = mostSpecific('maxDiscount', partnerId, product.sku, context)
@@ -246,7 +298,7 @@ function priceLine (product, partnerId, qty, date) {
   }
   const notApplied = conditions
     .filter((c) => matchesCondition(c, partnerId, product.sku) && !applied.has(c) && (c.partnerId === partnerId || c.kind === 'maxDiscount' || !c.partnerId))
-    .map((c) => ({ id: c._id, kind: c.kind, reason: ruledOut(c, context) || outranked(c) }))
+    .map((c) => ({ id: c._id, kind: c.kind, reason: ruledOut(c, context) || otherSalesOrg(c, salesOrg) || outranked(c) }))
     .filter((c) => c.reason)
   return {
     sku: product.sku,
@@ -315,14 +367,14 @@ function describe (order) {
   const { shipped, open } = totalsOf(order)
   const warehouses = new Map()
   for (const l of order.lines) {
-    for (const w of (productOf(l.sku) || { warehouses: [] }).warehouses) warehouses.set(w.code, { code: w.code, name: w.name })
+    for (const w of (productOf(l.sku) || { warehouses: [] }).warehouses) warehouses.set(w.code, { code: w.code, name: (settings.warehouses[w.code] || {}).name || w.name, commerceName: w.name })
   }
   return {
     ...order,
     status: deriveStatus(order),
     lines,
     nextStatuses: nextMoves(order),
-    partner: partner ? { id: partner.id, name: partner.name, paymentTerms: partner.paymentTerms, salesOrg: partner.salesOrg } : null,
+    partner: partner ? { id: partner.id, name: partner.name, paymentTerms: partner.paymentTerms } : null,
     shippingStatus: shipped === 0 ? 'none' : (open > 0 ? 'partial' : 'full'),
     billingStatus: order.invoice ? (order.invoice.status === 'credited' ? 'credited' : 'invoiced') : 'none',
     overall: order.header === 'cancelled' ? 'Cancelled' : (order.invoice ? 'Completed' : (order.header === 'confirmed' ? 'In process' : 'Open')),
@@ -345,8 +397,9 @@ const orderOf = (number) => orders.find((o) => o.number === number) || fail(`Sal
 function describeShipment (order, s) {
   const p = partnerOf(order.partnerId)
   const stocked = productOf(s.lines[0].sku)
+  const commerceName = s.warehouse ? ((stocked && stocked.warehouses.find((w) => w.code === s.warehouse)) || { name: s.warehouse }).name : null
   const warehouse = s.warehouse
-    ? { code: s.warehouse, name: ((stocked && stocked.warehouses.find((w) => w.code === s.warehouse)) || { name: s.warehouse }).name }
+    ? { code: s.warehouse, name: (settings.warehouses[s.warehouse] || {}).name || commerceName, commerceName }
     : null
   return {
     ...s,
@@ -366,6 +419,10 @@ function describeInvoice (order, inv) {
     commerceIncrementId: order.commerceIncrementId,
     currency: order.currency,
     partner: p ? { id: p.id, name: p.name, paymentTerms: p.paymentTerms } : null,
+    seller: (() => {
+      const through = structureMirror.websites.find((w) => w.salesOrg === order.salesOrg) || structureMirror.websites[0]
+      return { companyCode: '1000', name: settings.displayName, salesOrg: order.salesOrg, salesOrgName: order.salesOrgName, currency: through.storeInfo.currency, countryId: through.storeInfo.countryId, vatNumber: null, address: null }
+    })(),
     lines: inv.lines.map(named)
   }
 }
@@ -391,6 +448,7 @@ function describePartner (partner) {
   const limit = Number(partner.creditLimit) || 0
   return {
     ...partner,
+    salesOrgNames,
     credit: partner.commerceCompanyId ? { limit, exposure, available: cents(limit - exposure), held } : null,
     orders: own,
     conditions: conditions.filter((c) => c.partnerId === partner.id)
@@ -402,7 +460,7 @@ const refuse = () => Promise.reject(new Error('The preview holds stand-in record
 /** Everything screen/src/api.js offers, answered from the records above. */
 export const fakeApi = {
   // The work list is counted on each read, as the ERP counts it, so a move made in the preview shows on Home.
-  health: async () => { await wait(); return copy({ ...health, work: workList() }) },
+  health: async () => { await wait(); return copy({ ...health, work: workList(), structure: describeStructure() }) },
   settings: async () => { await wait(); return copy(settings) },
   /* The one settings write the preview allows, because it is the one thing the preview
      exists to show. An appearance is not a record — it is how the screen looks, and a
@@ -410,6 +468,10 @@ export const fakeApi = {
      the point. */
   saveSettings: async (patch) => {
     await wait()
+    if (patch && patch.warehouses) {
+      for (const [code, value] of Object.entries(patch.warehouses)) settings.warehouses[code] = { name: value.name }
+      return copy(settings)
+    }
     if (!patch || !patch.appearance) return refuse()
     settings.appearance = normalizeAppearance(patch.appearance, settings.appearance)
     health.appearance = settings.appearance
@@ -441,13 +503,13 @@ export const fakeApi = {
     if (at >= 0) conditions.splice(at, 1)
     return { deleted: at >= 0 }
   },
-  quote: async ({ partnerId, lines, date }) => {
+  quote: async ({ partnerId, lines, date, salesOrg }) => {
     await wait()
     const on = date || new Date().toISOString().slice(0, 10)
     const priced = (lines || []).map((line) => {
       const product = productOf(line.sku)
       if (!product) return { sku: line.sku, qty: line.qty ?? 1, unknown: true }
-      return priceLine(product, partnerId, line.qty ?? 1, on)
+      return priceLine(product, partnerId, line.qty ?? 1, on, salesOrg)
     })
     return {
       partnerId: partnerId || partners[0].id,

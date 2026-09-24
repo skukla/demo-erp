@@ -60,7 +60,8 @@ export default function ShipmentDetail ({ api, number, backLabel = 'Shipments', 
               </Field>
               <Field label='Customer reference'>{shipment.commerceIncrementId || '—'}</Field>
               <Field label='Ship-to'>{shipment.partner ? `${shipment.partner.id} · ${shipment.partner.name}` : 'Same as sold-to'}</Field>
-              <Field label='Ship-from warehouse'>{shipment.warehouse ? `${shipment.warehouse.name} · ${shipment.warehouse.code}` : '—'}</Field>
+              {/* The ERP's own name for the plant, the Commerce source code in brackets. */}
+              <Field label='Ship-from'>{shipment.warehouse ? `${shipment.warehouse.name} (${shipment.warehouse.code})` : '—'}</Field>
               {posted && <Field label='Posted'>{formatDate(shipment.postedAt)}</Field>}
             </Grid>
           </Card>

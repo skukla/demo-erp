@@ -39,6 +39,22 @@ export const BLOCKING_LEVELS = [
 ]
 export const blockingText = (level) => (BLOCKING_LEVELS.find((l) => l.id === level) || BLOCKING_LEVELS[0]).label
 
+/** "1000 · Main Website, 2000 · Online EU"; the walk-in account is in every one; none yet prints so. */
+export function salesOrgsText (customer) {
+  const codes = customer.salesOrgs || []
+  if (codes.includes('*')) return 'Every sales organisation'
+  if (codes.length === 0) return 'None yet'
+  const names = customer.salesOrgNames || {}
+  return codes.map((code) => (names[code] ? `${code} · ${names[code]}` : code)).join(', ')
+}
+
+/** One line for a legal address, or a dash. */
+export function addressText (address) {
+  if (!address) return '—'
+  const parts = [...(address.street || []), [address.postcode, address.city].filter(Boolean).join(' '), address.region, address.countryId].filter(Boolean)
+  return parts.length ? parts.join(', ') : '—'
+}
+
 function CreditCard ({ customer, onLimit }) {
   const { credit } = customer
   // Over the limit is the one state that has to be seen from across the room.
@@ -223,8 +239,20 @@ export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBa
               <Field label='Commerce company'>{customer.commerceCompanyId || '—'}</Field>
               <Field label='Customer group'>{customer.customerGroupId || '—'}</Field>
               <Field label='Email domain'>{customer.emailDomain || '—'}</Field>
-              <Field label='Sales organisation'>{customer.salesOrg || '—'}</Field>
+              {/* SAP extends a customer to each sales area it buys through; the list is that. */}
+              <Field label='Sold-to in'>{salesOrgsText(customer)}</Field>
               <Field label='Payment terms'>{customer.paymentTerms || '—'}</Field>
+              <Field label='Website'>{customer.website ? (customer.website.code || customer.website.id) : '—'}</Field>
+            </Grid>
+          </Card>
+          {/* A company always has a legal identity; a field the mirror did not bring prints a
+              dash, and the card stays. */}
+          <Card title='Legal identity'>
+            <Grid columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }} gap='size-250'>
+              <Field label='Legal name'>{customer.legalName || '—'}</Field>
+              <Field label='VAT / Tax ID'>{customer.vatTaxId || '—'}</Field>
+              <Field label='Reseller ID'>{customer.resellerId || '—'}</Field>
+              <Field label='Legal address'>{addressText(customer.legalAddress)}</Field>
             </Grid>
           </Card>
           {customer.credit && (

@@ -23,7 +23,17 @@ const KINDS = [
   { key: 'maxDiscount', label: 'Discount limit — nothing may be sold below this (MD01)' }
 ]
 
-const EMPTY = { kind: 'contractDiscount', partnerId: '', sku: '', price: 0, percent: 10, validFrom: '', validTo: '', minQty: null }
+const EMPTY = { kind: 'contractDiscount', partnerId: '', sku: '', price: 0, percent: 10, validFrom: '', validTo: '', minQty: null, salesOrg: '' }
+
+/** The sales organisations a rule may be scoped to: every one, or one the structure knows. */
+export function SalesOrgPicker ({ salesOrgs = [], selectedKey, onChange, label = 'Sales organisation', description }) {
+  const items = [{ id: '', name: 'Every sales organisation' }, ...salesOrgs.map((o) => ({ id: o.code, name: o.name && o.name !== o.code ? `${o.code} · ${o.name}` : o.code }))]
+  return (
+    <Picker label={label} description={description} items={items} selectedKey={selectedKey || ''} onSelectionChange={(key) => onChange(String(key))} width='100%'>
+      {(item) => <Item key={item.id}>{item.name}</Item>}
+    </Picker>
+  )
+}
 
 /** A ComboBox over records: shows "id · name", answers the id. */
 export function RecordPicker ({ label, description, items, selectedKey, onChange, isRequired }) {
@@ -46,7 +56,7 @@ export function RecordPicker ({ label, description, items, selectedKey, onChange
 export const customerItems = (customers) => customers.map((c) => ({ id: c.id, name: c.name }))
 export const productItems = (products) => products.map((p) => ({ id: p.sku, name: p.name }))
 
-export default function AddPricingRule ({ onAdd, customers = [], products = [] }) {
+export default function AddPricingRule ({ onAdd, customers = [], products = [], salesOrgs = [] }) {
   const [form, setForm] = useState(EMPTY)
   const isPrice = form.kind === 'contractPrice'
   const set = (patch) => setForm((current) => ({ ...current, ...patch }))
@@ -87,6 +97,10 @@ export default function AddPricingRule ({ onAdd, customers = [], products = [] }
                 onChange={(sku) => set({ sku })}
                 isRequired={isPrice}
               />
+              {/* An SAP condition record is keyed by sales organisation; ours may be, or apply everywhere. */}
+              {salesOrgs.length > 0 && (
+                <SalesOrgPicker salesOrgs={salesOrgs} selectedKey={form.salesOrg} onChange={(salesOrg) => set({ salesOrg })} description='Where this rule applies.' />
+              )}
               {isPrice
                 ? <NumberField label='Price' value={form.price} onChange={(price) => set({ price })} minValue={0} step={0.01} />
                 : <NumberField label='Percent off' value={form.percent} onChange={(percent) => set({ percent })} minValue={0} maxValue={100} />}
@@ -126,7 +140,8 @@ export default function AddPricingRule ({ onAdd, customers = [], products = [] }
                   percent: form.percent,
                   validFrom: form.validFrom || null,
                   validTo: form.validTo || null,
-                  minQty: form.minQty
+                  minQty: form.minQty,
+                  salesOrg: form.salesOrg || null
                 })
               }}
             >

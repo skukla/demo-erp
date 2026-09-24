@@ -9,7 +9,7 @@
   },
   "orders:document": {
     "elements": 163,
-    "hash": "5a4a2e39fbcd63f869f3f73cb2c013bfa34ec01cbf74b5aaa3f613b266914577"
+    "hash": "517585ad3b61a203e3a77daa54cdb76e125460cf073ca9a6cc7f23c7ebf31020"
   },
   "shipments": {
     "elements": 229,
@@ -17,15 +17,15 @@
   },
   "shipments:document": {
     "elements": 92,
-    "hash": "c5b407cc0652a1db183bde82f3ec58170004079e5cae66399f2df85fa32efd41"
+    "hash": "38fef88203f603a44d98bcaf61df561e8605ee86f6bb242afba0262693c99f65"
   },
   "invoices": {
     "elements": 123,
     "hash": "ee72b5e34e2340bc6de3c0d7a8197aa16338d8df88c7b6ac297e3fa682b6fd86"
   },
   "invoices:document": {
-    "elements": 125,
-    "hash": "1f1c379faccd000c833053a81a1a3543dbb83818ab65e1f159d2c352e5f011c4"
+    "elements": 142,
+    "hash": "14a3242caf9c01f8cfe02b2eaa4695e04b9ba97bdda93c9b560fc58aa01c25cb"
   },
   "products": {
     "elements": 615,
@@ -37,22 +37,22 @@
   },
   "partners": {
     "elements": 258,
-    "hash": "f57ee2554f8e8796c1261c6146caae1303ae9a89ff5b645edef805b0d164d134"
+    "hash": "798622f72ee15fbe8fbe8d7cc867aff667d7d099e21d5a8500cf74e7acc70649"
   },
   "partners:document": {
-    "elements": 177,
-    "hash": "c3b4b2fdcdc800413ffb3cf90f83767480adf46776d60ddbac19d1fb2d7c9e18"
+    "elements": 197,
+    "hash": "2a386e2bf8dcbcb19865fb8ab1e5ca2cb630d20f66002af633c3d6a1b35d27f3"
   },
   "pricing": {
-    "elements": 288,
-    "hash": "c7cb25230da6dff920970e72c24291769306faf2f91a3ec1d2098c9337037921"
+    "elements": 367,
+    "hash": "64132efe78d33c290a5dbaf6aeedea12a81fa2b8cef1584f19e4390ed4f1f3eb"
   },
   "events": {
     "elements": 234,
     "hash": "470f45f39a85861cceb01b6bf239a14c8b827b9da0c86ae1eedbb6047f73a1c9"
   },
   "settings": {
-    "elements": 141,
-    "hash": "945e7d43fd46939ae615fde8f440be9df52ed05caa605414888581a9df1ddd88"
+    "elements": 169,
+    "hash": "6a7688ee33f36f3cea9efea7e49baaebd33a9a5ca223a2752ab30e8ee3a2ca55"
   }
 }

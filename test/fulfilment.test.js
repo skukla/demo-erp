@@ -195,7 +195,7 @@ test('shipments and invoices are listed and read across orders, each naming its 
   assert.deepEqual(list.map((s) => [s.number, s.orderNumber, s.status]), [['8000000002', b.number, 'open'], ['8000000001', a.number, 'posted']])
   const one = await getShipment(cols, '8000000001')
   assert.equal(one.orderNumber, a.number)
-  assert.deepEqual(one.warehouse, { code: 'east', name: 'East DC' })
+  assert.deepEqual(one.warehouse, { code: 'east', name: 'East DC', commerceName: 'East DC' })
   assert.deepEqual(one.lines.map((l) => [l.item, l.sku, l.name, l.qty, l.unit]), [[10, 'A1', 'Trouser', 12, 'EA'], [20, 'B2', 'Shirt', 4, 'EA']])
   assert.equal(await getShipment(cols, 'nope'), null)
 

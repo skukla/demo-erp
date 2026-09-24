@@ -18,7 +18,7 @@ import React, { useMemo, useState } from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Picker, Item } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
-import { blockingText } from './CustomerDetail'
+import { blockingText, salesOrgsText } from './CustomerDetail'
 import EditableNumber from './EditableNumber'
 import { saveInPlace } from './saveInPlace'
 import { useLoad } from './useLoad'
@@ -36,7 +36,7 @@ const PARTNER_COLUMNS = [
   { key: 'id', width: 150 },
   { key: 'name', width: '2fr', minWidth: 200 },
   { key: 'commerce', width: '1fr', minWidth: 195 },
-  { key: 'salesOrg', width: '1fr', minWidth: 190 },
+  { key: 'salesOrgs', width: '1fr', minWidth: 190 },
   { key: 'terms', width: 165 },
   { key: 'creditLimit', width: 170 },
   { key: 'blocking', width: 210 }
@@ -48,7 +48,7 @@ const PARTNER_GRID = {
     id: (p) => p.id,
     name: (p) => p.name,
     commerce: (p) => p.commerceCompanyId || '',
-    salesOrg: (p) => p.salesOrg || '',
+    salesOrgs: (p) => (p.salesOrgs || []).join(','),
     terms: (p) => p.paymentTerms || '',
     creditLimit: (p) => p.creditLimit || 0,
     blocking: (p) => blockingText(p.blocking)
@@ -101,7 +101,7 @@ export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
           <Column key='id' {...widths.columnProps('id')} allowsSorting>Customer</Column>
           <Column key='name' {...widths.columnProps('name')} allowsSorting>Name</Column>
           <Column key='commerce' {...widths.columnProps('commerce')} allowsSorting>Commerce company</Column>
-          <Column key='salesOrg' {...widths.columnProps('salesOrg')} allowsSorting>Sales organisation</Column>
+          <Column key='salesOrgs' {...widths.columnProps('salesOrgs')} allowsSorting>Sales organisations</Column>
           <Column key='terms' {...widths.columnProps('terms')} allowsSorting>Payment terms</Column>
           <Column key='creditLimit' {...widths.columnProps('creditLimit')} align='end' allowsSorting>Credit limit</Column>
           <Column key='blocking' {...widths.columnProps('blocking')} allowsSorting>Blocking</Column>
@@ -113,7 +113,7 @@ export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
               {/* The default customer's stored name already says walk-in; no suffix. */}
               <Cell>{p.name}</Cell>
               <Cell>{p.commerceCompanyId || '—'}</Cell>
-              <Cell>{p.salesOrg || '—'}</Cell>
+              <Cell>{salesOrgsText(p)}</Cell>
               <Cell>{p.paymentTerms}</Cell>
               <Cell><EditableNumber label='Credit limit' value={p.creditLimit} isSaving={p.saving === 'creditLimit'} step={100} formatOptions={MONEY} onSave={(v) => save(p.id, { creditLimit: v })} /></Cell>
               <Cell><StatusLight variant={p.blocking === 'open' ? 'neutral' : 'negative'}>{blockingText(p.blocking)}</StatusLight></Cell>

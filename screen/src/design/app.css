@@ -970,3 +970,10 @@
 .erp-journal-link {
   margin-inline-start: var(--space-2);
 }
+
+/* A warehouse in Settings: its ERP name (editable) over what Commerce calls it. */
+.erp-warehouse-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

@@ -27,17 +27,20 @@ const RULE_COLUMNS = [
   /* Fixed columns add up to 590px and the three flexible ones need 480px more, so the
      grid fits the 1,170px content area at a 1,440px window without a horizontal scroll
      (the Remove column was clipped at 1,220px, measured 2026-09-24). */
-  { key: 'rule', width: '1fr', minWidth: 180 },
-  { key: 'customer', width: '1fr', minWidth: 160 },
-  { key: 'product', width: '1fr', minWidth: 140 },
-  { key: 'amount', width: 105 },
-  { key: 'minQty', width: 95 },
-  { key: 'validity', width: 180 },
-  { key: 'status', width: 115 },
-  { key: 'remove', width: 95, resizable: false }
+  { key: 'rule', width: '1fr', minWidth: 170 },
+  { key: 'customer', width: '1fr', minWidth: 150 },
+  { key: 'product', width: '1fr', minWidth: 130 },
+  { key: 'scope', width: 95 },
+  { key: 'amount', width: 100 },
+  { key: 'minQty', width: 90 },
+  { key: 'validity', width: 170 },
+  { key: 'status', width: 110 },
+  { key: 'remove', width: 90, resizable: false }
 ]
 
-export default function Pricing ({ api, onChanged }) {
+export default function Pricing ({ api, health, onChanged }) {
+  // The sales organisations the structure knows, for the scope picker and column.
+  const salesOrgs = (health && health.structure && health.structure.salesOrgs) || []
   const widths = useColumnWidths('pricing', RULE_COLUMNS)
   const { rows, error, reload } = useLoad(() => api.conditions(), [api])
   // Read separately rather than folded into the rules: a row needs the customer's NAME
@@ -88,7 +91,7 @@ export default function Pricing ({ api, onChanged }) {
       actions={(
         <>
           <Switch isSelected={activeOnly} onChange={setActiveOnly}>Active only</Switch>
-          <AddPricingRule onAdd={add} customers={customers || []} products={products || []} />
+          <AddPricingRule onAdd={add} customers={customers || []} products={products || []} salesOrgs={salesOrgs} />
         </>
       )}
     >
@@ -97,6 +100,7 @@ export default function Pricing ({ api, onChanged }) {
           <Column key='rule' {...widths.columnProps('rule')}>Rule</Column>
           <Column key='customer' {...widths.columnProps('customer')}>Customer</Column>
           <Column key='product' {...widths.columnProps('product')}>Product</Column>
+          <Column key='scope' {...widths.columnProps('scope')}>Sales org</Column>
           <Column key='amount' {...widths.columnProps('amount')} align='end'>Amount</Column>
           <Column key='minQty' {...widths.columnProps('minQty')} align='end'>Min. qty</Column>
           <Column key='validity' {...widths.columnProps('validity')}>Valid</Column>
@@ -109,6 +113,7 @@ export default function Pricing ({ api, onChanged }) {
               <Cell>{ruleText(c.kind)}</Cell>
               <Cell>{customerText(c, customerNames)}</Cell>
               <Cell>{productText(c)}</Cell>
+              <Cell>{c.salesOrg || 'All'}</Cell>
               <Cell>{amountText(c)}</Cell>
               <Cell>{c.minQty || '—'}</Cell>
               <Cell>{validityText(c)}</Cell>
@@ -118,7 +123,7 @@ export default function Pricing ({ api, onChanged }) {
           )}
         </TableBody>
       </TableView>
-      <PriceTest api={api} customers={customers || []} products={products || []} onError={setActionError} />
+      <PriceTest api={api} customers={customers || []} products={products || []} salesOrgs={salesOrgs} onError={setActionError} />
     </Frame>
   )
 }

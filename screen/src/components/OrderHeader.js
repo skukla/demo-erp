@@ -63,7 +63,8 @@ export default function OrderHeader ({ order, onOpen }) {
       {/* SAP's own default: in the simplest case the customer takes every partner
           function itself. Saying so is honest and it is the field an ERP eye looks for. */}
         <Field label='Ship-to'>Same as sold-to</Field>
-        <Field label='Sales organisation'>{partner ? partner.salesOrg : '—'}</Field>
+        {/* The selling unit is the ORDER's (the website it came through), not the customer's. */}
+        <Field label='Sales organisation'>{order.salesOrg ? `${order.salesOrg}${order.salesOrgName ? ` · ${order.salesOrgName}` : ''}` : '—'}</Field>
 
         <Field label='Payment terms'>{partner ? partner.paymentTerms : '—'}</Field>
         <Field label='Currency'>{order.currency || 'USD'}</Field>

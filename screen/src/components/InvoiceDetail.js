@@ -57,6 +57,18 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
               <Field label='Currency'>{invoice.currency || 'USD'}</Field>
             </Grid>
           </Card>
+          {/* Who is invoicing: the company code and the sales organisation the order came
+              through (a real invoice carries the seller; the structure mirror supplies it). */}
+          {invoice.seller && (
+            <Card title='Seller'>
+              <Grid columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }} gap='size-250'>
+                <Field label='Company code'>{`${invoice.seller.companyCode} · ${invoice.seller.name}`}</Field>
+                <Field label='Sales organisation'>{invoice.seller.salesOrg ? `${invoice.seller.salesOrg}${invoice.seller.salesOrgName ? ` · ${invoice.seller.salesOrgName}` : ''}` : '—'}</Field>
+                <Field label='Country'>{invoice.seller.countryId || '—'}</Field>
+                <Field label='VAT number'>{invoice.seller.vatNumber || '—'}</Field>
+              </Grid>
+            </Card>
+          )}
           <Card>
             <TableView aria-label='Invoice lines' density='compact' overflowMode='wrap'>
               <TableHeader>
