@@ -5,9 +5,8 @@
  */
 import React from 'react'
 import { Grid, Flex, Text, StatusLight } from '@adobe/react-spectrum'
+import Card from './Card'
 import { formatDate } from '../formatStamp'
-
-const LABEL_STYLE = { color: 'var(--spectrum-global-color-gray-700)', fontSize: '12px' }
 
 /** One labelled fact. An absent value reads as a dash, never as an empty gap. */
 function Field ({ label, children }) {
@@ -15,7 +14,7 @@ function Field ({ label, children }) {
   // and a flex column would otherwise pull it across the whole field.
   return (
     <Flex direction='column' gap='size-25' alignItems='start'>
-      <Text UNSAFE_style={LABEL_STYLE}>{label}</Text>
+      <Text UNSAFE_className='erp-field-label'>{label}</Text>
       {typeof children === 'string' || typeof children === 'number'
         ? <Text>{children}</Text>
         : (children || <Text>—</Text>)}
@@ -33,7 +32,7 @@ export function statusText (status) {
 export default function OrderHeader ({ order }) {
   const partner = order.partner
   return (
-    <div className='erp-card'>
+    <Card>
       <Grid
         columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }}
         gap='size-250'
@@ -60,6 +59,6 @@ export default function OrderHeader ({ order }) {
 
         {order.cancelReason && <Field label='Cancellation reason'>{order.cancelReason}</Field>}
       </Grid>
-    </div>
+    </Card>
   )
 }

@@ -25,7 +25,9 @@
 .erp-shellbar {
   display: flex;
   flex: 0 0 auto;
-  gap: var(--space-4);
+  /* A logo and the name it belongs to are one lockup, so they sit closer than two
+     unrelated things in a bar would. */
+  gap: var(--space-3);
   align-items: center;
   padding: 0 var(--space-5);
   height: 48px;
@@ -244,6 +246,25 @@
   border-radius: 0;
 }
 
+/* A card's own title line, and any actions that belong to that card rather than to the
+   page. Same shape as the page header one level down, so the eye reads them as the same
+   kind of thing at two scales. */
+.erp-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.erp-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
 /* ---- Grid --------------------------------------------------------------------- */
 [class*="spectrum-Table-headWrapper"] {
   background: var(--surface-head);
@@ -427,4 +448,294 @@
   .erp-page-header {
     align-items: flex-start;
   }
+}
+
+/* ---- Appearance ----------------------------------------------------------------
+ * The ERP's mark, and the pickers in Settings that choose it.
+ *
+ * The mark is drawn in currentColor and nothing else (components/Logo.js), so it takes
+ * the colour of wherever it is put — the shell bar's ink here, the page's ink in a
+ * Settings card — and cannot clash with a palette.
+ *
+ * A chosen swatch, mark or theme card is marked the way a chosen rail item is: the
+ * accent tint with the accent edge, not a heavier outline. The same selected-state
+ * vocabulary across the screen is most of what makes it read as one app. */
+.erp-logo {
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* ---- Labels ------------------------------------------------------------------
+ * The two ways this ERP writes quiet text, and the only two.
+ *
+ * Seven places used to spell one of these out by hand, every one of them reaching for
+ * `--spectrum-global-color-gray-700` — Spectrum's ramp, not ours. They looked right and
+ * were outside the system: none of them moved when --ink-2 was darkened to clear the
+ * contrast floor, and none of them would move again. This is the leak docs/design-audit.md
+ * describes, in the form it actually takes.
+ *
+ * Neither carries a margin. A label's distance from its value belongs to the thing
+ * arranging them — a Flex gap, a card's padding — not to the label, which would
+ * otherwise add to whatever gap it was dropped into. */
+.erp-field-label {
+  margin: 0;
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  color: var(--ink-2);
+}
+
+/* Body text that is present but not the point: a total's label, a note under a field. */
+.erp-subtle {
+  color: var(--ink-2);
+}
+
+.erp-theme-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.erp-theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 150px;
+  padding: var(--space-3);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-surface);
+}
+
+.erp-theme-card:hover {
+  border-color: var(--line-strong);
+}
+
+.erp-theme-card[aria-pressed="true"] {
+  background: var(--accent-tint);
+  border-color: var(--accent-edge);
+}
+
+/* The band shows the palette as the shell bar will wear it: its own colours, drawn
+   from the theme rather than from the page, so the card previews the thing itself. */
+.erp-theme-band {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  border-radius: var(--radius-control);
+}
+
+.erp-theme-swatches {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.erp-theme-swatches i {
+  flex: 1 1 0;
+  height: 6px;
+  border-radius: var(--radius-badge);
+}
+
+.erp-theme-name {
+  font-size: var(--type-body-size);
+  font-weight: var(--type-key-weight);
+  color: var(--ink);
+}
+
+.erp-theme-detail {
+  font-size: var(--type-label-size);
+  color: var(--ink-2);
+}
+
+.erp-swatch-row,
+.erp-mark-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The swatch IS the colour, so it carries no border of its own — a ring is added when
+   it is the chosen one, outside the colour rather than over it. */
+.erp-swatch {
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
+}
+
+.erp-swatch[aria-pressed="true"] {
+  border-color: var(--ink);
+}
+
+.erp-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.erp-mark:hover {
+  border-color: var(--line-strong);
+}
+
+.erp-mark[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent-tint);
+  border-color: var(--accent-edge);
+}
+
+/* ---- The look, at a smaller size ------------------------------------------------
+ * What the SC is choosing, shown as the thing itself: the shell bar over a sketch of
+ * the page under it. It takes its colours from the page's own custom properties rather
+ * than from the values being edited, because App has already applied them — so if this
+ * strip ever looked wrong, the screen around it would be wrong in the same way.
+ *
+ * The nav sketch is the part the radio buttons cannot say: side rail and top band are a
+ * shape before they are a word. */
+.erp-look {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-surface);
+  max-width: 420px;
+}
+
+.erp-look-bar {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: 0 var(--space-3);
+  height: 38px;
+  background: var(--shell);
+  color: var(--shell-ink);
+}
+
+.erp-look-name {
+  font-size: var(--type-body-size);
+  font-weight: var(--type-section-weight);
+}
+
+.erp-look-body {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  height: 78px;
+  background: var(--surface-canvas);
+}
+
+.erp-look-rail {
+  flex-direction: row;
+}
+
+.erp-look-top {
+  flex-direction: column;
+}
+
+.erp-look-nav {
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--surface-rail);
+  border-radius: var(--radius-control);
+}
+
+/* Side rail: a column down the left. Top band: a row across the width. */
+.erp-look-rail .erp-look-nav {
+  flex: 0 0 68px;
+  flex-direction: column;
+}
+
+.erp-look-top .erp-look-nav {
+  flex: 0 0 auto;
+  flex-direction: row;
+}
+
+.erp-look-nav i {
+  height: 6px;
+  background: var(--accent);
+  border-radius: var(--radius-badge);
+  opacity: 0.55;
+}
+
+.erp-look-rail .erp-look-nav i {
+  width: 100%;
+}
+
+.erp-look-top .erp-look-nav i {
+  width: 34px;
+}
+
+.erp-look-canvas {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.erp-look-canvas i {
+  height: 6px;
+  background: var(--line);
+  border-radius: var(--radius-badge);
+}
+
+.erp-look-canvas i:first-child {
+  width: 45%;
+  background: var(--line-strong);
+}
+
+/* A labelled control: the label, then the control, with nothing relying on the label to
+   space itself. */
+.erp-setting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ---- Settings columns ----------------------------------------------------------
+ * One column left most of a wide monitor empty: every card was width-capped, so the
+ * page scrolled while the right half showed nothing. The same complaint the Pricing
+ * screen earned.
+ *
+ * `auto-fit` with a minimum rather than a media query, because the number that matters
+ * here is how narrow a COLUMN may get before the theme cards inside it start wrapping
+ * badly — not how wide the window is. The rail takes its own width out of that, so a
+ * window-width breakpoint would have to guess at it; this measures the real thing and
+ * drops to one column by itself. */
+.erp-settings-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: var(--space-5);
+  /* Start, not stretch: a short column should end where its cards end rather than
+     growing a tall empty card to match the one beside it. */
+  align-items: start;
+  margin-top: var(--space-5);
+}
+
+.erp-settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  /* Grid children refuse to shrink below their content without this, which is what
+     makes a long unbroken value push a column wider than its share. */
+  min-width: 0;
+}
+
+/* The gap owns the spacing between cards here, so the card's own margin would double it
+   and would also push the first card away from the page header twice over. */
+.erp-settings-columns .erp-card {
+  margin-top: 0;
 }

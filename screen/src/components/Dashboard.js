@@ -5,7 +5,7 @@ import Frame from './Frame'
 function Stat ({ label, value }) {
   return (
     <View backgroundColor='gray-75' borderRadius='medium' padding='size-200' minWidth='size-2000'>
-      <Text UNSAFE_style={{ color: 'var(--spectrum-global-color-gray-700)' }}>{label}</Text>
+      <Text UNSAFE_className='erp-subtle'>{label}</Text>
       <Heading level={2} marginY='size-50'>{value}</Heading>
     </View>
   )

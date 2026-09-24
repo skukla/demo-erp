@@ -17,6 +17,8 @@ import {
 } from '@adobe/react-spectrum'
 import { makeApi } from '../api'
 import { pageFromHash } from '../pageRoute'
+import { applyPalette, DEFAULT_APPEARANCE } from '../design/palette'
+import Logo from './Logo'
 import Dashboard from './Dashboard'
 import Products from './Products'
 import Partners from './Partners'
@@ -49,19 +51,10 @@ const AREAS = [
 
 const PAGES = AREAS.flatMap((area) => area.items)
 
-/* Which shape the menu takes, while the two are being compared. 'rail' is Fiori's Side
-   Navigation; 'top' is Business Central's navigation menu — root items along a band,
-   each opening its group. One of these is going away once it is chosen.
- *
- * `?menu=top` in the address overrides it, so the two can be put side by side in two
- * tabs without editing anything. The screen key survives that: takeScreenKey strips
- * only `?key=` and keeps the rest of the query (key.js). */
-const MENU_SHAPE = 'rail'
-
-function menuShape () {
-  const asked = new URLSearchParams(window.location.search).get('menu')
-  return asked === 'top' || asked === 'rail' ? asked : MENU_SHAPE
-}
+/* What the shell bar says before the ERP has answered. The ERP always has a name — it
+   defaults to Acme ERP when the deploy named none — so this is only the moment between
+   opening the page and health arriving, and it is drawn with the default mark. */
+const FALLBACK_NAME = 'ERP'
 
 /**
  * @param {object} props `screenKey` from Demo Builder's link, and `api` — an override
@@ -75,7 +68,11 @@ export default function App ({ screenKey, api: given }) {
   // The open area comes from the address bar, so reloading the browser stays where it
   // was. Before this it lived only in memory and every reload landed on the Dashboard.
   const [page, setPage] = useState(() => pageFromHash(window.location.hash, PAGE_KEYS) || DEFAULT_PAGE)
-  const shape = menuShape()
+  /* What Settings is showing the SC before they save it. Null the rest of the time, so
+     the saved appearance is the truth everywhere except while somebody is choosing.
+     Settings clears it when it unmounts, which is what makes leaving without saving put
+     the ERP back the way it was. */
+  const [preview, setPreview] = useState(null)
   // Bumped on every rail click and carried in the active page's key, so choosing an
   // area re-mounts it and it reads its records again — including when the area chosen
   // is the one already open, which is what someone clicking it again is asking for.
@@ -136,13 +133,22 @@ export default function App ({ screenKey, api: given }) {
   }, [ready, syncing, refreshHealth, health])
 
   const active = PAGES.find((p) => p.key === page) || PAGES[0]
+  /* The look, from the ERP unless somebody is trying one on. Before health arrives this
+     is the default, which is why the first paint is the default palette rather than an
+     unstyled one. */
+  const look = preview || (health && health.appearance) || DEFAULT_APPEARANCE
+  const shape = look.nav
+  const name = health ? health.displayName : FALLBACK_NAME
+  // Writing the eight custom properties onto <html>, where they beat tokens.css.
+  useEffect(() => { applyPalette(look.palette) }, [look.palette])
   return (
     <Provider theme={defaultTheme} colorScheme='light' height='100vh'>
       {/* Plain elements, not Spectrum's Grid and View: the rail moves to the top on a
           narrow screen, and that is a media rule rather than a token (design/app.css). */}
       <div className='erp-shell'>
         <header className='erp-shellbar'>
-          <span className='erp-shellbar-name'>{health ? health.displayName : 'ERP'}</span>
+          <Logo logo={look.logo} name={name} />
+          <span className='erp-shellbar-name'>{name}</span>
         </header>
         {shape === 'top' && (
           <nav className='erp-topnav' aria-label='Areas'>
@@ -232,6 +238,7 @@ export default function App ({ screenKey, api: given }) {
               reloading={reloading}
               onChanged={refreshHealth}
               onNavigate={openPage}
+              onPreview={setPreview}
             />
           )}
           </div>

@@ -26,7 +26,6 @@ import { kindText, priceText, variantText, withEdit, withVariantTotals } from '.
 import { moneyOptions } from '../money'
 
 const MONEY = moneyOptions()
-const SUBTLE = { color: 'var(--spectrum-global-color-gray-700)' }
 
 const VARIANT_COLUMNS = [
   { key: 'values' },
@@ -59,9 +58,9 @@ function Card ({ title, aside, children, gridColumn }) {
 function Fixed ({ label, children, note }) {
   return (
     <View>
-      <Text UNSAFE_style={{ fontSize: 12, ...SUBTLE }}>{label}</Text>
+      <Text UNSAFE_className='erp-field-label'>{label}</Text>
       <Flex alignItems='center' gap='size-100' marginTop='size-50'>{children}</Flex>
-      {note && <Text UNSAFE_style={{ fontSize: 12, ...SUBTLE }}>{note}</Text>}
+      {note && <Text UNSAFE_className='erp-field-label'>{note}</Text>}
     </View>
   )
 }
@@ -252,7 +251,7 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
           <Flex justifyContent='space-between' alignItems='start' wrap gap='size-200' marginBottom='size-300'>
             <View>
               <Heading level={1} marginY={0}>{saved.name}</Heading>
-              <Text UNSAFE_style={SUBTLE}>
+              <Text UNSAFE_className='erp-subtle'>
                 SKU {saved.sku} · {kindText(saved)}{saved.updatedAt ? ` · Updated ${new Date(saved.updatedAt).toLocaleString()}` : ''}
               </Text>
               {saved.parent && (

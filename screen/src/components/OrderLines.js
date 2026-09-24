@@ -8,19 +8,19 @@
 import React from 'react'
 import { TableView, TableHeader, Column, TableBody, Row, Cell, Flex, Text, View } from '@adobe/react-spectrum'
 import { money } from '../money'
+import Card from './Card'
 
 /* The lines are printed, not browsed: no resizing and no sorting, so the headers carry
    no chevrons to suggest otherwise. An order's lines are in their own order — that is
    what the item numbers mean — and reordering them would be a lie about the document.
    Widths go straight on the Columns; Spectrum gives the description whatever is left. */
 
-const TOTAL_LABEL_STYLE = { color: 'var(--spectrum-global-color-gray-700)' }
 
 /** One figure in the totals block: a label on the left, the amount right-aligned. */
 function Total ({ label, amount, currency, strong }) {
   return (
     <Flex justifyContent='space-between' gap='size-400'>
-      <Text UNSAFE_style={strong ? undefined : TOTAL_LABEL_STYLE}>
+      <Text UNSAFE_className={strong ? undefined : 'erp-subtle'}>
         {strong ? <strong>{label}</strong> : label}
       </Text>
       <Text>{strong ? <strong>{money(amount, currency)}</strong> : money(amount, currency)}</Text>
@@ -31,7 +31,7 @@ function Total ({ label, amount, currency, strong }) {
 export default function OrderLines ({ order }) {
   const lines = order.lines || []
   return (
-    <div className='erp-card'>
+    <Card>
       <TableView aria-label='Order lines' density='compact' overflowMode='wrap'>
         <TableHeader>
           <Column key='item' width={90}>Item</Column>
@@ -69,6 +69,6 @@ export default function OrderLines ({ order }) {
           <Total label='Total' amount={order.total} currency={order.currency} strong />
         </Flex>
       </View>
-    </div>
+    </Card>
   )
 }

@@ -1,11 +1,13 @@
 /*
- * Settings: the ERP's name, and the levers for rehearsing and presenting. The
- * levers live here rather than on the Dashboard so a prospect looking at the ERP
- * does not see them.
+ * Settings: the ERP's name, how it is dressed, and the levers for rehearsing and
+ * presenting. The levers live here rather than on the Dashboard so a prospect looking at
+ * the ERP does not see them.
  */
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { Form, TextField, Button, Text, Heading, Divider, Flex, DialogTrigger, AlertDialog, ProgressCircle } from '@adobe/react-spectrum'
+import { TextField, Button, Text, Flex, DialogTrigger, AlertDialog, ProgressCircle } from '@adobe/react-spectrum'
 import Frame from './Frame'
+import Card from './Card'
+import AppearanceSettings from './AppearanceSettings'
 import SyncProgress from './SyncProgress'
 import { formatStamp } from '../formatStamp'
 import { wipeSummary } from '../wipeSummary'
@@ -16,17 +18,7 @@ const POLL_MS = 2000
 const STALL_MS = 60 * 1000
 const ACTIVE = new Set(['requested', 'running'])
 
-function Section ({ title, children }) {
-  return (
-    <>
-      <Divider size='S' marginY='size-300' />
-      <Heading level={3} marginTop={0}>{title}</Heading>
-      {children}
-    </>
-  )
-}
-
-export default function Settings ({ api, onChanged }) {
+export default function Settings ({ api, onChanged, onPreview }) {
   const [settings, setSettings] = useState(null)
   const [sync, setSync] = useState(null)
   const [error, setError] = useState(null)
@@ -36,6 +28,10 @@ export default function Settings ({ api, onChanged }) {
   // Its own flag: `busy` also covers the name save, which is not a wipe.
   const [wiping, setWiping] = useState(false)
   const [stalled, setStalled] = useState(false)
+  /* The name as the ERP holds it, kept beside the one being typed so Save can be dark
+     until there is something to save — the same rule the Appearance card follows.
+     `settings.displayName` alone cannot answer that: it IS the edit in progress. */
+  const [savedName, setSavedName] = useState('')
   const timer = useRef(null)
 
   // Follow the sync record until it ends. Also resumes a sync already running when
@@ -61,6 +57,7 @@ export default function Settings ({ api, onChanged }) {
   useEffect(() => {
     api.settings().then((loaded) => {
       setSettings(loaded)
+      setSavedName(loaded.displayName)
       setSync(loaded.sync || null)
       if (loaded.sync && ACTIVE.has(loaded.sync.state)) follow()
     }).catch(setError)
@@ -68,7 +65,14 @@ export default function Settings ({ api, onChanged }) {
   }, [api, follow])
 
   async function saveName () {
-    try { setSettings(await api.saveSettings({ displayName: settings.displayName })); setError(null); toastSaved('Name saved'); onChanged() } catch (e) { setError(e) }
+    try {
+      const saved = await api.saveSettings({ displayName: settings.displayName })
+      setSettings(saved)
+      setSavedName(saved.displayName)
+      setError(null)
+      toastSaved('Name saved')
+      onChanged()
+    } catch (e) { setError(e) }
   }
 
   async function wipe () {
@@ -80,7 +84,9 @@ export default function Settings ({ api, onChanged }) {
       // The ERP drops the sync record on a wipe; the screen follows at once
       // rather than waiting for the next read.
       setSync(null)
-      setSettings(await api.settings())
+      const after = await api.settings()
+      setSettings(after)
+      setSavedName(after.displayName)
       setError(null)
       await onChanged()
     } catch (e) { setError(e) }
@@ -101,46 +107,89 @@ export default function Settings ({ api, onChanged }) {
   }
 
   const syncing = Boolean(sync && ACTIVE.has(sync.state))
+  // An all-space name is not a rename: the ERP trims it and would answer the old one.
+  const renamed = Boolean(settings && settings.displayName.trim() && settings.displayName.trim() !== savedName)
   return (
     <Frame title='Settings' error={error} loading={!settings}>
       {settings && (
         <>
-          {/* The button sits OUTSIDE the Form: a Spectrum Form stretches its
-              children to the field width, which made Save a 460px bar. */}
-          <Form maxWidth='size-4600'>
-            <TextField label='Display name' value={settings.displayName} onChange={(v) => setSettings({ ...settings, displayName: v })} description='What this ERP is called on its screen and in Demo Builder.' />
-          </Form>
-          <Flex marginTop='size-200'>
-            <Button variant='primary' onPress={saveName} isDisabled={busy}>Save</Button>
-          </Flex>
+          {/* Two columns, because one was mostly empty: every card was width-capped and
+              the right half of a wide monitor showed nothing while the page scrolled.
+              Appearance is much the tallest, so it takes a column of its own and the two
+              short cards stack beside it — which is what keeps the columns close to the
+              same height rather than opening a new gap under the short one.
 
-          <Section title='Records'>
-            <Flex direction='column' gap='size-200' maxWidth='size-6000'>
-              <Text>Brings the ERP's products and customers up to date with the connected store. Existing records are updated; nothing is removed.</Text>
-              {/* Each button as wide as its label, in one row; the destructive
-                  one set apart rather than sized differently. */}
-              <Flex gap='size-300' alignItems='center'>
-                <Button variant='accent' onPress={startSync} isDisabled={busy || syncing}>Sync records</Button>
-                <DialogTrigger>
-                  <Button variant='negative' isDisabled={busy || syncing}>Wipe all records</Button>
-                  <AlertDialog title='Wipe All Records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
-                    Every product, customer, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
-                  </AlertDialog>
-                </DialogTrigger>
-              </Flex>
-              {wiping && (
-                <Flex gap='size-100' alignItems='center'>
-                  <ProgressCircle size='S' aria-label='Wiping' isIndeterminate />
-                  <Text>Wiping records…</Text>
+              Name leads, so it is the first card of the first column. What that costs is
+              the narrow window: the columns stack in source order, so Records is read
+              before Appearance. Wrong by preference, not by meaning. Fixing it needs
+              either a hard-coded breakpoint — the rail is 208px and the content padding
+              64, so two 380px columns want a ~1060px window, three numbers that rot the
+              moment any one of them moves — or a container query, which puts layout
+              containment on the element every screen scrolls inside. Neither is worth
+              buying blind. */}
+          <div className='erp-settings-columns'>
+            <div className='erp-settings-column'>
+              <Card
+                title='Name'
+                actions={<Button variant='primary' onPress={saveName} isDisabled={!renamed || busy}>Save</Button>}
+              >
+                {/* No width cap of its own any more: the column IS the cap, and a field
+                    capped inside a capped column is what left the gap. */}
+                <Flex direction='column' gap='size-100'>
+                  <TextField
+                    aria-label='Display name'
+                    width='100%'
+                    value={settings.displayName}
+                    onChange={(v) => setSettings({ ...settings, displayName: v })}
+                  />
+                  <Text UNSAFE_className='erp-field-label'>
+                    What this ERP is called on its screen and in Demo Builder.
+                  </Text>
                 </Flex>
-              )}
-              <SyncProgress sync={sync} stalled={stalled} />
-              {wiped && <Text>{wipeSummary(wiped)}</Text>}
-              <Text UNSAFE_style={{ color: 'var(--spectrum-global-color-gray-700)', fontSize: '12px' }}>
-                Last sync: {formatStamp(settings.lastImportAt)}. Last wipe: {formatStamp(settings.lastWipeAt)}.
-              </Text>
-            </Flex>
-          </Section>
+              </Card>
+
+              <Card title='Records'>
+                <Flex direction='column' gap='size-200'>
+                  <Text>Brings the ERP's products and customers up to date with the connected store. Existing records are updated; nothing is removed.</Text>
+                  {/* Each button as wide as its label, in one row; the destructive
+                      one set apart rather than sized differently. */}
+                  <Flex gap='size-300' alignItems='center'>
+                    <Button variant='accent' onPress={startSync} isDisabled={busy || syncing}>Sync records</Button>
+                    <DialogTrigger>
+                      <Button variant='negative' isDisabled={busy || syncing}>Wipe all records</Button>
+                      <AlertDialog title='Wipe All Records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
+                        Every product, customer, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
+                      </AlertDialog>
+                    </DialogTrigger>
+                  </Flex>
+                  {wiping && (
+                    <Flex gap='size-100' alignItems='center'>
+                      <ProgressCircle size='S' aria-label='Wiping' isIndeterminate />
+                      <Text>Wiping records…</Text>
+                    </Flex>
+                  )}
+                  <SyncProgress sync={sync} stalled={stalled} />
+                  {wiped && <Text>{wipeSummary(wiped)}</Text>}
+                  <Text UNSAFE_className='erp-field-label'>
+                    Last sync: {formatStamp(settings.lastImportAt)}. Last wipe: {formatStamp(settings.lastWipeAt)}.
+                  </Text>
+                </Flex>
+              </Card>
+            </div>
+
+            <div className='erp-settings-column'>
+              <Card title='Appearance'>
+                <AppearanceSettings
+                  api={api}
+                  saved={settings.appearance}
+                  name={settings.displayName}
+                  onChanged={onChanged}
+                  onPreview={onPreview}
+                  disabled={busy}
+                />
+              </Card>
+            </div>
+          </div>
 
         </>
       )}

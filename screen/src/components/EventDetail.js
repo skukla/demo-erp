@@ -15,7 +15,7 @@ import { formatStamp } from '../formatStamp'
 function Field ({ label, children }) {
   return (
     <Flex direction='column' marginBottom='size-200'>
-      <Text UNSAFE_style={{ color: 'var(--spectrum-global-color-gray-700)', fontSize: '12px' }}>{label}</Text>
+      <Text UNSAFE_className='erp-field-label'>{label}</Text>
       <Text>{children}</Text>
     </Flex>
   )
@@ -40,7 +40,7 @@ export default function EventDetail ({ entry, state, onBack }) {
         {incoming ? (entry.eventId || 'not passed on by this version of the integration') : entry._id}
       </Field>
       <Field label='Journal entry'>{entry._id}</Field>
-      <Text UNSAFE_style={{ color: 'var(--spectrum-global-color-gray-700)', fontSize: '12px' }}>Payload</Text>
+      <Text UNSAFE_className='erp-field-label'>Payload</Text>
       <View backgroundColor='gray-100' borderRadius='regular' padding='size-150' marginTop='size-50' overflow='auto'>
         <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>{JSON.stringify(entry.value, null, 2)}</pre>
       </View>

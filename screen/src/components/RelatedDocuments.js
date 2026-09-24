@@ -7,15 +7,14 @@
  * absent — an order that has been shipped and invoiced should say where those went.
  */
 import React from 'react'
-import { Heading, Text, View, Divider } from '@adobe/react-spectrum'
+import { Text } from '@adobe/react-spectrum'
+import Card from './Card'
 
 export default function RelatedDocuments ({ order }) {
   const shipped = ['shipped', 'invoiced'].includes(order.status)
   const invoiced = order.status === 'invoiced'
   return (
-    <div className='erp-card'>
-      <Heading level={3} marginTop={0}>Related Documents</Heading>
-      <Divider size='S' marginBottom='size-200' />
+    <Card title='Related Documents'>
       {shipped || invoiced
         ? (
           <Text>
@@ -25,6 +24,6 @@ export default function RelatedDocuments ({ order }) {
           </Text>
           )
         : <Text>No related documents yet.</Text>}
-    </div>
+    </Card>
   )
 }

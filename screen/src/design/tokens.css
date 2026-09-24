@@ -52,10 +52,16 @@
 
   /* ---- Ink ------------------------------------------------------------------
    * THE FLOOR: every piece of text on the screen must reach 4.5:1 against whatever it
-   * actually sits on (3:1 if it is large). --ink-2 was grey-600 and measured 4.22 on
-   * white — which is why field labels, help text, table heads, the neutral badge and
-   * the Dashboard's own labels all failed at once on every page. One token, nine
-   * symptoms; darkening it fixed all of them.
+   * actually sits on (3:1 if it is large). --ink-2 was grey-600, which measures 4.22 on
+   * --surface-canvas — which is why field labels, help text, table heads, the neutral
+   * badge and the Dashboard's own labels all failed at once on every page. One token,
+   * nine symptoms; darkening it fixed all of them.
+   *
+   * That same grey-600 measures 4.70 on WHITE, a pass. This comment said "on white" for
+   * a while and the number stopped making sense to anyone who checked it — which is the
+   * sentence above doing its job: the ground is part of the measurement, and naming the
+   * wrong one turns a real finding into one that reads as a mistake. Measure against the
+   * surface the text is on, and say which surface that was.
    *
    * Surfaces are judged differently. Contrast ratio is a TEXT measure and two light
    * surfaces sit near 1.1 on it however different they look, so adjacent surfaces are
