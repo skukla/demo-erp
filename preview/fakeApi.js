@@ -7,6 +7,8 @@
  * Keep the shapes honest. A screen built against an invented shape agrees with the
  * invention and nothing else.
  */
+import { DEFAULT_APPEARANCE, normalizeAppearance } from '../lib/appearance.js'
+
 const NAMES = [
   ['Wide-leg trouser', 89], ['Cotton poplin shirt', 34.2], ['Canvas tote', 12],
   ['Merino crew knit', 119], ['Linen blazer', 245], ['Chino short', 49.5],
@@ -80,6 +82,7 @@ const conditions = [
 
 const settings = {
   displayName: 'Northwind ERP',
+  appearance: { ...DEFAULT_APPEARANCE },
   lastImportAt: new Date(Date.UTC(2026, 8, 22, 13, 58)).toISOString(),
   lastWipeAt: null,
   sync: null
@@ -87,6 +90,7 @@ const settings = {
 
 const health = {
   displayName: settings.displayName,
+  appearance: settings.appearance,
   counts: { products: products.length, businessPartners: partners.length, salesOrders: orders.length, pricingConditions: conditions.length },
   eventsPending: events.filter((e) => e.direction === 'out' && !e.delivered && !e.failed).length,
   lastImportAt: settings.lastImportAt,
@@ -203,7 +207,17 @@ const refuse = () => Promise.reject(new Error('The preview holds stand-in record
 export const fakeApi = {
   health: async () => { await wait(); return copy(health) },
   settings: async () => { await wait(); return copy(settings) },
-  saveSettings: refuse,
+  /* The one write the preview allows, because it is the one thing the preview exists to
+     show. An appearance is not a record — it is how the screen looks, and a harness for
+     looking at the screen that could not change its look would be missing the point.
+     Records still refuse. */
+  saveSettings: async (patch) => {
+    await wait()
+    if (!patch || !patch.appearance) return refuse()
+    settings.appearance = normalizeAppearance(patch.appearance, settings.appearance)
+    health.appearance = settings.appearance
+    return copy(settings)
+  },
   wipe: refuse,
   products: async () => { await wait(); return copy(products) },
   product: async (sku) => copy(products.find((p) => p.sku === sku)),

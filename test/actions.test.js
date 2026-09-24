@@ -9,6 +9,7 @@ const partners = require('../actions/partners')
 const pricing = require('../actions/pricing')
 const orders = require('../actions/orders')
 const events = require('../actions/events')
+const { DEFAULT_APPEARANCE } = require('../lib/appearance')
 
 let cols
 beforeEach(async () => {
@@ -31,6 +32,24 @@ test('health reports the name and the counts', async () => {
   assert.equal(res.body.counts.products, 2)
   assert.equal(res.body.counts.businessPartners, 2)
   assert.ok(res.body.lastImportAt)
+})
+
+test('health carries the appearance, so the shell bar paints dressed on first render', async () => {
+  // The screen already fetches health on load. Putting the look here rather than behind
+  // a second request is what stops the default teal flashing before the SC's palette.
+  const res = await invoke(health, cols, { params: { ERP_DISPLAY_NAME: 'Contoso ERP' } })
+  assert.deepEqual(res.body.appearance, DEFAULT_APPEARANCE)
+
+  await invoke(settings, cols, { method: 'PATCH', body: { appearance: { theme: 'meridian' } } })
+  const dressed = await invoke(health, cols)
+  assert.equal(dressed.body.appearance.palette, 'indigo')
+  assert.equal(dressed.body.appearance.nav, 'top')
+})
+
+test('settings takes an appearance, and answers the one it stored', async () => {
+  const res = await invoke(settings, cols, { method: 'PATCH', body: { appearance: { palette: 'plum', nav: 'top' } } })
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(res.body.appearance, { palette: 'plum', logo: DEFAULT_APPEARANCE.logo, nav: 'top' })
 })
 
 test('products list, read, patch and 404', async () => {

@@ -7,6 +7,7 @@ const { upsertCondition, deleteCondition, listConditions } = require('../lib/con
 const { pending } = require('../lib/events')
 const { wipe } = require('../lib/admin')
 const { getSettings, updateSettings, stamp } = require('../lib/settings')
+const { DEFAULT_APPEARANCE } = require('../lib/appearance')
 const { recordSync } = require('../lib/sync-status')
 
 let cols
@@ -123,6 +124,53 @@ test('a redeploy with a new name renames the ERP unless it was renamed on screen
   assert.equal((await getSettings(cols, 'Second ERP')).displayName, 'Second ERP')
   await updateSettings(cols, { displayName: 'Mine' })
   assert.equal((await getSettings(cols, 'Third ERP')).displayName, 'Mine')
+})
+
+test('an ERP that has never been dressed reads back the default appearance', async () => {
+  // There is always something to draw: a name (Acme ERP when the deploy named none)
+  // and a logo. The shell bar never has to decide whether to render itself.
+  const settings = await getSettings(cols)
+  assert.deepEqual(settings.appearance, DEFAULT_APPEARANCE)
+})
+
+test('appearance is saved, and saving one part leaves the others alone', async () => {
+  await updateSettings(cols, { appearance: { palette: 'plum' } })
+  assert.equal((await getSettings(cols)).appearance.palette, 'plum')
+  await updateSettings(cols, { appearance: { nav: 'top' } })
+  const after = (await getSettings(cols)).appearance
+  assert.equal(after.nav, 'top')
+  assert.equal(after.palette, 'plum', 'the colour did not move when the menu did')
+})
+
+test('a theme id saves the three values it stands for, and not itself', async () => {
+  await updateSettings(cols, { appearance: { theme: 'granite' } })
+  const { appearance } = await getSettings(cols)
+  assert.deepEqual(appearance, { palette: 'slate', logo: 'layers', nav: 'rail' })
+  assert.equal(appearance.theme, undefined)
+})
+
+test('the appearance and the name are saved by the same call, independently', async () => {
+  const saved = await updateSettings(cols, { displayName: 'Contoso ERP', appearance: { logo: 'orbit' } })
+  assert.equal(saved.displayName, 'Contoso ERP')
+  assert.equal(saved.appearance.logo, 'orbit')
+  // Renaming alone must not reset the look, which is what a whole-record write would do.
+  const renamed = await updateSettings(cols, { displayName: 'Fabrikam ERP' })
+  assert.equal(renamed.appearance.logo, 'orbit')
+})
+
+test('a wipe keeps the appearance — it is how the ERP is dressed, not a record', async () => {
+  await updateSettings(cols, { appearance: { theme: 'meridian' } })
+  await wipe(cols)
+  assert.equal((await getSettings(cols)).appearance.palette, 'indigo')
+})
+
+test('an appearance stored before a palette was renamed is repaired on read', async () => {
+  await cols.settings.replaceOne(
+    { _id: 'erp' },
+    { _id: 'erp', displayName: 'Old ERP', appearance: { palette: 'chartreuse', logo: 'sigil', nav: 'sideways' } },
+    { upsert: true }
+  )
+  assert.deepEqual((await getSettings(cols)).appearance, DEFAULT_APPEARANCE)
 })
 
 test('stock is per warehouse: each edit goes to its own source, and the total adds up', async () => {
