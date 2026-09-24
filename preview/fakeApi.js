@@ -443,6 +443,13 @@ function describeInvoice (order, inv) {
     commerceIncrementId: order.commerceIncrementId,
     currency: order.currency,
     partner: p ? { id: p.id, name: p.name, paymentTerms: p.paymentTerms } : null,
+    ...(() => {
+      // lib/terms: the billing date plus the terms' days; terms naming no days leave it null.
+      const m = p && /^NET\s*(\d{1,3})$/i.exec(p.paymentTerms || '')
+      if (!m) return { paymentDays: null, dueDate: null }
+      const due = new Date(inv.createdAt); due.setUTCDate(due.getUTCDate() + Number(m[1]))
+      return { paymentDays: Number(m[1]), dueDate: due.toISOString() }
+    })(),
     seller: (() => {
       const through = structureMirror.websites.find((w) => w.salesOrg === order.salesOrg) || structureMirror.websites[0]
       return { companyCode: '1000', name: settings.displayName, salesOrg: order.salesOrg, salesOrgName: order.salesOrgName, currency: through.storeInfo.currency, countryId: through.storeInfo.countryId, vatNumber: null, address: null }

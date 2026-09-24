@@ -17,6 +17,7 @@ import OrderHeader from './OrderHeader'
 import OrderLines from './OrderLines'
 import RelatedDocuments from './RelatedDocuments'
 import CreateShipment from './CreateShipment'
+import Timeline from './Timeline'
 import { useLoad } from './useLoad'
 import { toastSaved } from './toast'
 
@@ -112,8 +113,9 @@ export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', 
       {order && (
         <>
           <OrderHeader order={order} onOpen={onOpen} />
-          <OrderLines order={order} busy={busy} onCloseLine={(item, reason) => act(() => api.closeLine(number, item, reason), `Item ${item} closed`)} />
+          <OrderLines order={order} busy={busy} onOpen={onOpen} onCloseLine={(item, reason) => act(() => api.closeLine(number, item, reason), `Item ${item} closed`)} />
           <RelatedDocuments order={order} onOpen={onOpen} />
+          <Timeline order={order} onOpen={onOpen} />
         </>
       )}
     </DocumentPage>

@@ -10,14 +10,16 @@ import OrderDetail from './OrderDetail'
 import ShipmentDetail from './ShipmentDetail'
 import InvoiceDetail from './InvoiceDetail'
 import CustomerDetail from './CustomerDetail'
+import ProductDetail from './ProductDetail'
 
-const VIEWS = { order: OrderDetail, shipment: ShipmentDetail, invoice: InvoiceDetail, customer: CustomerDetail }
+const VIEWS = { order: OrderDetail, shipment: ShipmentDetail, invoice: InvoiceDetail, customer: CustomerDetail, product: ProductDetail }
 
 /** What a document is called when Back points at it. */
 export function labelOf (entry) {
   if (entry.kind === 'order') return `Sales Order ${entry.number}`
   if (entry.kind === 'shipment') return `Shipment ${entry.number}`
   if (entry.kind === 'invoice') return `Invoice ${entry.number}`
+  if (entry.kind === 'product') return `Product ${entry.number}`
   return entry.title || `Customer ${entry.number}`
 }
 
@@ -57,6 +59,23 @@ export function useOpenFromQuery (trail, query, kind) {
 export function OpenDocument ({ trail, api, onChanged, onNavigate, onClose }) {
   const entry = trail.top
   const View = VIEWS[entry.kind]
+  const onBack = () => { trail.back(); if (trail.depth === 1 && onClose) onClose() }
+  // A product page opened from an order line: it takes a SKU, and opens other products
+  // (a parent's variants) by SKU alone, so its onOpen is adapted to the trail's kinds.
+  if (entry.kind === 'product') {
+    return (
+      <View
+        key={`product:${entry.number}`}
+        api={api}
+        sku={entry.number}
+        backLabel={trail.backLabel}
+        onBack={onBack}
+        onOpen={(sku) => trail.open('product', sku)}
+        onChanged={onChanged}
+        onNavigate={onNavigate}
+      />
+    )
+  }
   return (
     <View
       key={`${entry.kind}:${entry.number}`}
@@ -64,7 +83,7 @@ export function OpenDocument ({ trail, api, onChanged, onNavigate, onClose }) {
       number={entry.number}
       id={entry.number}
       backLabel={trail.backLabel}
-      onBack={() => { trail.back(); if (trail.depth === 1 && onClose) onClose() }}
+      onBack={onBack}
       onOpen={trail.open}
       onChanged={onChanged}
       onNavigate={onNavigate}

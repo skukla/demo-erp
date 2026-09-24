@@ -83,7 +83,7 @@ const LINE_COLUMNS = [
 ]
 const CLOSE_COLUMN = { key: 'close', label: ' ', width: 170, align: 'end' }
 
-export default function OrderLines ({ order, onCloseLine, busy }) {
+export default function OrderLines ({ order, onCloseLine, busy, onOpen }) {
   const lines = order.lines || []
   const canClose = Boolean(order.can && order.can.close && onCloseLine)
   const columns = canClose ? [...LINE_COLUMNS, CLOSE_COLUMN] : LINE_COLUMNS
@@ -93,6 +93,8 @@ export default function OrderLines ({ order, onCloseLine, busy }) {
     if (key === 'price') return money(line.price, order.currency)
     if (key === 'amount') return money(line.amount, order.currency)
     if (key === 'shipped') return line.shippedQty
+    // Master data is one click from the document: the SKU opens the product on the trail.
+    if (key === 'sku' && onOpen) return <button type='button' className='erp-link' onClick={() => onOpen('product', line.sku)}>{line.sku}</button>
     if (key === 'close') {
       return line.openQty > 0
         ? <CloseRemaining line={line} reasons={order.closeReasons || []} isDisabled={busy} onClose={(reason) => onCloseLine(line.item, reason)} />

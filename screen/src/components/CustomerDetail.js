@@ -14,7 +14,7 @@
  */
 import React, { useState } from 'react'
 import {
-  Grid, Item, Link, Picker, StatusLight, Text, View,
+  Grid, Item, Link, Meter, Picker, StatusLight, Text, View,
   TableView, TableHeader, Column, TableBody, Row, Cell
 } from '@adobe/react-spectrum'
 import Card from './Card'
@@ -93,6 +93,19 @@ function CreditCard ({ customer, onLimit }) {
             : 'None'}
         </Field>
       </Grid>
+      {/* How much of the limit is used, as a proportion: what Fiori's credit account and
+          Business Central's customer statistics both show. Red once exposure passes the limit. */}
+      {credit.limit > 0 && (
+        <View marginTop='size-250'>
+          <Meter
+            label='Credit used'
+            value={Math.min(100, Math.round((credit.exposure / credit.limit) * 100))}
+            valueLabel={`${money(credit.exposure)} of ${money(credit.limit)}${over ? ' — over the limit' : ''}`}
+            variant={over ? 'critical' : (credit.exposure / credit.limit > 0.8 ? 'warning' : 'positive')}
+            width='100%'
+          />
+        </View>
+      )}
       {/* Which exposure is the truth here (bidirectional review, gap G3): the ERP's, from its
           open orders. Commerce keeps a balance of its own for payment on account; the two
           are different numbers and this card does not compare them. */}
@@ -107,11 +120,39 @@ function CreditCard ({ customer, onLimit }) {
   )
 }
 
-function OrdersCard ({ orders, onOpen }) {
+/* The orders exposure is made of: not yet invoiced, not cancelled, not on credit hold
+   (lib/partners describePartner uses the same rule). */
+const OPEN_ITEMS = new Set(['created', 'confirmed', 'shipped'])
+const isOpenItem = (o) => OPEN_ITEMS.has(o.status) && o.creditStatus !== 'held'
+
+const SHOW = [
+  { key: 'open', label: 'Open items' },
+  { key: 'all', label: 'History' }
+]
+
+/**
+ * Open items first — the uninvoiced orders the exposure figure is made of, so the figure
+ * has a list under it that adds up to it (the ERP function of that name) — and the whole
+ * history behind a switch.
+ */
+function OrdersCard ({ orders, onOpen, hasCredit }) {
+  const [show, setShow] = useState(hasCredit ? 'open' : 'all')
+  const shown = show === 'open' ? orders.filter(isOpenItem) : orders
+  const openNet = orders.filter(isOpenItem).reduce((sum, o) => sum + (o.net || 0), 0)
   return (
-    <Card title='Sales Orders'>
-      {orders.length === 0
-        ? <Text>No sales orders for this customer.</Text>
+    <Card
+      title={show === 'open' ? 'Open items' : 'Sales Orders'}
+      actions={hasCredit && (
+        <Picker aria-label='Show' selectedKey={show} onSelectionChange={(k) => setShow(String(k))} items={SHOW} isQuiet>
+          {(x) => <Item key={x.key}>{x.label}</Item>}
+        </Picker>
+      )}
+    >
+      {show === 'open' && shown.length > 0 && (
+        <Text UNSAFE_className='erp-subtle'>{`${shown.length} open ${shown.length === 1 ? 'item' : 'items'} · ${money(openNet, shown[0].currency)} — the exposure above is this list.`}</Text>
+      )}
+      {shown.length === 0
+        ? <Text>{show === 'open' ? 'No open items: nothing this customer has ordered is still uninvoiced.' : 'No sales orders for this customer.'}</Text>
         : (
           <TableView
             aria-label="This customer's sales orders" density='compact' overflowMode='wrap'
@@ -124,7 +165,7 @@ function OrdersCard ({ orders, onOpen }) {
               <Column key='net' width={150} align='end'>Net amount</Column>
               <Column key='status' width={140}>Status</Column>
             </TableHeader>
-            <TableBody items={orders.map((o) => ({ ...o, id: o.number }))}>
+            <TableBody items={shown.map((o) => ({ ...o, id: o.number }))}>
               {(o) => (
                 <Row key={o.number}>
                   <Cell><span className='erp-key'>{o.number}</span></Cell>
@@ -258,7 +299,7 @@ export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBa
           {customer.credit && (
             <CreditCard customer={customer} onLimit={(creditLimit) => patch({ creditLimit }, 'Credit limit saved')} />
           )}
-          <OrdersCard orders={customer.orders || []} onOpen={(number) => onOpen('order', number)} />
+          <OrdersCard orders={customer.orders || []} onOpen={(number) => onOpen('order', number)}  hasCredit={Boolean(customer.credit)} />
           <PricingCard conditions={customer.conditions || []} onNavigate={onNavigate} />
         </>
       )}

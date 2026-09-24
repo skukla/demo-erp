@@ -54,6 +54,9 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
               <Field label='Customer reference'>{invoice.commerceIncrementId || '—'}</Field>
               <Field label='Bill-to'>{invoice.partner ? `${invoice.partner.id} · ${invoice.partner.name}` : 'Same as sold-to'}</Field>
               <Field label='Payment terms'>{invoice.partner ? invoice.partner.paymentTerms : '—'}</Field>
+              {/* Billing date plus the terms (lib/terms): what both reference systems print
+                  and ours had both inputs for. Terms naming no days leave it a dash. */}
+              <Field label='Due date'>{invoice.dueDate ? `${formatDate(invoice.dueDate)}${invoice.paymentDays ? ` · ${invoice.paymentDays} days` : ''}` : '—'}</Field>
               <Field label='Currency'>{invoice.currency || 'USD'}</Field>
             </Grid>
           </Card>

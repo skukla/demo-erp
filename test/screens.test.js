@@ -161,11 +161,32 @@ function matches (name, actual) {
  * more in a fresh page: a look that differs on one load out of two is a render that had
  * not finished, not a change to the screen. Only two mismatches in a row fail.
  */
-async function check (name, hash, first) {
+/**
+ * Wait until the page's title matches: a document opened by its address (`orders?open=…`)
+ * mounts its LIST first and opens the record in an effect, so `settled` alone can answer
+ * with the list's rows. Found 2026-09-24: every document retry had been fingerprinting
+ * the list, unseen because no document had changed since its fingerprint was recorded.
+ */
+async function headed (page, heading, notHeading) {
+  // A document's pattern may match the list's title too (`/.+/`), so the list's own title
+  // is excluded explicitly: the page has left the list once its title is gone.
+  await page.waitForFunction(
+    ([source, notSource]) => {
+      const text = ((document.querySelector('.erp-content h1') || {}).textContent || '').trim()
+      return new RegExp(source).test(text) && !(notSource && new RegExp(notSource).test(text))
+    },
+    [heading.source, notHeading ? notHeading.source : null],
+    { timeout: 15000 }
+  )
+  await settled(page)
+}
+
+async function check (name, hash, first, heading, notHeading) {
   if (matches(name, first)) return
   fs.copyFileSync(rowsFile(name), rowsFile(name, '.mismatch'))
   const again = await open(hash)
   try {
+    if (heading) await headed(again.page, heading, notHeading)
     const second = await fingerprint(again.page)
     if (UPDATE) {
       // Re-accepting a changed look: only when the two fresh loads agree with each other.
@@ -188,17 +209,21 @@ for (const screen of SCREENS) {
       const heading = await page.textContent('.erp-content h1')
       assert.match(heading.trim(), screen.heading)
       assert.deepEqual(problems, [], `${screen.key} console`)
-      await check(screen.key, screen.key, await fingerprint(page))
+      await check(screen.key, screen.key, await fingerprint(page), screen.heading)
 
       if (screen.opens) {
-        // Rows that open a record say so with erp-key; the first one is enough.
+        // Rows that open a record say so with erp-key; the first one is enough. Its key is
+        // kept: a click opens the record on the page's own trail WITHOUT writing it into the
+        // address bar, so a retry has to reopen it by `?open=<key>` — reading the hash back
+        // after the click gave the LIST's address, and every document retry had been
+        // fingerprinting the list (found 2026-09-24, masked while no document changed).
+        const key = (await page.textContent('.erp-rows-open .erp-key')).trim()
         await page.click('.erp-rows-open .erp-key')
         await settled(page)
         const docHeading = await page.textContent('.erp-content h1')
         assert.match(docHeading.trim(), screen.opens, `${screen.key}: opening the first row`)
         assert.deepEqual(problems, [], `${screen.key} document console`)
-        // The record's own hash (after the click) is what a retry reopens.
-        await check(`${screen.key}:document`, new URL(page.url()).hash.slice(1), await fingerprint(page))
+        await check(`${screen.key}:document`, `${screen.key}?open=${encodeURIComponent(key)}`, await fingerprint(page), screen.opens, screen.heading)
       }
     } finally {
       await context.close()
@@ -328,6 +353,41 @@ test('the lists say what the document behind each row is in the middle of', asyn
     assert.match(await page.locator('[role="grid"]').textContent(), /Plant 1000 · Seattle DC/)
   } finally {
     await context.close()
+  }
+})
+
+test('the documents carry their timeline, due date, credit meter and open items', async () => {
+  const { page, context, problems } = await open('orders?open=0000001003')
+  try {
+    const text = await page.locator('.erp-content').textContent()
+    assert.match(text, /Timeline/)
+    assert.match(text, /Shipment 8000000003 posted/)
+    // A line's SKU is a link that opens the product on the same trail.
+    await page.locator('[role="grid"][aria-label="Order lines"] .erp-link').first().click()
+    await settled(page)
+    assert.match((await page.textContent('.erp-content h1')).trim(), /Merino crew knit|Wool overcoat/)
+    assert.deepEqual(problems, [], 'order → product console')
+  } finally {
+    await context.close()
+  }
+  const invoice = await open('invoices?open=9000000001')
+  try {
+    const text = await invoice.page.locator('.erp-content').textContent()
+    assert.match(text, /Due date/)
+    assert.match(text, /15 days/)
+    assert.deepEqual(invoice.problems, [], 'invoice console')
+  } finally {
+    await invoice.context.close()
+  }
+  const customer = await open('partners?open=C000102')
+  try {
+    assert.equal(await customer.page.getByRole('meter').count(), 1)
+    const text = await customer.page.locator('.erp-content').textContent()
+    assert.match(text, /Open items/)
+    assert.match(text, /the exposure above is this list/)
+    assert.deepEqual(customer.problems, [], 'customer console')
+  } finally {
+    await customer.context.close()
   }
 })
 

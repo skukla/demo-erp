@@ -977,3 +977,25 @@
   flex-direction: column;
   gap: 2px;
 }
+
+/* An order's timeline: one moment per line, the time in a fixed column. */
+.erp-timeline {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.erp-timeline-moment {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--erp-border, rgba(0, 0, 0, 0.08));
+}
+.erp-timeline-moment:last-child {
+  border-bottom: none;
+}
+.erp-timeline-when {
+  min-width: 190px;
+  font-size: 13px;
+  color: var(--erp-subtle, #6b757e);
+}

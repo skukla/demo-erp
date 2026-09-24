@@ -245,3 +245,25 @@ test('a product blocked for sales is refused in words when a shipment is created
   const posted = await postShipment(cols, order.number, '8000000001')
   assert.equal(posted.lines[1].shippedQty, 2)
 })
+
+test('the invoice document carries a due date: the billing date plus the payment terms, and none when the terms name no days', async () => {
+  const { importPartners } = require('../lib/partners')
+  const { patchPartner } = require('../lib/partners')
+  await importPartners(cols, [{ id: 'C9', name: 'Net Fifteen', commerceCompanyId: '9', creditLimit: 10000 }])
+  // Payment terms are the ERP's own (an import carries none): set on the partner, as the screen does.
+  await patchPartner(cols, 'C9', { paymentTerms: 'NET15' })
+  const order = await createOrder(cols, { ...input, commerceOrderId: '77', partnerId: 'C9' })
+  await confirmOrder(cols, order.number)
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 12 }, { item: 20, qty: 4 }] })
+  await postShipment(cols, order.number, '8000000001')
+  await createInvoice(cols, order.number)
+  const invoice = await getInvoice(cols, '9000000001')
+  assert.equal(invoice.paymentDays, 15)
+  const due = new Date(invoice.createdAt); due.setUTCDate(due.getUTCDate() + 15)
+  assert.equal(invoice.dueDate, due.toISOString())
+  // Terms that name no number of days (a real ERP has many) leave the due date unknown, not wrong.
+  await patchPartner(cols, 'C9', { paymentTerms: 'Payment in advance' })
+  const again = await getInvoice(cols, '9000000001')
+  assert.equal(again.paymentDays, null)
+  assert.equal(again.dueDate, null)
+})

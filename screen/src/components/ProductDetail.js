@@ -376,7 +376,7 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
             <Slot>
               <Card
                 title='Pricing'
-                actions={!isParent && onNavigate && contractPrices !== null && (
+                actions={!isParent && onNavigate && contractPrices !== null && contractPrices > 0 && (
                   // One string child: Spectrum's Link wraps a plain string and otherwise
                   // demands exactly one element, so "text + arrow" as two children crashes.
                   <Link isQuiet onPress={() => onNavigate('pricing')}>
@@ -392,15 +392,19 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
                     </Field>
                     )
                   : (
-                    <NumberField
-                      label='List price'
-                      value={draft.listPrice}
-                      minValue={0}
-                      step={0.01}
-                      formatOptions={MONEY}
-                      onChange={(listPrice) => edit({ listPrice: Number.isFinite(listPrice) ? listPrice : 0 })}
-                      width='100%'
-                    />
+                    <Flex direction='column' gap='size-150'>
+                      <NumberField
+                        label='List price'
+                        value={draft.listPrice}
+                        minValue={0}
+                        step={0.01}
+                        formatOptions={MONEY}
+                        onChange={(listPrice) => edit({ listPrice: Number.isFinite(listPrice) ? listPrice : 0 })}
+                        width='100%'
+                      />
+                      {/* Read the way the customer document reads it, rather than "0 contract prices". */}
+                      {contractPrices === 0 && <Text UNSAFE_className='erp-subtle'>No pricing rule names this product; it sells at list price.</Text>}
+                    </Flex>
                     )}
               </Card>
             </Slot>

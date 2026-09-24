@@ -8,8 +8,8 @@
     "hash": "d19858f7f84c01e1e34dfcb18c7c11eae1072592a0759a058702b222eb8e867d"
   },
   "orders:document": {
-    "elements": 163,
-    "hash": "517585ad3b61a203e3a77daa54cdb76e125460cf073ca9a6cc7f23c7ebf31020"
+    "elements": 173,
+    "hash": "46a1ace31678f47148dabc8d3d2f56243a9cd5a10f076e73fcdd72e82dd50ddf"
   },
   "shipments": {
     "elements": 264,
@@ -24,8 +24,8 @@
     "hash": "9e3a83ddd69fc22476bf76bdfeab9b3cef65d252a976f1e7250e122f4b849f5a"
   },
   "invoices:document": {
-    "elements": 142,
-    "hash": "14a3242caf9c01f8cfe02b2eaa4695e04b9ba97bdda93c9b560fc58aa01c25cb"
+    "elements": 145,
+    "hash": "33615eeafb996ef7445d63619b96ab1ffe90368e402a3bb157a2b0497ef61913"
   },
   "products": {
     "elements": 695,
@@ -33,15 +33,15 @@
   },
   "products:document": {
     "elements": 234,
-    "hash": "bc6dd00ea552221885d41fccdf24b46343fbb291301bec1488bc1dd3da986996"
+    "hash": "e4f67ecff38eb9aca523e17fe19098a0dcaf456993edcac9ab64b00102648bc9"
   },
   "partners": {
     "elements": 308,
     "hash": "b77135454f9cedccdb81fe98d2483bda6d5ed5b9057f7637405f0dc087fa1941"
   },
   "partners:document": {
-    "elements": 197,
-    "hash": "2a386e2bf8dcbcb19865fb8ab1e5ca2cb630d20f66002af633c3d6a1b35d27f3"
+    "elements": 199,
+    "hash": "e0f2eeef668b763ed615852708c0d3c413f2fe206ece79c5419e573a815ed15c"
   },
   "pricing": {
     "elements": 367,
