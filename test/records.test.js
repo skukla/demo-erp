@@ -310,3 +310,23 @@ test('a product Commerce deleted leaves the ERP; a deleted parent leaves its var
   const [entry] = await recent(cols)
   assert.equal(entry.summary, 'Product PARENT removed (deleted in Commerce); its 2 variant(s) stay as products of their own')
 })
+
+test('a product is sellable until blocked for sales; the block is the ERP\'s own, raises no event, and survives an import', async () => {
+  await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
+  assert.equal((await getProduct(cols, 'A1')).salesStatus, 'sellable')
+  const blocked = await patchProduct(cols, 'A1', { salesStatus: 'blocked' })
+  assert.equal(blocked.salesStatus, 'blocked')
+  assert.deepEqual(await pending(cols), [])
+  await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 12, stock: 7 }])
+  assert.equal((await getProduct(cols, 'A1')).salesStatus, 'blocked')
+  assert.equal((await getProduct(cols, 'A1')).listPrice, 12)
+  await assert.rejects(patchProduct(cols, 'A1', { salesStatus: 'maybe' }), /salesStatus must be sellable or blocked/)
+  const back = await patchProduct(cols, 'A1', { salesStatus: 'sellable' })
+  assert.equal(back.salesStatus, 'sellable')
+})
+
+test('a configurable parent has no sales status of its own; its variants do', async () => {
+  await importProducts(cols, [{ sku: 'P', name: 'Coat', type: 'configurable' }, { sku: 'P-S', name: 'Coat S', parentSku: 'P', listPrice: 1, warehouses: [] }])
+  await assert.rejects(patchProduct(cols, 'P', { salesStatus: 'blocked' }), /belong to its variants/)
+  assert.equal((await patchProduct(cols, 'P-S', { salesStatus: 'blocked' })).salesStatus, 'blocked')
+})

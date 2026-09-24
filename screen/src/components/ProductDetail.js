@@ -1,20 +1,28 @@
 /*
- * One product's page: a header that keeps the name, SKU and stock status in view,
- * then cards. Fields are edited in place; Save and Cancel appear once something
- * changed, and Save sends only what changed. The SKU is the link to Commerce, so it
- * is shown and locked.
+ * One product's page: a header that keeps the name, SKU and status in view, then cards
+ * on the shared Card. Fields are edited in place; Save and Cancel appear once something
+ * changed, and Save sends only what changed. The SKU is the link to Commerce, so it is
+ * shown and locked.
  *
- * A configurable product (SAP's generic article) shows its variants instead of
- * price and stock, which belong to them; only its name is edited here. A variant
+ * The master-record cards (screen-realism plan §3.7): Basic data carries the base unit,
+ * the product type and the sales status, whose "Blocked for sales" switch stops every
+ * shipment of the product (lib/fulfilment). Inventory prints on hand, committed (open
+ * on orders that still stand) and available, and Open orders lists the orders holding
+ * the stock — all read from the order lines, never stored (lib/availability).
+ *
+ * A configurable product (SAP's generic article) shows its variants instead of price,
+ * stock and sales status, which belong to them; only its name is edited here. A variant
  * shows the values it varies on and links back to its parent.
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   ActionButton, Button, ButtonGroup, Content, Flex, Grid, Heading, InlineAlert, Link, NumberField,
-  Text, TextField, View, TableView, TableHeader, Column, TableBody, Row, Cell
+  Switch, Text, TextField, View, TableView, TableHeader, Column, TableBody, Row, Cell
 } from '@adobe/react-spectrum'
 import ChevronLeft from '@spectrum-icons/workflow/ChevronLeft'
 import LockClosed from '@spectrum-icons/workflow/LockClosed'
+import Card from './Card'
+import Field from './Field'
 import PageLoading from './PageLoading'
 import { toastSaved } from './toast'
 import { saveInPlace, savingField } from './saveInPlace'
@@ -42,27 +50,17 @@ const WAREHOUSE_COLUMNS = [
   { key: 'status', width: 160 }
 ]
 
-function Card ({ title, aside, children, gridColumn }) {
-  return (
-    <View gridColumn={gridColumn} backgroundColor='gray-50' borderRadius='medium' borderWidth='thin' borderColor='gray-200' padding='size-300'>
-      <Flex justifyContent='space-between' alignItems='baseline' marginBottom='size-150'>
-        <Heading level={3} margin={0}>{title}</Heading>
-        {aside}
-      </Flex>
-      {children}
-    </View>
-  )
-}
+/* Three columns: the card is half the page wide, and the order's status is one click
+   away on the order itself. */
+const OPEN_ORDER_COLUMNS = [
+  { key: 'number', width: 140 },
+  { key: 'customer' },
+  { key: 'qty', width: 95 }
+]
 
-/** A label over a value that cannot be edited here. */
-function Fixed ({ label, children, note }) {
-  return (
-    <View>
-      <Text UNSAFE_className='erp-field-label'>{label}</Text>
-      <Flex alignItems='center' gap='size-100' marginTop='size-50'>{children}</Flex>
-      {note && <Text UNSAFE_className='erp-field-label'>{note}</Text>}
-    </View>
-  )
+/** Two cards side by side; a card handed `span` takes the whole row. */
+function Slot ({ span, children }) {
+  return <div style={span ? { gridColumn: '1 / span 2' } : undefined}>{children}</div>
 }
 
 /** What changed between the saved product and the draft, as the API takes it. */
@@ -71,6 +69,7 @@ export function changesOf (saved, draft) {
   if (draft.name.trim() !== saved.name) patch.name = draft.name.trim()
   if (saved.type === 'configurable') return patch
   if (draft.listPrice !== saved.listPrice) patch.listPrice = draft.listPrice
+  if (draft.salesStatus !== saved.salesStatus) patch.salesStatus = draft.salesStatus
   const warehouses = draft.warehouses
     .filter((w) => w.quantity !== saved.warehouses.find((s) => s.code === w.code).quantity)
     .map((w) => ({ code: w.code, quantity: w.quantity }))
@@ -87,8 +86,7 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
   return (
     <Card
       title='Variants'
-      gridColumn='1 / span 2'
-      aside={(
+      actions={(
         <Flex alignItems='center' gap='size-200'>
           <Text>Total stock {product.stock}</Text>
           {product.variants.length > 0 && <EditToggle editing={editing} onChange={setEditing} />}
@@ -109,7 +107,7 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
               <Column key='values' {...widths.columnProps('values')}>{labels.join(' · ') || 'Variant'}</Column>
               <Column key='sku' {...widths.columnProps('sku')}>SKU</Column>
               <Column key='price' {...widths.columnProps('price')} align='end'>Price</Column>
-              <Column key='stock' {...widths.columnProps('stock')} align='end'>Stock</Column>
+              <Column key='stock' {...widths.columnProps('stock')} align='end'>Available</Column>
               <Column key='status' {...widths.columnProps('status')}>Status</Column>
             </TableHeader>
             <TableBody items={rows}>
@@ -119,7 +117,7 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
                   <Cell>{v.sku}</Cell>
                   <Cell><PriceCell product={v} editing={v.editing} onSave={(patch) => onSaveVariant(v.sku, patch)} /></Cell>
                   <Cell><StockCell product={v} editing={v.editing} onSave={(patch) => onSaveVariant(v.sku, patch)} /></Cell>
-                  <Cell><StockStatus quantity={v.stock} /></Cell>
+                  <Cell><StockStatus available={v.available ?? v.stock} salesStatus={v.salesStatus} /></Cell>
                 </Row>
               )}
             </TableBody>
@@ -129,10 +127,21 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
   )
 }
 
-function InventoryCard ({ draft, total, onQuantity }) {
-  const widths = useColumnWidths('warehouses', WAREHOUSE_COLUMNS)
+/** On hand, committed and available in one line, the way an ERP's stock overview reads them. */
+function StockLine ({ stock, committed, available }) {
   return (
-    <Card title='Inventory' gridColumn='1 / span 2' aside={<Text>Total {total}</Text>}>
+    <Text>
+      {`On hand ${stock} · Committed ${committed ?? 0} · Available ${available ?? stock}`}
+    </Text>
+  )
+}
+
+function InventoryCard ({ draft, saved, total, onQuantity }) {
+  const widths = useColumnWidths('warehouses', WAREHOUSE_COLUMNS)
+  // Available follows the draft's on-hand figures, so an edit shows its effect before Save.
+  const available = total - (saved.committed ?? 0)
+  return (
+    <Card title='Inventory' actions={<StockLine stock={total} committed={saved.committed} available={available} />}>
       {draft.warehouses.length === 0
         ? <Text>Commerce reports no stock for this product in any warehouse.</Text>
         : (
@@ -140,7 +149,7 @@ function InventoryCard ({ draft, total, onQuantity }) {
             <TableHeader>
               <Column key='name' {...widths.columnProps('name')}>Warehouse</Column>
               <Column key='code' {...widths.columnProps('code')}>Code</Column>
-              <Column key='quantity' {...widths.columnProps('quantity')}>Quantity</Column>
+              <Column key='quantity' {...widths.columnProps('quantity')}>On hand</Column>
               <Column key='status' {...widths.columnProps('status')}>Status</Column>
             </TableHeader>
             <TableBody items={draft.warehouses.map((w) => ({ ...w, key: w.code }))}>
@@ -165,6 +174,73 @@ function InventoryCard ({ draft, total, onQuantity }) {
             </TableBody>
           </TableView>
           )}
+      <Text UNSAFE_className='erp-subtle'>
+        A warehouse here is a Commerce inventory source. Committed is what open orders still have to ship; it is read from the orders, not stored.
+      </Text>
+    </Card>
+  )
+}
+
+/** The orders that hold this product's stock, newest first; a row opens the order. */
+function OpenOrdersCard ({ orders, onNavigate }) {
+  const widths = useColumnWidths('product-open-orders', OPEN_ORDER_COLUMNS)
+  const rows = orders || []
+  return (
+    <Card title='Open orders' actions={<Text>{rows.length === 1 ? '1 order' : `${rows.length} orders`}</Text>}>
+      {rows.length === 0
+        ? <Text>No open order holds this product.</Text>
+        : (
+          <TableView
+            {...widths.tableProps}
+            aria-label='Open orders for this product'
+            density='compact'
+            overflowMode='wrap'
+            selectionMode='none'
+            UNSAFE_className={onNavigate ? 'erp-rows-open' : undefined}
+            onAction={(key) => onNavigate && onNavigate('orders', { open: String(key) })}
+          >
+            <TableHeader>
+              <Column key='number' {...widths.columnProps('number')}>Sales order</Column>
+              <Column key='customer' {...widths.columnProps('customer')}>Customer</Column>
+              <Column key='qty' {...widths.columnProps('qty')} align='end'>Open qty</Column>
+            </TableHeader>
+            <TableBody items={rows.map((o) => ({ ...o, key: o.number }))}>
+              {(o) => (
+                <Row key={o.number}>
+                  <Cell><span className='erp-key'>{o.number}</span></Cell>
+                  <Cell>{o.customer || '—'}</Cell>
+                  <Cell>{o.qty}</Cell>
+                </Row>
+              )}
+            </TableBody>
+          </TableView>
+          )}
+    </Card>
+  )
+}
+
+/** Base unit, product type and the sales status: the fields an ERP's basic-data view opens on. */
+function BasicDataCard ({ saved, draft, isParent, onEdit }) {
+  return (
+    <Card title='Basic data'>
+      <Flex direction='column' gap='size-200'>
+        <Flex gap='size-400' wrap>
+          <Field label='Base unit'>{saved.unit || 'EA'}</Field>
+          <Field label='Product type'>{isParent ? 'Generic article (configurable)' : (saved.parentSku ? 'Variant' : 'Finished good')}</Field>
+        </Flex>
+        {isParent
+          ? <Text UNSAFE_className='erp-subtle'>Sales status is set on each variant: the variants are what sell.</Text>
+          : (
+            <Field label='Sales status'>
+              <Switch isSelected={draft.salesStatus === 'blocked'} onChange={(on) => onEdit({ salesStatus: on ? 'blocked' : 'sellable' })}>
+                Blocked for sales
+              </Switch>
+              <Text UNSAFE_className='erp-subtle'>
+                {draft.salesStatus === 'blocked' ? 'No shipment of this product can be created or posted until it is sellable again.' : 'Sellable. Block it and every shipment of it is refused in the ERP; Commerce is not told.'}
+              </Text>
+            </Field>
+            )}
+      </Flex>
     </Card>
   )
 }
@@ -260,70 +336,83 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
                 </View>
               )}
             </View>
-            <StockStatus quantity={total} />
+            <StockStatus available={total - (saved.committed ?? 0)} salesStatus={isParent ? undefined : saved.salesStatus} />
           </Flex>
 
           <Grid columns={['1fr', '1fr']} gap='size-300' UNSAFE_style={{ maxWidth: 960 }}>
-            <Card title='Details'>
-              <Flex direction='column' gap='size-200'>
-                <TextField
-                  label='Name'
-                  value={draft.name}
-                  onChange={(name) => edit({ name })}
-                  validationState={nameMissing ? 'invalid' : undefined}
-                  errorMessage='A product needs a name.'
-                  width='100%'
-                />
-                <Fixed label='SKU' note='The SKU links this product to Commerce. Change it there, then sync.'>
-                  <LockClosed size='S' aria-label='Locked' />
-                  <Text UNSAFE_style={{ fontSize: 15, fontWeight: 600 }}>{saved.sku}</Text>
-                </Fixed>
-                {saved.variantAttributes && saved.variantAttributes.length > 0 && (
-                  <Fixed label='Varies on'>
-                    <Flex gap='size-100' wrap>
-                      {saved.variantAttributes.map((a) => (
-                        <View key={a.label} backgroundColor='gray-200' borderRadius='regular' paddingX='size-100' paddingY='size-50'>
-                          <Text UNSAFE_style={{ fontSize: 13 }}>{`${a.label}: ${a.value || '—'}`}</Text>
-                        </View>
-                      ))}
-                    </Flex>
-                  </Fixed>
-                )}
-              </Flex>
-            </Card>
-
-            <Card
-              title='Pricing'
-              aside={!isParent && onNavigate && contractPrices !== null && (
-                // One string child: Spectrum's Link wraps a plain string and otherwise
-                // demands exactly one element, so "text + arrow" as two children crashes.
-                <Link isQuiet onPress={() => onNavigate('pricing')}>
-                  {`${contractPrices === 1 ? '1 contract price' : `${contractPrices} contract prices`} →`}
-                </Link>
-              )}
-            >
-              {isParent
-                ? (
-                  <Fixed label='Price range' note='Each variant has its own price. Open a variant to change it.'>
-                    <Text UNSAFE_style={{ fontSize: 15, fontWeight: 600 }}>{priceText(saved)}</Text>
-                  </Fixed>
-                  )
-                : (
-                  <NumberField
-                    label='List price'
-                    value={draft.listPrice}
-                    minValue={0}
-                    step={0.01}
-                    formatOptions={MONEY}
-                    onChange={(listPrice) => edit({ listPrice: Number.isFinite(listPrice) ? listPrice : 0 })}
+            <Slot>
+              <Card title='Details'>
+                <Flex direction='column' gap='size-200'>
+                  <TextField
+                    label='Name'
+                    value={draft.name}
+                    onChange={(name) => edit({ name })}
+                    validationState={nameMissing ? 'invalid' : undefined}
+                    errorMessage='A product needs a name.'
                     width='100%'
                   />
+                  <Field label='SKU'>
+                    <Flex alignItems='center' gap='size-100'>
+                      <LockClosed size='S' aria-label='Locked' />
+                      <Text UNSAFE_style={{ fontSize: 15, fontWeight: 600 }}>{saved.sku}</Text>
+                    </Flex>
+                    <Text UNSAFE_className='erp-field-label'>The SKU links this product to Commerce. Change it there, then sync.</Text>
+                  </Field>
+                  {saved.variantAttributes && saved.variantAttributes.length > 0 && (
+                    <Field label='Varies on'>
+                      <Flex gap='size-100' wrap>
+                        {saved.variantAttributes.map((a) => (
+                          <View key={a.label} backgroundColor='gray-200' borderRadius='regular' paddingX='size-100' paddingY='size-50'>
+                            <Text UNSAFE_style={{ fontSize: 13 }}>{`${a.label}: ${a.value || '—'}`}</Text>
+                          </View>
+                        ))}
+                      </Flex>
+                    </Field>
                   )}
-            </Card>
+                </Flex>
+              </Card>
+            </Slot>
 
-            {isParent
-              ? <VariantsCard product={saved} onOpen={onOpen} onSaveVariant={saveVariant} />
-              : <InventoryCard draft={draft} total={total} onQuantity={setQuantity} />}
+            <Slot>
+              <Card
+                title='Pricing'
+                actions={!isParent && onNavigate && contractPrices !== null && (
+                  // One string child: Spectrum's Link wraps a plain string and otherwise
+                  // demands exactly one element, so "text + arrow" as two children crashes.
+                  <Link isQuiet onPress={() => onNavigate('pricing')}>
+                    {`${contractPrices === 1 ? '1 contract price' : `${contractPrices} contract prices`} →`}
+                  </Link>
+                )}
+              >
+                {isParent
+                  ? (
+                    <Field label='Price range'>
+                      <Text UNSAFE_style={{ fontSize: 15, fontWeight: 600 }}>{priceText(saved)}</Text>
+                      <Text UNSAFE_className='erp-field-label'>Each variant has its own price. Open a variant to change it.</Text>
+                    </Field>
+                    )
+                  : (
+                    <NumberField
+                      label='List price'
+                      value={draft.listPrice}
+                      minValue={0}
+                      step={0.01}
+                      formatOptions={MONEY}
+                      onChange={(listPrice) => edit({ listPrice: Number.isFinite(listPrice) ? listPrice : 0 })}
+                      width='100%'
+                    />
+                    )}
+              </Card>
+            </Slot>
+
+            <Slot><BasicDataCard saved={saved} draft={draft} isParent={isParent} onEdit={edit} /></Slot>
+            <Slot><OpenOrdersCard orders={saved.openOrders} onNavigate={onNavigate} /></Slot>
+
+            <Slot span>
+              {isParent
+                ? <VariantsCard product={saved} onOpen={onOpen} onSaveVariant={saveVariant} />
+                : <InventoryCard draft={draft} saved={saved} total={total} onQuantity={setQuantity} />}
+            </Slot>
           </Grid>
 
           <Flex justifyContent='end' alignItems='center' gap='size-200' marginTop='size-300' UNSAFE_style={{ maxWidth: 960 }}>

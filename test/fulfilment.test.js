@@ -230,3 +230,18 @@ test('the routes: create, post, close, invoice, and the two read-only actions', 
   assert.equal((await invoke(invoices, cols, { path: '/9000000001' })).body.net, 140)
   assert.equal((await invoke(invoices, cols, { path: '/x' })).statusCode, 404)
 })
+
+test('a product blocked for sales is refused in words when a shipment is created, and again when one is posted', async () => {
+  const { patchProduct } = require('../lib/products')
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 20, qty: 2 }] })
+  await patchProduct(cols, 'B2', { salesStatus: 'blocked' })
+  await assert.rejects(createShipment(cols, order.number, { lines: [{ item: 20, qty: 1 }] }), /Product B2 is blocked for sales\./)
+  await assert.rejects(postShipment(cols, order.number, '8000000001'), /Product B2 is blocked for sales\./)
+  // The other line still ships: the block is on the product, not the order.
+  const next = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 1 }] })
+  assert.equal(next.shipments.length, 2)
+  await patchProduct(cols, 'B2', { salesStatus: 'sellable' })
+  const posted = await postShipment(cols, order.number, '8000000001')
+  assert.equal(posted.lines[1].shippedQty, 2)
+})

@@ -39,6 +39,7 @@
     "_id",
     "listPrice",
     "name",
+    "salesStatus",
     "sku",
     "type",
     "unit",

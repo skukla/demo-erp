@@ -65,7 +65,9 @@ after(async () => {
   if (browser) await browser.close()
   if (preview) await preview.close()
   if (UPDATE || !fs.existsSync(FIXTURE)) {
-    fs.writeFileSync(FIXTURE, `${JSON.stringify(seen, null, 2)}\n`)
+    // What this run saw over what was recorded: a screen whose re-accept was refused
+    // (two fresh loads disagreed) keeps its recorded fingerprint rather than vanishing.
+    fs.writeFileSync(FIXTURE, `${JSON.stringify({ ...recorded, ...seen }, null, 2)}\n`)
   }
 })
 
@@ -135,14 +137,22 @@ const ROWS_DIR = path.join(require('os').tmpdir(), 'demo-erp-screen-rows')
 
 const rowsFile = (name, suffix = '') => path.join(ROWS_DIR, `${name.replace(':', '-')}${suffix}.txt`)
 
-/** True when the fingerprint matches the recorded one (or nothing is recorded yet). */
+/**
+ * True when the fingerprint matches the recorded one (or nothing is recorded yet). A
+ * changed look is NOT taken on the first sight even when re-accepting: on 2026-09-24 an
+ * UPDATE run recorded a one-off sample of a screen the change never touched, and every
+ * later run failed on it. `check` below reloads and accepts only what two loads agree on.
+ */
 function matches (name, actual) {
   const { rows, ...summary } = actual
-  seen[name] = summary
   fs.mkdirSync(ROWS_DIR, { recursive: true })
   fs.writeFileSync(rowsFile(name), rows.join('\n'))
-  if (UPDATE || !recorded[name]) return true
-  return summary.hash === recorded[name].hash && summary.elements === recorded[name].elements
+  const same = recorded[name] && summary.hash === recorded[name].hash && summary.elements === recorded[name].elements
+  if (same || !recorded[name]) {
+    seen[name] = summary
+    return true
+  }
+  return false
 }
 
 /**
@@ -157,6 +167,13 @@ async function check (name, hash, first) {
   const again = await open(hash)
   try {
     const second = await fingerprint(again.page)
+    if (UPDATE) {
+      // Re-accepting a changed look: only when the two fresh loads agree with each other.
+      const settled = second.hash === first.hash && second.elements === first.elements
+      assert.equal(settled, true, `${name}: the look changed, but two fresh loads disagree with each other (${first.hash.slice(0, 8)} vs ${second.hash.slice(0, 8)}); not re-accepted, the recorded fingerprint stands. Run again.`)
+      seen[name] = { elements: second.elements, hash: second.hash }
+      return
+    }
     const message = `${name}: the screen's look changed twice in a row (rows in ${ROWS_DIR}, the first mismatch beside them as .mismatch.txt). If that was intended, re-accept with UPDATE_SCREEN_FINGERPRINTS=1 and review the fixture diff.`
     assert.equal(matches(name, second), true, message)
   } finally {
@@ -252,6 +269,35 @@ test('the journal names the document each entry belongs to, and opens it', async
     await page.locator('.erp-journal-link').first().click()
     await settled(page)
     assert.match(new URL(page.url()).hash, /^#orders\?open=/)
+  } finally {
+    await context.close()
+  }
+})
+
+test('the product page is a master record: basic data, open orders, committed and available; a blocked product says so', async () => {
+  const { page, context, problems } = await open('products')
+  try {
+    // The list: Available beside On hand, and the blocked stand-in's status in words.
+    const header = await page.locator('[role="columnheader"]').allTextContents()
+    assert.ok(header.includes('Available') && header.includes('On hand'), `columns: ${header.join(' | ')}`)
+    const blocked = page.getByRole('row', { name: /P000010/ })
+    assert.match(await blocked.textContent(), /Blocked for sales/)
+    // A product with open orders: P000001 is on the stand-in orders' first lines.
+    await page.getByRole('row', { name: /P000001/ }).getByText('P000001').click()
+    await settled(page)
+    const text = await page.locator('.erp-content').textContent()
+    assert.match(text, /Basic data/)
+    assert.match(text, /Open orders/)
+    assert.match(text, /On hand \d+ · Committed \d+ · Available -?\d+/)
+    assert.match(text, /Finished good/)
+    // The configurable parent: its variants, its type in ERP words, and no crash.
+    await page.goto(`${preview.url}#products?open=P000004`)
+    await settled(page)
+    const parentText = await page.locator('.erp-content').textContent()
+    assert.match(parentText, /Variants/)
+    assert.match(parentText, /Generic article/)
+    assert.match(parentText, /P000004-M/)
+    assert.deepEqual(problems, [], 'product page console')
   } finally {
     await context.close()
   }

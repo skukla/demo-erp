@@ -26,21 +26,42 @@ const products = NAMES.map(([name, price], i) => {
   const sku = `P${String(i + 1).padStart(6, '0')}`
   const quantity = [0, 4, 18, 120, 7, 64][i % 6]
   // Every fourth product is stocked in two warehouses, so Ship-from has a choice to show.
-  const warehouses = i % 4 === 1
-    ? [{ code: 'default', name: 'Default Source', quantity }, { code: 'east', name: 'East DC', quantity: 30 }]
-    : [{ code: 'default', name: 'Default Source', quantity }]
+  // A parent holds no stock of its own (lib/products.js shape): its variants below do.
+  const warehouses = i === 3
+    ? []
+    : i % 4 === 1
+      ? [{ code: 'default', name: 'Default Source', quantity }, { code: 'east', name: 'East DC', quantity: 30 }]
+      : [{ code: 'default', name: 'Default Source', quantity }]
   return {
     sku,
     name,
     type: i === 3 ? 'configurable' : 'simple',
     description: `${name} — mirrored from Commerce`,
     unit: i % 7 === 0 ? 'PC' : 'EA',
+    // One product blocked for sales, so the refusal and its status have something to show.
+    ...(i === 3 ? {} : { salesStatus: i === 9 ? 'blocked' : 'sellable' }),
     listPrice: price,
     warehouses,
-    stock: warehouses.reduce((sum, w) => sum + w.quantity, 0),
+    stock: i === 3 ? 120 : warehouses.reduce((sum, w) => sum + w.quantity, 0),
     ...(i === 3 ? { priceRange: { min: 119, max: 149 }, variantCount: 3 } : {})
   }
 })
+/* The parent's three variants (SAP's generic article and its articles): each names its
+   parent and the value it varies on, and carries the parent's stock between them. */
+for (const [size, price] of [['S', 119], ['M', 129], ['L', 149]]) {
+  products.push({
+    sku: `P000004-${size}`,
+    name: `Merino crew knit ${size}`,
+    type: 'simple',
+    parentSku: 'P000004',
+    variantAttributes: [{ label: 'Size', value: size }],
+    unit: 'EA',
+    salesStatus: 'sellable',
+    listPrice: price,
+    warehouses: [{ code: 'default', name: 'Default Source', quantity: 40 }],
+    stock: 40
+  })
+}
 
 /* The business structure the last mirror sent: two websites, each its own sales organisation
    (lib/structure.js). Stand-in Store Information stays null, as the real one does: it is
@@ -457,6 +478,27 @@ function describePartner (partner) {
 
 const refuse = () => Promise.reject(new Error('The preview holds stand-in records; nothing here writes.'))
 
+/* Committed and available, mirrored from lib/availability.js: the open quantity on orders
+   that are neither cancelled nor invoiced, and on hand less that. A configurable parent
+   has no lines of its own here (its stand-in variants are not orders' SKUs). */
+const commitsStock = (o) => o.header !== 'cancelled' && !o.invoice
+const openQtyOf = (l) => Math.max(0, l.qty - (l.shippedQty || 0) - (l.closedQty || 0))
+function committedOf (sku) {
+  return orders.filter(commitsStock).reduce((sum, o) => sum + o.lines.filter((l) => l.sku === sku).reduce((s, l) => s + openQtyOf(l), 0), 0)
+}
+const variantsOf = (p) => products.filter((v) => v.parentSku === p.sku)
+function withAvailability (p) {
+  const committed = p.type === 'configurable' ? variantsOf(p).reduce((sum, v) => sum + committedOf(v.sku), 0) : committedOf(p.sku)
+  return { ...p, committed, available: p.stock - committed }
+}
+function openOrdersOf (p) {
+  return orders
+    .filter(commitsStock)
+    .map((o) => ({ number: o.number, partnerId: o.partnerId, qty: o.lines.filter((l) => l.sku === p.sku).reduce((s, l) => s + openQtyOf(l), 0), status: deriveStatus(o), createdAt: o.createdAt, customer: (partnerOf(o.partnerId) || {}).name || null }))
+    .filter((row) => row.qty > 0)
+    .sort((a, b) => (a.number < b.number ? 1 : -1))
+}
+
 /** Everything screen/src/api.js offers, answered from the records above. */
 export const fakeApi = {
   // The work list is counted on each read, as the ERP counts it, so a move made in the preview shows on Home.
@@ -478,8 +520,18 @@ export const fakeApi = {
     return copy(settings)
   },
   wipe: refuse,
-  products: async () => { await wait(); return copy(products) },
-  product: async (sku) => copy(products.find((p) => p.sku === sku)),
+  products: async () => { await wait(); return copy(products.map(withAvailability)) },
+  product: async (sku) => {
+    const product = products.find((p) => p.sku === sku)
+    if (!product) return undefined
+    const parent = product.parentSku ? products.find((p) => p.sku === product.parentSku) : null
+    return copy({
+      ...withAvailability(product),
+      ...(product.type === 'configurable' ? { variants: variantsOf(product).map(withAvailability) } : {}),
+      ...(parent ? { parent: { sku: parent.sku, name: parent.name } } : {}),
+      openOrders: openOrdersOf(product)
+    })
+  },
   patchProduct: refuse,
   partners: async () => { await wait(); return copy(partners) },
   partner: async (id) => { await wait(); return copy(describePartner(partnerOf(id))) },
