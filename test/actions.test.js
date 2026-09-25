@@ -109,12 +109,12 @@ test('orders: create is 201 then 200 for the same Commerce order; status moves p
   assert.equal(log.body.pending, 1)
 })
 
-test('settings takes a name and ignores anything else sent with it', async () => {
+test('settings takes the appearance and ignores anything else sent with it', async () => {
   // The "offline" switch was removed on 2026-09-17; a stale client still sending
   // it must not resurrect a field, and must not fail either.
-  const res = await invoke(settings, cols, { method: 'PATCH', body: { displayName: 'Contoso ERP', offline: true } })
+  const res = await invoke(settings, cols, { method: 'PATCH', body: { appearance: { logo: 'orbit' }, offline: true } })
 
-  assert.equal(res.body.displayName, 'Contoso ERP')
+  assert.equal(res.body.appearance.logo, 'orbit')
   assert.equal('offline' in res.body, false)
   assert.equal((await invoke(products, cols)).statusCode, 200)
 })

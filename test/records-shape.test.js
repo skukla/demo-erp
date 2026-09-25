@@ -42,7 +42,7 @@ async function makeRecords () {
   await upsertCondition(cols, { kind: 'contractDiscount', partnerId: 'C1', percent: 5 })
   await upsertCondition(cols, { kind: 'maxDiscount', percent: 20 })
   await getSettings(cols, 'Demo ERP')
-  await updateSettings(cols, { displayName: 'Demo ERP', appearance: { palette: 'plum' } }, 'Demo ERP')
+  await updateSettings(cols, { appearance: { palette: 'plum' } }, 'Demo ERP')
 
   const partner = await cols.businessPartners.findOne({ _id: 'C1' })
   const walkIn = await cols.businessPartners.findOne({ _id: DEFAULT_PARTNER_ID })

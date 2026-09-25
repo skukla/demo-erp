@@ -156,7 +156,6 @@
     "_id",
     "appearance",
     "displayName",
-    "displayNameEdited",
     "lastImportAt",
     "lastWipeAt",
     "structureMirror",

@@ -101,7 +101,7 @@ test('the structure is derived on read: company code, sales organisations with c
   await invoke(admin, cols, { method: 'POST', path: '/import', body: { partners: [{ id: 'C7', name: 'Acme', commerceCompanyId: '7', salesOrgs: ['2000'] }, { id: 'C8', name: 'Bare', commerceCompanyId: '8', salesOrgs: [] }], structure: STRUCTURE, projectName: 'Demo' } })
   await createOrder(cols, { commerceOrderId: '1', partnerId: 'C7', salesOrg: '2000', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
   await createOrder(cols, { commerceOrderId: '2', partnerId: 'C8', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
-  await updateSettings(cols, { displayName: 'Northwind ERP', warehouses: { east: { name: 'Plant 1100' } } })
+  await updateSettings(cols, { warehouses: { east: { name: 'Plant 1100' } } }, 'Northwind ERP')
   const structure = await describeStructure(cols)
   assert.deepEqual(structure.companyCode, { code: '1000', name: 'Northwind ERP', currency: 'USD', countryId: 'US', vatNumber: null, address: null })
   assert.deepEqual(structure.salesOrgs, [
@@ -122,7 +122,7 @@ test('the structure is derived on read: company code, sales organisations with c
 test('a warehouse renamed in Settings prints its ERP name on the shipment and in the order\'s ship-from choices, with the Commerce name beside; the invoice carries the seller', async () => {
   const { confirmOrder, createShipment, postShipment, createInvoice, getShipment, getInvoice } = require('../lib/fulfilment')
   await invoke(admin, cols, { method: 'POST', path: '/import', body: { partners: [{ id: 'C7', name: 'Acme', commerceCompanyId: '7', salesOrgs: ['2000'] }], structure: STRUCTURE, projectName: 'Demo' } })
-  await updateSettings(cols, { displayName: 'Northwind ERP', warehouses: { east: { name: 'Plant 1100 · Newark DC' } } })
+  await updateSettings(cols, { warehouses: { east: { name: 'Plant 1100 · Newark DC' } } }, 'Northwind ERP')
   const order = await confirmOrder(cols, (await createOrder(cols, { commerceOrderId: '1', partnerId: 'C7', salesOrg: '2000', salesOrgName: 'Online EU', lines: [{ sku: 'A1', qty: 2, price: 100, commerceItemId: 1 }] })).number)
   const doc = await describeOrder(cols, order)
   assert.deepEqual(doc.warehouses.find((w) => w.code === 'east'), { code: 'east', name: 'Plant 1100 · Newark DC', commerceName: 'East DC' })

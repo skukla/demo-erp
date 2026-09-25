@@ -99,7 +99,7 @@ test('conditions validate their shape and can be removed', async () => {
 test('wipe clears records, keeps settings and counters, stamps the time', async () => {
   await importProducts(cols, [{ sku: 'A1' }])
   await importPartners(cols, [{ id: 'P1' }])
-  await updateSettings(cols, { displayName: 'Contoso ERP' })
+  await getSettings(cols, 'Contoso ERP')
   await cols.counters.replaceOne({ _id: 'salesOrder' }, { _id: 'salesOrder', value: 1234 }, { upsert: true })
   const removed = await wipe(cols)
   assert.equal(removed.products, 1)
@@ -133,11 +133,19 @@ test('the display name defaults from the deploy input, then from Acme', async ()
   assert.equal((await getSettings(memoryCollections())).displayName, 'Acme ERP')
 })
 
-test('a redeploy with a new name renames the ERP unless it was renamed on screen', async () => {
+test('the name is the one the ERP was added with, and cannot be changed on screen', async () => {
+  // Fixed at creation (owner, 2026-09-25): a different name means removing the ERP and adding it again.
   await getSettings(cols, 'First ERP')
-  assert.equal((await getSettings(cols, 'Second ERP')).displayName, 'Second ERP')
-  await updateSettings(cols, { displayName: 'Mine' })
-  assert.equal((await getSettings(cols, 'Third ERP')).displayName, 'Mine')
+  await assert.rejects(updateSettings(cols, { displayName: 'Mine' }), /cannot be changed/)
+  assert.equal((await getSettings(cols, 'First ERP')).displayName, 'First ERP')
+})
+
+test('a record from before the name was fixed drops the on-screen rename flag', async () => {
+  await cols.settings.replaceOne({ _id: 'erp' }, { _id: 'erp', displayName: 'Mine', displayNameEdited: true }, { upsert: true })
+  const settings = await getSettings(cols, 'Northwind ERP')
+  assert.equal(settings.displayName, 'Northwind ERP')
+  assert.equal('displayNameEdited' in settings, false)
+  assert.equal('displayNameEdited' in (await cols.settings.findOne({ _id: 'erp' })), false)
 })
 
 test('an ERP that has never been dressed reads back the default appearance', async () => {
@@ -163,13 +171,11 @@ test('a theme id saves the three values it stands for, and not itself', async ()
   assert.equal(appearance.theme, undefined)
 })
 
-test('the appearance and the name are saved by the same call, independently', async () => {
-  const saved = await updateSettings(cols, { displayName: 'Contoso ERP', appearance: { logo: 'orbit' } })
+test('saving the appearance leaves the name alone', async () => {
+  await getSettings(cols, 'Contoso ERP')
+  const saved = await updateSettings(cols, { appearance: { logo: 'orbit' } })
   assert.equal(saved.displayName, 'Contoso ERP')
   assert.equal(saved.appearance.logo, 'orbit')
-  // Renaming alone must not reset the look, which is what a whole-record write would do.
-  const renamed = await updateSettings(cols, { displayName: 'Fabrikam ERP' })
-  assert.equal(renamed.appearance.logo, 'orbit')
 })
 
 test('a wipe keeps the appearance — it is how the ERP is dressed, not a record', async () => {
