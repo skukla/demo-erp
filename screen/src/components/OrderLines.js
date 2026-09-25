@@ -36,7 +36,7 @@ function CloseRemaining ({ line, reasons, onClose, isDisabled }) {
           <Content>
             <Text>
               The {line.openQty} {line.unit} of {line.name} still open will not ship. The order can then be
-              invoiced once every other line has shipped. Commerce invoices the order as placed.
+              invoiced once every other line has shipped.
             </Text>
             <Picker
               label='Reason'

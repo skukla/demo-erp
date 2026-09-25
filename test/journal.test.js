@@ -18,7 +18,7 @@ test('a shipment names its quantity, its order and where it shipped from, and li
 })
 
 test('order events read as sentences with the Commerce order beside them', () => {
-  assert.equal(describeEvent(out('order.confirmed', { erpNumber: '0000001001', incrementId: '000000301' })).text, 'Sales order 0000001001 confirmed (Commerce order 000000301)')
+  assert.equal(describeEvent(out('order.confirmed', { erpNumber: '0000001001', incrementId: '000000301' })).text, 'Sales order 0000001001 confirmed (customer reference 000000301)')
   assert.equal(describeEvent(out('order.cancelled', { erpNumber: '0000001001', reason: 'Out of stock' })).text, 'Sales order 0000001001 cancelled: Out of stock')
   assert.equal(describeEvent(out('order.invoiced', { erpNumber: '0000001001' })).text, 'Invoice for sales order 0000001001')
   assert.equal(describeEvent(out('order.hold', { erpNumber: '0000001007', held: true, reason: 'Credit limit 80,000.00 exceeded by 1,240.00' })).text, 'Sales order 0000001007 put on credit hold: Credit limit 80,000.00 exceeded by 1,240.00')
@@ -44,14 +44,14 @@ test('an incoming entry keeps the summary the ERP wrote and links the order it c
   assert.deepEqual(d.links, [{ kind: 'order', number: '0000001042' }])
 })
 
-test('what arrives from Commerce is named by what it is, with the wire name kept for the detail page', () => {
+test('what arrives is named by what it is, not by the system that sent it, with the wire name kept for the detail page', () => {
   const { inboundName } = require('../lib/journal')
-  assert.equal(inboundName('observer.catalog_product_save_commit_after'), 'Product from Commerce')
-  assert.equal(inboundName('catalog_stock_update'), 'Stock from Commerce')
-  assert.equal(inboundName('observer.sales_order_save_commit_after'), 'Order from Commerce')
-  assert.equal(inboundName('observer.sales_order_shipment_save_after'), 'Shipment from Commerce')
-  assert.equal(inboundName('observer.sales_order_invoice_save_after'), 'Invoice from Commerce')
-  assert.equal(inboundName('observer.company_save_commit_after'), 'Company from Commerce')
+  assert.equal(inboundName('observer.catalog_product_save_commit_after'), 'Product update received')
+  assert.equal(inboundName('catalog_stock_update'), 'Stock update received')
+  assert.equal(inboundName('observer.sales_order_save_commit_after'), 'Order received')
+  assert.equal(inboundName('observer.sales_order_shipment_save_after'), 'Shipment received')
+  assert.equal(inboundName('observer.sales_order_invoice_save_after'), 'Invoice received')
+  assert.equal(inboundName('observer.company_save_commit_after'), 'Customer update received')
   assert.equal(inboundName('Sync from Commerce'), 'Sync from Commerce')
-  assert.equal(inboundName('something.else'), 'From Commerce')
+  assert.equal(inboundName('something.else'), 'Message received')
 })

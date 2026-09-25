@@ -109,7 +109,7 @@ function CreditCard ({ customer, onLimit }) {
       {/* Which exposure is the truth here (bidirectional review, gap G3): the ERP's, from its
           open orders. Commerce keeps a balance of its own for payment on account; the two
           are different numbers and this card does not compare them. */}
-      <Text UNSAFE_className='erp-subtle'>Exposure is the ERP's view: the net of this customer's open orders here. Commerce's own credit balance (payment on account) is a separate figure and is not compared.</Text>
+      <Text UNSAFE_className='erp-subtle'>Exposure is the net value of this customer's open orders.</Text>
       {/* View, not a margin on Text: Spectrum's Text takes no layout props. */}
       <View marginTop='size-250'>
         <Text UNSAFE_className='erp-subtle'>

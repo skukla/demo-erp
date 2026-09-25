@@ -33,7 +33,7 @@ function CancelOrder ({ reasons, onCancel, isDisabled }) {
           <Divider />
           <Content>
             <Text>
-              The order stays in the ERP and in Commerce, cancelled. It cannot be
+              The order stays on record, cancelled. It cannot be
               reopened — an order that should run again is placed again.
             </Text>
             <Picker

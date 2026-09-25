@@ -34,7 +34,7 @@ export function momentsOf (order) {
   }
   if (order.invoice && order.invoice.createdAt) {
     const number = order.invoice.number
-    moments.push({ at: order.invoice.createdAt, text: number ? `Invoice ${number} created` : 'Invoiced in Commerce', ...(number ? { link: { kind: 'invoice', number } } : {}) })
+    moments.push({ at: order.invoice.createdAt, text: number ? `Invoice ${number} created` : 'Invoiced (no invoice document)', ...(number ? { link: { kind: 'invoice', number } } : {}) })
   }
   return moments.filter((m) => m.at).sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
 }

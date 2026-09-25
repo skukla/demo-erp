@@ -33,14 +33,14 @@ export default function EventDetail ({ entry, state, onBack }) {
       {entry.describe && entry.describe.text && <Field label='What happened'>{entry.describe.text}</Field>}
       {/* The wire name stays: it is what the integration's history and I/O Events show. */}
       <Field label='Event'>{entry.event}</Field>
-      <Field label='Direction'>{incoming ? '← From Commerce' : '→ To Commerce'}</Field>
+      <Field label='Direction'>{incoming ? '← Inbound, from the web shop integration' : '→ Outbound, to the web shop integration'}</Field>
       {/* The exact time too: it is what Debug Tracing lists deliveries by. */}
       <Field label='When'>{formatStamp(entry.at)} ({entry.at})</Field>
       <Field label='Status'><StatusLight variant={state.variant}>{state.text}</StatusLight></Field>
       {incoming && <Field label='What the ERP did'>{entry.summary}</Field>}
       {!incoming && entry.lastError && <Field label='Last error'>{entry.lastError}</Field>}
-      <Field label={incoming ? 'I/O Events id (find it on the registration\'s Debug Tracing)' : 'Sent as uid'}>
-        {incoming ? (entry.eventId || 'not passed on by this version of the integration') : entry._id}
+      <Field label={incoming ? 'Sender\'s message id' : 'Message id'}>
+        {incoming ? (entry.eventId || 'not given by the sender') : entry._id}
       </Field>
       <Field label='Journal entry'>{entry._id}</Field>
       <Text UNSAFE_className='erp-field-label'>Payload</Text>

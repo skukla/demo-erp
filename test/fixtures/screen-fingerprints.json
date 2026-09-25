@@ -1,7 +1,7 @@
 {
   "home": {
-    "elements": 66,
-    "hash": "b90f6a9be4410725d6143ba2e3eb610ed61a207d4c5cd5fac4a64bd7b205ee6d"
+    "elements": 61,
+    "hash": "c4e6f1e855184ff9b1d36f7283e08ae6f878a6443b735be83b76f4ad8842c3e2"
   },
   "orders": {
     "elements": 414,
@@ -33,7 +33,7 @@
   },
   "products:document": {
     "elements": 234,
-    "hash": "e4f67ecff38eb9aca523e17fe19098a0dcaf456993edcac9ab64b00102648bc9"
+    "hash": "afff7f4bd291d31dc90c2cf9d9a32d4cf5569ed9be582ad6868a4a23d0c7389f"
   },
   "partners": {
     "elements": 308,
@@ -41,7 +41,7 @@
   },
   "partners:document": {
     "elements": 199,
-    "hash": "e0f2eeef668b763ed615852708c0d3c413f2fe206ece79c5419e573a815ed15c"
+    "hash": "5926e217caaf0e4f3fa89313b60422ee86eca4ba61785b02efb21bcb7e96cf42"
   },
   "pricing": {
     "elements": 367,
@@ -49,7 +49,7 @@
   },
   "events": {
     "elements": 234,
-    "hash": "470f45f39a85861cceb01b6bf239a14c8b827b9da0c86ae1eedbb6047f73a1c9"
+    "hash": "e4b680e44b67cc5c1a915855bbc1e18fe111f4ab6ccb672050cbfb5661c24f7c"
   },
   "settings": {
     "elements": 188,

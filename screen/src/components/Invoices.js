@@ -68,7 +68,7 @@ export default function Invoices ({ api, query = {}, onChanged, onNavigate }) {
         <TableBody items={view.items.map((i) => ({ ...i, id: i.number || `legacy:${i.orderNumber}` }))}>
           {(i) => (
             <Row key={i.id}>
-              <Cell>{i.number ? <span className='erp-key'>{i.number}</span> : 'Invoiced in Commerce'}</Cell>
+              <Cell>{i.number ? <span className='erp-key'>{i.number}</span> : 'Invoiced (no document)'}</Cell>
               <Cell>{formatDate(i.createdAt)}</Cell>
               <Cell>{i.orderNumber}</Cell>
               <Cell>{soldTo(i)}</Cell>

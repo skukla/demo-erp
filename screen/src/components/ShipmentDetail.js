@@ -89,7 +89,7 @@ export default function ShipmentDetail ({ api, number, backLabel = 'Shipments', 
             {!posted && (
               <View marginTop='size-200'>
                 <Text UNSAFE_className='erp-subtle'>
-                  Open: the goods have not left. Posting moves the shipped quantities on the order and tells Commerce.
+                  Open: the goods have not left. Posting moves the shipped quantities on the order.
                 </Text>
               </View>
             )}

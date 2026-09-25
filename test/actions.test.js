@@ -131,7 +131,7 @@ test('the journal answers each entry with its sentence, so the screen names docu
   const res = await invoke(events, cols)
   const confirmed = res.body.items.find((e) => e.kind === 'order.confirmed')
   assert.equal(confirmed.describe.name, 'Order confirmed')
-  assert.equal(confirmed.describe.text, 'Sales order 0000001000 confirmed (Commerce order 000000009)')
+  assert.equal(confirmed.describe.text, 'Sales order 0000001000 confirmed (customer reference 000000009)')
 })
 
 test('events are delivered to the ingestion webhook with the journal id, and retried when pending', async () => {

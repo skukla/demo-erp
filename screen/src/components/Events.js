@@ -32,14 +32,14 @@ function stateKey (e) {
 
 const DIRECTIONS = [
   { key: 'all', label: 'Both directions' },
-  { key: 'in', label: 'From Commerce' },
-  { key: 'out', label: 'To Commerce' }
+  { key: 'in', label: 'Inbound' },
+  { key: 'out', label: 'Outbound' }
 ]
 const STATES = [
   { key: 'all', label: 'Any status' },
   { key: 'received', label: 'Received' },
-  { key: 'delivered', label: 'Delivered' },
-  { key: 'pending', label: 'Pending' },
+  { key: 'delivered', label: 'Sent' },
+  { key: 'pending', label: 'Waiting' },
   { key: 'failed', label: 'Failed' }
 ]
 
@@ -55,7 +55,7 @@ const EVENT_GRID = {
   fields: [(e) => e.event, (e) => eventName(e), (e) => detailText(e), (e) => e.lastError],
   values: {
     at: (e) => Date.parse(e.at) || 0,
-    direction: (e) => (isIncoming(e) ? 'From Commerce' : 'To Commerce'),
+    direction: (e) => (isIncoming(e) ? 'Inbound' : 'Outbound'),
     event: (e) => eventName(e),
     state: (e) => stateKey(e)
   },
@@ -94,12 +94,13 @@ export default function Events ({ api, query = {}, onNavigate }) {
   function state (e) {
     const key = stateKey(e)
     if (key === 'received') return { variant: 'positive', text: 'received' }
-    if (key === 'delivered') return { variant: 'positive', text: 'delivered' }
+    // Sent, not delivered: what the receiver did with it is the receiver's to say.
+    if (key === 'delivered') return { variant: 'positive', text: 'sent' }
     if (key === 'failed') return { variant: 'negative', text: `failed after ${e.attempts} tries` }
-    return { variant: 'notice', text: `pending (${e.attempts || 0} tries)` }
+    return { variant: 'notice', text: `waiting (${e.attempts || 0} tries)` }
   }
   const [direction, setDirection] = useState('all')
-  // Home's "Events not delivered" and "Events waiting" land here with ?work=failed / pending.
+  // Home's "Messages not sent" and "Messages waiting" land here with ?work=failed / pending.
   const [shown, setShown] = useState(() => (STATES.some((x) => x.key === query.work) ? query.work : 'all'))
   const filtered = useMemo(() => (rows || []).filter((e) => {
     if (direction !== 'all' && (isIncoming(e) ? 'in' : 'out') !== direction) return false
@@ -113,7 +114,7 @@ export default function Events ({ api, query = {}, onNavigate }) {
   return (
     <Frame title='Event Journal' error={actionError || error} loading={!rows}
       actions={<><Button variant='secondary' onPress={retry} isDisabled={!meta.pending}>Retry pending</Button><Button variant='secondary' onPress={requeue} isDisabled={!meta.failed} marginStart='size-100'>Requeue failed</Button></>}>
-      <Text>Changes from Commerce, and what this ERP published to {meta.webhookUrl || 'no subscriber (no namespace)'}: {meta.pending ?? 0} waiting to be delivered, {meta.failed ?? 0} failed (an event is failed after ten attempts).</Text>
+      <Text>Messages exchanged with the web shop integration: {meta.pending ?? 0} waiting to be sent, {meta.failed ?? 0} failed (a message is failed after ten attempts).</Text>
       <GridSearch placeholder='Event name or detail' view={view}>
         <Picker aria-label='Direction' label='Direction' selectedKey={direction} onSelectionChange={(k) => setDirection(String(k))} items={DIRECTIONS}>
           {(d) => <Item key={d.key}>{d.label}</Item>}
@@ -136,7 +137,7 @@ export default function Events ({ api, query = {}, onNavigate }) {
           {(e) => (
             <Row key={e._id}>
               <Cell>{formatStamp(e.at)}</Cell>
-              <Cell>{isIncoming(e) ? '← From Commerce' : '→ To Commerce'}</Cell>
+              <Cell>{isIncoming(e) ? '← Inbound' : '→ Outbound'}</Cell>
               <Cell>{eventName(e)}</Cell>
               <Cell><StatusLight variant={state(e).variant}>{state(e).text}</StatusLight></Cell>
               <Cell>

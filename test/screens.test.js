@@ -260,7 +260,7 @@ test('the rail counts the work behind each item, from the same numbers as the cu
     const rail = await page.locator('.erp-rail button').evaluateAll((nodes) => Object.fromEntries(nodes.map((n) => [n.textContent.replace(/\d+$/, ''), Number((n.querySelector('.erp-rail-count') || {}).textContent || 0)])))
     assert.equal(rail['Sales Orders'], cues['Orders to confirm'] + cues['Orders on credit hold'] + cues['Orders to ship'] + cues['Orders to invoice'])
     assert.equal(rail.Shipments, cues['Shipments to post'])
-    assert.equal(rail['Event Journal'], cues['Events not delivered'])
+    assert.equal(rail['Event Journal'], cues['Messages not sent'])
   } finally {
     await context.close()
   }

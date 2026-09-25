@@ -57,7 +57,7 @@ export default function RelatedDocuments ({ order, onOpen }) {
           />
         ))}
         {invoice && (invoice.legacy
-          ? <Box kind='Invoice' when={formatDate(invoice.createdAt)} note='invoiced in Commerce before the ERP kept invoice documents' status='Invoiced' variant='positive' />
+          ? <Box kind='Invoice' when={formatDate(invoice.createdAt)} note='invoiced before invoice documents were kept' status='Invoiced' variant='positive' />
           : (
             <Box
               kind='Invoice'

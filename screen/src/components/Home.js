@@ -47,7 +47,7 @@ export default function Home ({ health, reloading, onNavigate }) {
           <Flex gap='size-300' wrap alignItems='start'>
             <div className='erp-home-column'>
               <Card title='Recent documents'>
-                {work.recent.length === 0 && <Text UNSAFE_className='erp-subtle'>No documents yet. The first Commerce order becomes the first sales order.</Text>}
+                {work.recent.length === 0 && <Text UNSAFE_className='erp-subtle'>No documents yet. The first sales order will appear here.</Text>}
                 {work.recent.length > 0 && (
                   <ul className='erp-recent'>
                     {work.recent.map((doc) => (
@@ -66,9 +66,6 @@ export default function Home ({ health, reloading, onNavigate }) {
               <Card title='Open order value'>
                 <Heading level={2} marginY='size-50'>{work.openValue.currency ? money(work.openValue.amount, work.openValue.currency) : `${work.openValue.amount} (mixed currencies)`}</Heading>
                 <Text UNSAFE_className='erp-subtle'>Net amount of every sales order not yet invoiced or cancelled.</Text>
-              </Card>
-              <Card title='Last sync from Commerce'>
-                <Text>{health.lastImportAt ? formatStamp(health.lastImportAt) : 'Not yet — the integration sends its records when it is installed.'}</Text>
               </Card>
             </div>
           </Flex>

@@ -94,7 +94,7 @@ function VariantsCard ({ product, onOpen, onSaveVariant }) {
       )}
     >
       {product.variants.length === 0
-        ? <Text>Commerce lists no variants for this product.</Text>
+        ? <Text>This product has no variants.</Text>
         : (
           <TableView
             aria-label='Variants'
@@ -143,7 +143,7 @@ function InventoryCard ({ draft, saved, total, onQuantity }) {
   return (
     <Card title='Inventory' actions={<StockLine stock={total} committed={saved.committed} available={available} />}>
       {draft.warehouses.length === 0
-        ? <Text>Commerce reports no stock for this product in any warehouse.</Text>
+        ? <Text>No stock of this product in any warehouse.</Text>
         : (
           <TableView {...widths.tableProps} aria-label='Stock by warehouse' density='compact' selectionMode='none'>
             <TableHeader>
@@ -175,7 +175,7 @@ function InventoryCard ({ draft, saved, total, onQuantity }) {
           </TableView>
           )}
       <Text UNSAFE_className='erp-subtle'>
-        A warehouse here is a Commerce inventory source. Committed is what open orders still have to ship; it is read from the orders, not stored.
+        Committed is what open orders still have to ship; it is read from the orders, not stored.
       </Text>
     </Card>
   )
@@ -356,7 +356,7 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
                       <LockClosed size='S' aria-label='Locked' />
                       <Text UNSAFE_style={{ fontSize: 15, fontWeight: 600 }}>{saved.sku}</Text>
                     </Flex>
-                    <Text UNSAFE_className='erp-field-label'>The SKU links this product to Commerce. Change it there, then sync.</Text>
+                    <Text UNSAFE_className='erp-field-label'>The SKU is the product's key and cannot be changed.</Text>
                   </Field>
                   {saved.variantAttributes && saved.variantAttributes.length > 0 && (
                     <Field label='Varies on'>
