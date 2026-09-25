@@ -1,5 +1,8 @@
 /*
  * GET  orders                                   list, newest first, each row naming its customer
+ * GET  orders?reference=<customer reference>    only the orders carrying that reference (the buyer's
+ *                                               order number); SAP filters PurchaseOrderByCustomer, Business
+ *                                               Central externalDocumentNumber
  * GET  orders/:number                           one order as its document shows it (lib/orders describeOrder)
  * POST orders                                   create from a Commerce order (idempotent on commerceOrderId;
  *                                               `origin: { event }` journals it the first time)
@@ -43,6 +46,11 @@ async function listRows (cols) {
   return orders.map((o) => ({ ...o, partnerName: names.get(o.partnerId) || null, shippingStatus: shippingStatus(o), billingStatus: billingStatus(o), overall: overallStatus(o) }))
 }
 
+/** The customer's reference an order carries: the buyer's own order number. */
+function referenceOf (order) {
+  return String(order.commerceIncrementId || order.commerceOrderId || '')
+}
+
 /** The moves on one order, by the path segment after its number. Each answers the document. */
 async function move (cols, number, segments, body, params) {
   const [, verb, id, action] = segments
@@ -72,7 +80,11 @@ const CREATES = new Set(['shipments', 'invoice', 'commerce-shipment', 'commerce-
 
 async function handler ({ cols, method, segments, body, params }) {
   const number = segments[0] || null
-  if (method === 'GET' && !number) return ok({ items: await listRows(cols) })
+  if (method === 'GET' && !number) {
+    const rows = await listRows(cols)
+    const ref = typeof params?.reference === 'string' ? params.reference.trim() : ''
+    return ok({ items: ref ? rows.filter((o) => referenceOf(o) === ref) : rows })
+  }
   if (method === 'GET') {
     const order = await getOrder(cols, number)
     if (!order) throw notFound(`Sales order ${number}`)
