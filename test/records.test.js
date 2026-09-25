@@ -59,6 +59,11 @@ test('partners resolve by id, Commerce company, email domain, customer group, th
   assert.equal((await resolvePartner(cols, { commerceCompanyId: 7 })).id, 'P1')
   assert.equal((await resolvePartner(cols, { email: 'buyer@acme.example', customerGroupId: '9' })).id, 'P1')
   assert.equal((await resolvePartner(cols, { customerGroupId: '3' })).id, 'P1')
+  // A group two partners share names neither: the default, not the first one found
+  // (Commerce puts every company in General unless a shared catalog gives it a group).
+  await importPartners(cols, [{ id: 'P2', name: 'Bolt', commerceCompanyId: '8', customerGroupId: '3' }])
+  assert.equal((await resolvePartner(cols, { customerGroupId: '3' })).id, DEFAULT_PARTNER_ID)
+  assert.equal((await resolvePartner(cols, { commerceCompanyId: '8', customerGroupId: '3' })).id, 'P2')
   const fallback = await resolvePartner(cols, { commerceCompanyId: '99' })
   assert.equal(fallback.id, DEFAULT_PARTNER_ID)
   assert.equal(fallback.isDefault, true)
