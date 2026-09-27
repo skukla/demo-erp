@@ -180,10 +180,10 @@ How the ERP and its integration fit together:
  └──────────────────────────────────────────────────────────────────────────────┘
         ▲ loads the page from the static site; hands it the user's token
         │                               page ──calls──► erp/* actions
-  ┌─────┴──────────────────────────────┐
-  │ Commerce Admin                     │
+  ┌─────┴───────────────────────────────┐
+  │ Commerce Admin                      │
   │  Apps ▸ <ERP> ▸ Integration (iframe)│
-  └────────────────────────────────────┘
+  └─────────────────────────────────────┘
 ```
 
 React only draws the pages; every rule lives in `lib/` and runs in Adobe I/O Runtime. The page
