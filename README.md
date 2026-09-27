@@ -182,7 +182,7 @@ How the ERP and its integration fit together:
         │                               page ──calls──► erp/* actions
   ┌─────┴──────────────────────────────┐
   │ Commerce Admin                     │
-  │  Apps ▸ ERP integration    (iframe)│
+  │  Apps ▸ <ERP> ▸ Integration (iframe)│
   └────────────────────────────────────┘
 ```
 
