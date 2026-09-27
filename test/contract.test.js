@@ -69,9 +69,17 @@ test('delivery rules match the code', () => {
   assert.ok(webhookUrl({ EVENTS_WEBHOOK_URL: 'https://x.example' + contract.delivery.webhookPath }).endsWith(contract.delivery.webhookPath))
 })
 
-test('the contract is at version 2: the business-structure fields are named on partners, orders and the structure import', () => {
-  assert.equal(contract.contractVersion, 2)
-  for (const key of ['salesOrgs', 'legalName', 'vatTaxId', 'resellerId', 'legalAddress', 'website']) assert.ok(contract.import.partners.includes(key), key)
+test('the contract is at version 3: the business-structure fields are named on partners, orders and the structure import, and no Commerce id is', () => {
+  assert.equal(contract.contractVersion, 3)
+  for (const key of ['salesOrgs', 'legalName', 'vatTaxId', 'resellerId', 'legalAddress']) assert.ok(contract.import.partners.includes(key), key)
+  // Version 3: the ERP holds and speaks no Commerce id; the integration keeps the key map.
+  for (const key of ['commerceCompanyId', 'customerGroupId', 'emailDomain', 'website']) assert.ok(!contract.import.partners.includes(key), key)
+  for (const key of ['commerceCompanyId', 'customerGroupId', 'email']) {
+    assert.ok(!contract.order.request.includes(key), key)
+    assert.ok(!contract.quote.request.includes(key), key)
+  }
+  assert.deepEqual(contract.events['be-observer.company_credit_update'].value, ['partnerId', 'creditLimit'])
+  assert.deepEqual(contract.events['be-observer.company_status_update'].value, ['partnerId', 'blocked'])
   assert.deepEqual(contract.import.structure, ['websites'])
   assert.deepEqual(contract.import.structureWebsite, ['code', 'name', 'salesOrg', 'salesOrgName', 'storeInfo'])
   for (const key of ['salesOrg', 'salesOrgName']) {

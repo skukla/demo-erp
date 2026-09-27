@@ -74,11 +74,11 @@ const salesOrgNames = { 1000: 'Online US', 2000: 'Online EU' }
 const noLegal = { legalName: null, vatTaxId: null, resellerId: null, legalAddress: null, website: null }
 
 const partners = [
-  { id: 'P000000', name: 'Walk-in customers', salesOrgs: ['*'], ...noLegal, commerceCompanyId: null, customerGroupId: null, paymentTerms: 'NET30', creditLimit: 0, blocking: 'open', isDefault: true },
-  { id: 'C000101', name: 'Northwind Trading', salesOrgs: ['1000'], legalName: 'Northwind Trading LLC', vatTaxId: 'US 83-1234567', resellerId: 'R-1042', legalAddress: { street: ['1 Harbor Way', 'Suite 400'], city: 'Seattle', region: 'WA', postcode: '98101', countryId: 'US', telephone: '206-555-0100' }, website: { id: 1, code: 'base' }, commerceCompanyId: '4', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 50000, blocking: 'open' },
-  { id: 'C000102', name: 'Contoso Supply', salesOrgs: ['1000', '2000'], legalName: 'Contoso Supply Inc.', vatTaxId: 'US 91-7654321', resellerId: null, legalAddress: { street: ['200 Market St'], city: 'San Francisco', region: 'CA', postcode: '94105', countryId: 'US', telephone: null }, website: { id: 1, code: 'base' }, commerceCompanyId: '7', customerGroupId: '2', paymentTerms: 'NET60', creditLimit: 120000, blocking: 'open' },
-  { id: 'C000103', name: 'Fabrikam Retail', salesOrgs: ['2000'], legalName: 'Fabrikam Retail GmbH', vatTaxId: 'DE 812345678', resellerId: 'R-2210', legalAddress: { street: ['Hauptstraße 5'], city: 'Berlin', region: null, postcode: '10115', countryId: 'DE', telephone: '+49 30 555 0100' }, website: { id: 2, code: 'eu' }, commerceCompanyId: '9', customerGroupId: '3', paymentTerms: 'NET15', creditLimit: 25000, blocking: 'all' },
-  { id: 'C000104', name: 'Adventure Works', salesOrgs: ['2000'], legalName: 'Adventure Works B.V.', vatTaxId: 'NL 001234567B01', resellerId: null, legalAddress: { street: ['Keizersgracht 100'], city: 'Amsterdam', region: null, postcode: '1015 AA', countryId: 'NL', telephone: null }, website: { id: 2, code: 'eu' }, commerceCompanyId: '12', customerGroupId: '2', paymentTerms: 'NET30', creditLimit: 80000, blocking: 'open' }
+  { id: 'P000000', name: 'Walk-in customers', salesOrgs: ['*'], ...noLegal, paymentTerms: 'NET30', creditLimit: 0, blocking: 'open', isDefault: true },
+  { id: 'C000101', name: 'Northwind Trading', salesOrgs: ['1000'], legalName: 'Northwind Trading LLC', vatTaxId: 'US 83-1234567', resellerId: 'R-1042', legalAddress: { street: ['1 Harbor Way', 'Suite 400'], city: 'Seattle', region: 'WA', postcode: '98101', countryId: 'US', telephone: '206-555-0100' }, paymentTerms: 'NET30', creditLimit: 50000, blocking: 'open' },
+  { id: 'C000102', name: 'Contoso Supply', salesOrgs: ['1000', '2000'], legalName: 'Contoso Supply Inc.', vatTaxId: 'US 91-7654321', resellerId: null, legalAddress: { street: ['200 Market St'], city: 'San Francisco', region: 'CA', postcode: '94105', countryId: 'US', telephone: null }, paymentTerms: 'NET60', creditLimit: 120000, blocking: 'open' },
+  { id: 'C000103', name: 'Fabrikam Retail', salesOrgs: ['2000'], legalName: 'Fabrikam Retail GmbH', vatTaxId: 'DE 812345678', resellerId: 'R-2210', legalAddress: { street: ['Hauptstraße 5'], city: 'Berlin', region: null, postcode: '10115', countryId: 'DE', telephone: '+49 30 555 0100' }, paymentTerms: 'NET15', creditLimit: 25000, blocking: 'all' },
+  { id: 'C000104', name: 'Adventure Works', salesOrgs: ['2000'], legalName: 'Adventure Works B.V.', vatTaxId: 'NL 001234567B01', resellerId: null, legalAddress: { street: ['Keizersgracht 100'], city: 'Amsterdam', region: null, postcode: '1015 AA', countryId: 'NL', telephone: null }, paymentTerms: 'NET30', creditLimit: 80000, blocking: 'open' }
 ]
 
 /* The stored shape (lib/orders.js): a header word, quantities per line, the shipments
@@ -462,7 +462,7 @@ const OPEN = new Set(['created', 'confirmed', 'shipped'])
 /* A customer row for the list (lib/partners withCredit): exposure and what is left, by the
    document's rule; null for the walk-in account, which has no credit relationship. */
 function withCredit (partner) {
-  if (!partner.commerceCompanyId) return { ...partner, exposure: null, available: null }
+  if (partner.isDefault) return { ...partner, exposure: null, available: null }
   const { credit } = describePartner(partner)
   return { ...partner, exposure: credit.exposure, available: credit.available }
 }
@@ -499,7 +499,7 @@ function describePartner (partner) {
   return {
     ...partner,
     salesOrgNames,
-    credit: partner.commerceCompanyId ? { limit, exposure, available: cents(limit - exposure), held } : null,
+    credit: !partner.isDefault ? { limit, exposure, available: cents(limit - exposure), held } : null,
     orders: own,
     conditions: conditions.filter((c) => c.partnerId === partner.id)
   }

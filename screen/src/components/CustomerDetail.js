@@ -277,13 +277,9 @@ export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBa
               {/* SAP's partner functions: in the simplest case the customer is its own
                   sold-to, and every account here is one. Saying so is the ERP texture. */}
               <Field label='Partner type'>Sold-to</Field>
-              <Field label='Commerce company'>{customer.commerceCompanyId || '—'}</Field>
-              <Field label='Customer group'>{customer.customerGroupId || '—'}</Field>
-              <Field label='Email domain'>{customer.emailDomain || '—'}</Field>
               {/* SAP extends a customer to each sales area it buys through; the list is that. */}
               <Field label='Sold-to in'>{salesOrgsText(customer)}</Field>
               <Field label='Payment terms'>{customer.paymentTerms || '—'}</Field>
-              <Field label='Website'>{customer.website ? (customer.website.code || customer.website.id) : '—'}</Field>
             </Grid>
           </Card>
           {/* A company always has a legal identity; a field the mirror did not bring prints a

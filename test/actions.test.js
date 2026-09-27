@@ -76,11 +76,13 @@ test('partners list and patch', async () => {
   assert.equal(res.body.creditLimit, 500)
 })
 
-test('pricing: a condition then a quote resolved by Commerce company', async () => {
+test('pricing: a condition then a quote for the customer it names; a Commerce id names nobody', async () => {
   const created = await invoke(pricing, cols, { method: 'POST', body: { kind: 'contractDiscount', partnerId: 'P1', percent: 20 } })
   assert.equal(created.statusCode, 201)
-  const q = await invoke(pricing, cols, { method: 'POST', path: '/quote', body: { commerceCompanyId: 7, lines: [{ sku: 'A1', qty: 2 }] } })
+  const q = await invoke(pricing, cols, { method: 'POST', path: '/quote', body: { partnerId: 'P1', lines: [{ sku: 'A1', qty: 2 }] } })
   assert.equal(q.body.partnerId, 'P1')
+  const byCommerce = await invoke(pricing, cols, { method: 'POST', path: '/quote', body: { commerceCompanyId: 7, lines: [{ sku: 'A1', qty: 2 }] } })
+  assert.equal(byCommerce.body.partnerId, 'P000000')
   assert.equal(q.body.lines[0].contractPrice, 80)
   assert.equal(q.body.total, 160)
   // A quote may name the date it prices on; the answer says why a record did not apply.

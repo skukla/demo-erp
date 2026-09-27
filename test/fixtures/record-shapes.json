@@ -2,10 +2,7 @@
   "partner": [
     "_id",
     "blocking",
-    "commerceCompanyId",
     "creditLimit",
-    "customerGroupId",
-    "emailDomain",
     "id",
     "legalAddress",
     "legalName",
@@ -14,15 +11,12 @@
     "resellerId",
     "salesOrgs",
     "updatedAt",
-    "vatTaxId",
-    "website"
+    "vatTaxId"
   ],
   "walkInPartner": [
     "_id",
     "blocking",
-    "commerceCompanyId",
     "creditLimit",
-    "customerGroupId",
     "id",
     "isDefault",
     "legalAddress",
@@ -32,8 +26,7 @@
     "resellerId",
     "salesOrgs",
     "updatedAt",
-    "vatTaxId",
-    "website"
+    "vatTaxId"
   ],
   "product": [
     "_id",

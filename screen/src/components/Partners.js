@@ -47,7 +47,7 @@ const PARTNER_COLUMNS = [
 ]
 
 const PARTNER_GRID = {
-  fields: [(p) => p.id, (p) => p.name, (p) => p.commerceCompanyId],
+  fields: [(p) => p.id, (p) => p.name],
   values: {
     id: (p) => p.id,
     name: (p) => p.name,

@@ -18,13 +18,13 @@ test('creates an SAP-style ten-digit number and totals the lines', async () => {
   assert.equal(order.status, 'created')
 })
 
-test('the partner is resolved from the buyer hints when no partner id is given', async () => {
-  await importPartners(cols, [{ id: 'C2', name: 'Kukla Studios', commerceCompanyId: '2', emailDomain: 'kuklastudios.example' }])
+test('an order names its customer by number; without one it is the walk-in customer\'s', async () => {
+  await importPartners(cols, [{ id: 'C2', name: 'Kukla Studios' }])
   await ensureDefaultPartner(cols, 'Demo')
-  const byEmail = await createOrder(cols, { commerceOrderId: '1', email: 'buyer@kuklastudios.example', lines: [] })
-  assert.equal(byEmail.partnerId, 'C2')
-  const unknown = await createOrder(cols, { commerceOrderId: '2', email: 'x@nowhere.example', lines: [] })
-  assert.equal(unknown.partnerId, 'P000000')
+  const named = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C2', lines: [] })
+  assert.equal(named.partnerId, 'C2')
+  const unnamed = await createOrder(cols, { commerceOrderId: '2', email: 'buyer@kuklastudios.example', lines: [] })
+  assert.equal(unnamed.partnerId, 'P000000')
   const none = await createOrder(memoryCollections(), { commerceOrderId: '3', lines: [] })
   assert.equal(none.partnerId, null)
 })

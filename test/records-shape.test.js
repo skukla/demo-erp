@@ -31,7 +31,7 @@ beforeEach(() => { cols = memoryCollections() })
 /** One of each record, made the way the ERP makes them. */
 async function makeRecords () {
   await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 50 }] }])
-  await importPartners(cols, [{ id: 'C1', name: 'Acme', commerceCompanyId: '7', creditLimit: 1000, customerGroupId: '2', emailDomain: 'acme.example', blocked: false }])
+  await importPartners(cols, [{ id: 'C1', name: 'Acme', creditLimit: 1000, blocked: false }])
   await ensureDefaultPartner(cols, 'Demo')
   const order = await createOrder(cols, { commerceOrderId: '42', commerceIncrementId: '000000042', partnerId: 'C1', lines: [{ sku: 'A1', qty: 3, price: 10, commerceItemId: 1 }] })
   await confirmOrder(cols, order.number)

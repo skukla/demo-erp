@@ -51,30 +51,35 @@ test('bad product values are refused', async () => {
   assert.equal(await patchProduct(cols, 'ZZ', { warehouses: [{ code: 'default', quantity: 1 }] }), null)
 })
 
-test('partners resolve by id, Commerce company, email domain, customer group, then the default', async () => {
-  await importPartners(cols, [{ id: 'P1', name: 'Acme', commerceCompanyId: '7', customerGroupId: '3', emailDomain: 'Acme.example' }])
+test('a customer is found by its own number only; anything else is the walk-in customer', async () => {
+  await importPartners(cols, [{ id: 'P1', name: 'Acme' }])
   await ensureDefaultPartner(cols, 'Demo')
   assert.equal((await resolvePartner(cols, { partnerId: 'P1' })).id, 'P1')
-  assert.equal((await resolvePartner(cols, { commerceCompanyId: 7 })).id, 'P1')
-  assert.equal((await resolvePartner(cols, { email: 'buyer@acme.example', customerGroupId: '9' })).id, 'P1')
-  assert.equal((await resolvePartner(cols, { customerGroupId: '3' })).id, 'P1')
-  // A group two partners share names neither: the default, not the first one found
-  // (Commerce puts every company in General unless a shared catalog gives it a group).
-  await importPartners(cols, [{ id: 'P2', name: 'Bolt', commerceCompanyId: '8', customerGroupId: '3' }])
-  assert.equal((await resolvePartner(cols, { customerGroupId: '3' })).id, DEFAULT_PARTNER_ID)
-  assert.equal((await resolvePartner(cols, { commerceCompanyId: '8', customerGroupId: '3' })).id, 'P2')
-  const fallback = await resolvePartner(cols, { commerceCompanyId: '99' })
-  assert.equal(fallback.id, DEFAULT_PARTNER_ID)
-  assert.equal(fallback.isDefault, true)
+  // The ERP knows nothing of Commerce (the integration keeps the key map): Commerce's ids,
+  // groups and email domains name nobody here.
+  for (const hints of [{ commerceCompanyId: 7 }, { email: 'buyer@acme.example' }, { customerGroupId: '3' }, { partnerId: 'P9' }, {}]) {
+    const found = await resolvePartner(cols, hints)
+    assert.equal(found.id, DEFAULT_PARTNER_ID, JSON.stringify(hints))
+    assert.equal(found.isDefault, true)
+  }
 })
 
-test('credit limit and block changes raise company events carrying the Commerce company id', async () => {
-  await importPartners(cols, [{ id: 'P1', commerceCompanyId: '7' }])
+test("an import holds no Commerce ids, and a customer stored with them loses them when read", async () => {
+  await importPartners(cols, [{ id: 'P1', name: 'Acme', commerceCompanyId: '7', customerGroupId: '3', emailDomain: 'acme.example', website: { id: 1, code: 'base' } }])
+  const imported = await getPartner(cols, 'P1')
+  for (const key of ['commerceCompanyId', 'customerGroupId', 'emailDomain', 'website']) assert.equal(key in imported, false, key)
+  await cols.businessPartners.replaceOne({ _id: 'P2' }, { _id: 'P2', id: 'P2', name: 'Old', salesOrgs: [], commerceCompanyId: '8', customerGroupId: '1', emailDomain: 'old.example', website: null, blocking: 'open', creditLimit: 5 }, { upsert: true })
+  const stored = await getPartner(cols, 'P2')
+  for (const key of ['commerceCompanyId', 'customerGroupId', 'emailDomain', 'website']) assert.equal(key in stored, false, key)
+})
+
+test('credit limit and block changes raise events naming the customer by its own number only', async () => {
+  await importPartners(cols, [{ id: 'P1' }])
   await patchPartner(cols, 'P1', { creditLimit: 1000, blocking: 'all' })
   const entries = await pending(cols)
   assert.deepEqual(entries.map((e) => e.event), ['be-observer.company_credit_update', 'be-observer.company_status_update'])
-  assert.deepEqual(entries[0].value, { partnerId: 'P1', companyId: '7', creditLimit: 1000 })
-  assert.deepEqual(entries[1].value, { partnerId: 'P1', companyId: '7', blocked: true })
+  assert.deepEqual(entries[0].value, { partnerId: 'P1', creditLimit: 1000 })
+  assert.deepEqual(entries[1].value, { partnerId: 'P1', blocked: true })
 })
 
 test('conditions validate their shape and can be removed', async () => {

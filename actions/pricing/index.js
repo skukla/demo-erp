@@ -2,7 +2,7 @@
  * GET  pricing                 the pricing conditions
  * POST pricing                 create or replace a condition
  * DELETE pricing/:id           remove one
- * POST pricing/quote           { partnerId?, commerceCompanyId?, customerGroupId?, lines:[{sku, qty}], date?, salesOrg? }
+ * POST pricing/quote           { partnerId?, lines:[{sku, qty}], date?, salesOrg? }
  *                              date (YYYY-MM-DD) is the day priced on — today when absent; salesOrg scopes
  *                              the conditions to one sales organisation (a condition with none applies to all)
  */

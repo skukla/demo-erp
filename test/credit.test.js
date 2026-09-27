@@ -14,6 +14,7 @@ const { createOrder, describeOrder, getOrder } = require('../lib/orders')
 const { confirmOrder, createShipment, postShipment, createInvoice, releaseCredit, rejectCredit } = require('../lib/fulfilment')
 const { importProducts } = require('../lib/products')
 const { pending } = require('../lib/events')
+const { hasCredit } = require('../lib/credit')
 const orders = require('../actions/orders')
 const partners = require('../actions/partners')
 
@@ -125,6 +126,14 @@ test('blocking stops the next document: Shipping refuses new shipments but lets 
   assert.ok(invoiced.invoice)
 })
 
+test('any customer but the walk-in one has credit, whatever it was imported with', async () => {
+  await importPartners(cols, [{ id: 'C5', name: 'Plain', creditLimit: 100 }])
+  await ensureDefaultPartner(cols, 'Demo')
+  assert.equal(hasCredit(await getPartner(cols, 'C5')), true)
+  assert.equal(hasCredit(await getPartner(cols, 'P000000')), false)
+  assert.equal(hasCredit(null), false)
+})
+
 test('the blocking level replaces the boolean: Commerce\'s blocked flag imports as All, a legacy record reads as All, and the event keeps sending a boolean', async () => {
   await importPartners(cols, [{ id: 'C2', name: 'Beta', commerceCompanyId: '8', blocked: true }])
   assert.equal((await getPartner(cols, 'C2')).blocking, 'all')
@@ -142,7 +151,7 @@ test('the blocking level replaces the boolean: Commerce\'s blocked flag imports 
   const events = (await pending(cols)).filter((e) => e.kind === 'partner.blocked')
   // shipping → blocked:true; invoicing changes the level but not the boolean → no event; open → blocked:false
   assert.deepEqual(events.map((e) => e.value.blocked), [true, false])
-  assert.deepEqual(Object.keys(events[0].value).sort(), ['blocked', 'companyId', 'partnerId'])
+  assert.deepEqual(Object.keys(events[0].value).sort(), ['blocked', 'partnerId'])
   await assert.rejects(patchPartner(cols, 'C1', { blocking: 'sometimes' }), /blocking must be one of/)
   assert.deepEqual(BLOCKING, ['open', 'shipping', 'invoicing', 'all'])
 })

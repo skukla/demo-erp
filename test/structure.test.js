@@ -28,13 +28,12 @@ const STRUCTURE = { websites: [
   { code: 'eu', name: 'Europe', salesOrg: '2000', salesOrgName: 'Online EU', storeInfo: { currency: 'EUR', countryId: 'DE', vatNumber: null, address: null } }
 ] }
 
-test('a company arrives with its sales organisations, legal identity and website; a re-import replaces the list and keeps a legal field the row omits', async () => {
+test('a company arrives with its sales organisations and legal identity; a re-import replaces the list and keeps a legal field the row omits', async () => {
   await importPartners(cols, [{ id: 'C7', name: 'Acme', commerceCompanyId: '7', salesOrgs: ['2000'], legalName: 'Acme Trading LLC', vatTaxId: 'US12', resellerId: 'R-1', legalAddress: { street: ['1 Main St', ''], city: 'Austin', region: 'TX', postcode: '78701', countryId: 'US', telephone: null }, website: { id: 2, code: 'eu' } }])
   const partner = await getPartner(cols, 'C7')
   assert.deepEqual(partner.salesOrgs, ['2000'])
   assert.equal(partner.legalName, 'Acme Trading LLC')
   assert.deepEqual(partner.legalAddress, { street: ['1 Main St'], city: 'Austin', region: 'TX', postcode: '78701', countryId: 'US', telephone: null })
-  assert.deepEqual(partner.website, { id: 2, code: 'eu' })
   assert.equal(partner.salesOrg, undefined, 'the singular field is gone')
   await importPartners(cols, [{ id: 'C7', name: 'Acme', salesOrgs: ['1000', '2000'] }])
   const again = await getPartner(cols, 'C7')
