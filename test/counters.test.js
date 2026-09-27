@@ -36,3 +36,12 @@ test('the real documents draw from those ranges, and the next numbers survive a 
   await wipe(cols)
   assert.deepEqual(await peek(cols), { salesOrder: '0000001001', shipment: '8000000002', invoice: '9000000002' })
 })
+
+test('a counter the database hands back as a 64-bit Long still counts up by one', async () => {
+  // What App Builder Database answers for 8000000001: its parser keeps a BSON Long, since
+  // the value does not fit 32 bits. Added to 1 as-is it made shipment 80000000011, live.
+  const { Long } = require('bson')
+  await cols.counters.replaceOne({ _id: 'shipment' }, { _id: 'shipment', value: Long.fromNumber(8000000001) }, { upsert: true })
+  assert.equal((await peek(cols)).shipment, '8000000002')
+  assert.equal(formatDocumentNumber(await next(cols, 'shipment', STARTS.shipment)), '8000000002')
+})
