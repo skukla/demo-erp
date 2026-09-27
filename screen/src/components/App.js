@@ -150,17 +150,6 @@ export default function App ({ screenKey, api: given }) {
     setReloading(false)
   }, [refreshHealth])
 
-  // While a sync runs, keep reading health: Home's numbers are the ERP's contents,
-  // so they should climb as the integration imports rather than jump when the SC
-  // next opens the page. Re-armed after each read (health is a dependency), so it
-  // stops by itself when the sync ends.
-  const syncing = Boolean(health && health.sync && (health.sync.state === 'requested' || health.sync.state === 'running'))
-  useEffect(() => {
-    if (!ready || !syncing) return undefined
-    const id = setTimeout(refreshHealth, 2000)
-    return () => clearTimeout(id)
-  }, [ready, syncing, refreshHealth, health])
-
   const active = PAGES.find((p) => p.key === page) || PAGES[0]
   /* The look, from the ERP unless somebody is trying one on. Before health arrives this
      is the default, which is why the first paint is the default palette rather than an

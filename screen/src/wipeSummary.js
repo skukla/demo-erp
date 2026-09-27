@@ -3,8 +3,8 @@
  *
  * `POST admin/wipe` answers `{ wiped: { <collection>: <documents removed> } }`,
  * and the Settings screen used to throw that away: the only sign a wipe had
- * happened was the "Last wipe" timestamp changing. Sync says what it did, so a
- * wipe should too — the two sit next to each other.
+ * happened was the "Last wipe" timestamp changing. An action should say what it did, so a
+ * wipe says so too.
  *
  * Collections with nothing in them are left out: "0 pricing conditions" is
  * noise, and an ERP that was already empty says so in its own sentence.

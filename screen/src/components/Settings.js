@@ -3,28 +3,22 @@
  * presenting. The levers live here rather than on Home so a prospect looking at
  * the ERP does not see them.
  */
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Button, Text, Flex, DialogTrigger, AlertDialog, ProgressCircle, InlineAlert, Heading, Content } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import Card from './Card'
 import Field from './Field'
 import EditableText from './EditableText'
 import AppearanceSettings from './AppearanceSettings'
-import SyncProgress from './SyncProgress'
 import { formatStamp } from '../formatStamp'
 import { wipeSummary } from '../wipeSummary'
 import { toastSaved } from './toast'
-
-const POLL_MS = 2000
-// No word from the integration for this long reads as stalled (it may still be working).
-const STALL_MS = 60 * 1000
-const ACTIVE = new Set(['requested', 'running'])
 
 /**
  * The selling structure, read-only: this ERP as a company code, its sales organisations
  * (one per Commerce website, from the integration's per-website setting), its warehouses
  * (one per Commerce inventory source, under the ERP's own names). Derived by the ERP on
- * every read and rebuilt by a sync, so a wipe and a mirror give the same card.
+ * every read and rebuilt by each import, so a wipe and a fill give the same card.
  */
 function OrganisationCard ({ structure }) {
   if (!structure) return null
@@ -37,7 +31,7 @@ function OrganisationCard ({ structure }) {
         </Field>
         <Field label='Sales organisations'>
           {structure.salesOrgs.length === 0
-            ? 'None yet — a sync brings the websites'
+            ? 'None yet — loading demo data brings the websites'
             : (
               <ul className='erp-plain-list'>
                 {structure.salesOrgs.map((o) => (
@@ -67,7 +61,7 @@ function WarehousesCard ({ structure, saving, onRename }) {
   return (
     <Card title='Warehouses'>
       {structure.warehouses.length === 0
-        ? <Text>None yet — a sync brings the inventory sources.</Text>
+        ? <Text>None yet — loading demo data brings the inventory sources.</Text>
         : (
           <Flex direction='column' gap='size-150'>
             {structure.warehouses.map((w) => (
@@ -110,7 +104,7 @@ function NumberingCard ({ numbering, currency }) {
         <Field label='Currency'>
           {currency
             ? `${currency} — money with no currency of its own (list prices, credit limits) is shown in the company code's currency`
-            : "USD until a sync names the website the company code sells through; then that website's base currency"}
+            : "USD until loading demo data names the website the company code sells through; then that website's base currency"}
         </Field>
       </Flex>
     </Card>
@@ -130,47 +124,18 @@ export default function Settings ({ api, onChanged, onPreview }) {
     setCurrency(health.currency || null)
   }, [])
   const [renaming, setRenaming] = useState(null)
-  const [sync, setSync] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
-  // What the last wipe removed, until a sync makes it stale.
+  // What the last wipe removed, until the next import makes it stale.
   const [wiped, setWiped] = useState(null)
   // Its own flag: `busy` also covers the appearance save, which is not a wipe.
   const [wiping, setWiping] = useState(false)
-  const [stalled, setStalled] = useState(false)
-  const timer = useRef(null)
-
-  // Follow the sync record until it ends. Also resumes a sync already running when
-  // the page is opened.
-  const follow = useCallback(async () => {
-    clearTimeout(timer.current)
-    try {
-      const health = await api.health()
-      takeHealth(health)
-      const next = health.sync || null
-      setSync(next)
-      setStalled(Boolean(next && ACTIVE.has(next.state) && Date.now() - Date.parse(next.updatedAt) > STALL_MS))
-      if (next && ACTIVE.has(next.state)) {
-        timer.current = setTimeout(follow, POLL_MS)
-      } else {
-        setSettings((current) => current && ({ ...current, lastImportAt: health.lastImportAt, sync: next }))
-        await onChanged()
-      }
-    } catch (e) {
-      setError(e)
-    }
-  }, [api, onChanged, takeHealth])
 
   useEffect(() => {
-    api.settings().then((loaded) => {
-      setSettings(loaded)
-      setSync(loaded.sync || null)
-      if (loaded.sync && ACTIVE.has(loaded.sync.state)) follow()
-    }).catch(setError)
+    api.settings().then(setSettings).catch(setError)
     // The Organisation and Warehouses cards read the structure the ERP derives.
     api.health().then(takeHealth).catch(setError)
-    return () => clearTimeout(timer.current)
-  }, [api, follow, takeHealth])
+  }, [api, takeHealth])
 
   async function renameWarehouse (code, name) {
     setRenaming(code)
@@ -191,9 +156,6 @@ export default function Settings ({ api, onChanged, onPreview }) {
     try {
       const result = await api.wipe()
       setWiped(result.wiped || {})
-      // The ERP drops the sync record on a wipe; the screen follows at once
-      // rather than waiting for the next read.
-      setSync(null)
       const after = await api.settings()
       setSettings(after)
       setError(null)
@@ -203,19 +165,6 @@ export default function Settings ({ api, onChanged, onPreview }) {
     setBusy(false)
   }
 
-  async function startSync () {
-    setError(null)
-    setWiped(null)
-    setSync({ state: 'requested', updatedAt: new Date().toISOString() })
-    try {
-      await api.sync()
-    } catch (e) {
-      // The ERP recorded the refusal; the record says why.
-    }
-    await follow()
-  }
-
-  const syncing = Boolean(sync && ACTIVE.has(sync.state))
   return (
     <Frame title='Settings' error={error} loading={!settings}>
       {settings && (
@@ -238,15 +187,12 @@ export default function Settings ({ api, onChanged, onPreview }) {
             <div className='erp-settings-column'>
               <Card title='Records'>
                 <Flex direction='column' gap='size-200'>
-                  <Text>Brings the ERP's products and customers up to date with the connected store. Existing records are updated; nothing is removed.</Text>
-                  {/* Each button as wide as its label, in one row; the destructive
-                      one set apart rather than sized differently. */}
+                  <Text>Demo Builder fills the ERP's products and customers from the connected store: when the ERP is added, on Reset records, and with Load demo data on the ERP's card. Existing records are updated; nothing is removed.</Text>
                   <Flex gap='size-300' alignItems='center'>
-                    <Button variant='accent' onPress={startSync} isDisabled={busy || syncing}>Sync records</Button>
                     <DialogTrigger>
-                      <Button variant='negative' isDisabled={busy || syncing}>Wipe all records</Button>
+                      <Button variant='negative' isDisabled={busy}>Wipe all records</Button>
                       <AlertDialog title='Wipe All Records?' variant='destructive' primaryActionLabel='Wipe' cancelLabel='Cancel' onPrimaryAction={wipe}>
-                        Every product, customer, pricing condition, sales order and event is removed. The order counter and the settings stay. Sync records fills the ERP again.
+                        Every product, customer, pricing condition, sales order and event is removed. The order counter and the settings stay. Load demo data in Demo Builder fills the ERP again.
                       </AlertDialog>
                     </DialogTrigger>
                   </Flex>
@@ -256,10 +202,9 @@ export default function Settings ({ api, onChanged, onPreview }) {
                       <Text>Wiping records…</Text>
                     </Flex>
                   )}
-                  <SyncProgress sync={sync} stalled={stalled} />
                   {wiped && <Text>{wipeSummary(wiped)}</Text>}
                   <Text UNSAFE_className='erp-field-label'>
-                    Last sync: {formatStamp(settings.lastImportAt)}. Last wipe: {formatStamp(settings.lastWipeAt)}.
+                    Last import: {formatStamp(settings.lastImportAt)}. Last wipe: {formatStamp(settings.lastWipeAt)}.
                   </Text>
                 </Flex>
               </Card>

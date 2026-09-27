@@ -56,7 +56,6 @@ export function makeApi (screenKey, base = screenBase()) {
     search: (q) => call('search', { path: `?q=${encodeURIComponent(q)}` }),
     events: () => call('events'),
     retryEvents: () => call('events', { method: 'POST', path: '/retry' }),
-    requeueEvents: () => call('events', { method: 'POST', path: '/requeue' }),
-    sync: () => call('sync', { method: 'POST' })
+    requeueEvents: () => call('events', { method: 'POST', path: '/requeue' })
   }
 }

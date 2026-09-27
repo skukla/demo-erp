@@ -11,7 +11,6 @@ const assert = require('node:assert/strict')
 const { memoryCollections, invoke } = require('./helpers/memory-db')
 const { importProducts, getProduct } = require('../lib/products')
 const { pending, recent } = require('../lib/events')
-const { recordSync } = require('../lib/sync-status')
 const admin = require('../actions/admin')
 const orders = require('../actions/orders')
 const health = require('../actions/health')
@@ -83,21 +82,10 @@ test('a stock event that could not land says so in the journal', async () => {
   assert.equal(entry.summary, 'Product A1 updated: stock 12 not applied (it is not stocked in the default source)')
 })
 
-test('a sync batch carries no origin and is not journaled row by row', async () => {
+test('a fill batch carries no origin and is not journaled row by row', async () => {
   await invoke(admin, cols, { method: 'POST', path: '/import', body: { products: [{ sku: 'A1' }, { sku: 'A2' }] } })
 
   assert.deepEqual(await recent(cols), [])
-})
-
-test('a finished sync is journaled once, not on every report', async () => {
-  await recordSync(cols, { state: 'requested' })
-  await recordSync(cols, { state: 'running', phase: 'products', products: { done: 0, total: 182 } })
-  await recordSync(cols, { state: 'done', products: { done: 182, total: 182 }, partners: { done: 4, total: 4 } })
-  await recordSync(cols, { state: 'done', products: { done: 182, total: 182 }, partners: { done: 4, total: 4 } })
-
-  const entries = await recent(cols)
-  assert.equal(entries.length, 1)
-  assert.equal(entries[0].summary, 'Synced 182 products and 4 customers')
 })
 
 test('a Commerce order is journaled the first time, and a redelivery is not', async () => {

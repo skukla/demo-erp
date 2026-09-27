@@ -6,7 +6,7 @@
  *
  * Counts of records are not work and are not here — the ERP's size is on Settings. No
  * charts, no revenue-this-month (it cannot be computed honestly), no greeting (there are
- * no users). Sync and Wipe stay on Settings: this is not a control panel.
+ * no users). Wipe stays on Settings: this is not a control panel.
  */
 import React from 'react'
 import { Flex, Heading, Text } from '@adobe/react-spectrum'

@@ -1,6 +1,6 @@
 {
   "name": "demo-erp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "A mock SAP-style ERP as an App Builder app: materials, business partners, pricing conditions, sales orders, an outbox for what changed, and its own screen. A Demo Builder system component; it knows nothing about Commerce.",
   "license": "Apache-2.0",

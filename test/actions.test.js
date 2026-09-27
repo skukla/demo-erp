@@ -180,7 +180,7 @@ test('an event that keeps failing is marked failed after ten attempts, leaves th
   }
 })
 
-test('only an import with products moves the last-import time; the partner refresh does not', async () => {
+test('only an import with products moves the last-import time; a partners-only import does not', async () => {
   const before = (await invoke(health, cols)).body.lastImportAt
   await new Promise((resolve) => setTimeout(resolve, 5))
 

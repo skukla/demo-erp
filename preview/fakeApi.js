@@ -185,8 +185,7 @@ const settings = {
   warehouses: { default: { name: 'Plant 1000 · Seattle DC' }, east: { name: 'East DC' } },
   structureMirror,
   lastImportAt: new Date(Date.UTC(2026, 8, 22, 13, 58)).toISOString(),
-  lastWipeAt: null,
-  sync: null
+  lastWipeAt: null
 }
 
 /* The selling structure, derived as lib/structure.js derives it. */
@@ -259,8 +258,7 @@ const health = {
   numbering: { salesOrder: '0000001008', shipment: '8000000005', invoice: '9000000002' },
   currency: 'USD',
   eventsPending: events.filter((e) => e.direction === 'out' && !e.delivered && !e.failed).length,
-  lastImportAt: settings.lastImportAt,
-  sync: null
+  lastImportAt: settings.lastImportAt
 }
 
 /* Real actions answer over the network. Without a delay here the preview would never
@@ -779,6 +777,5 @@ export const fakeApi = {
     return { items: hits.filter((h) => h.rank > 0).sort((a, b) => b.rank - a.rank || a.title.localeCompare(b.title)).slice(0, 12).map(({ rank, ...h }) => h) }
   },
   retryEvents: refuse,
-  requeueEvents: refuse,
-  sync: refuse
+  requeueEvents: refuse
 }

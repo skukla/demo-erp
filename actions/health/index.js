@@ -26,7 +26,7 @@ async function handler ({ cols, settings }) {
   // The appearance rides along here rather than behind its own request: the screen
   // already waits on health before it draws, so the shell bar paints in the SC's own
   // palette instead of flashing the default first.
-  return ok({ ok: true, displayName: settings.displayName, appearance: settings.appearance, eventsPending, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, sync: settings.sync || null, counts, work, structure, numbering, currency })
+  return ok({ ok: true, displayName: settings.displayName, appearance: settings.appearance, eventsPending, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, counts, work, structure, numbering, currency })
 }
 
 exports.handler = handler

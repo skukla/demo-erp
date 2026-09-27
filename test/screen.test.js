@@ -25,11 +25,11 @@ beforeEach(async () => {
 })
 
 /** Call the screen action the way Runtime would. */
-function screen ({ method = 'GET', path = '', key, body, params = {}, sync } = {}) {
+function screen ({ method = 'GET', path = '', key, body, params = {} } = {}) {
   const p = { ERP_SCREEN_KEY: KEY, ERP_DISPLAY_NAME: 'Acme ERP', ...params, __ow_method: method.toLowerCase(), __ow_path: path, __ow_headers: {} }
   if (key !== undefined) p.__ow_headers[KEY_HEADER] = key
   if (body !== undefined) p.__ow_body = JSON.stringify(body)
-  return serveScreen(p, { assets, handlers, collections: async () => cols, sync })
+  return serveScreen(p, { assets, handlers, collections: async () => cols })
 }
 
 test('serves the page without a key, named after the ERP', async () => {
@@ -110,33 +110,6 @@ test('unknown actions and paths are 404s', async () => {
   assert.equal((await screen({ method: 'POST', path: '/app.js' })).statusCode, 404)
 })
 
-test('Sync records asks the subscriber and answers 202, only with the key and only by POST', async () => {
-  const asked = []
-  const sync = async (params) => { asked.push(params); return { started: true } }
-
-  const res = await screen({ method: 'POST', path: '/api/sync', key: KEY, sync })
-  assert.equal(res.statusCode, 202)
-  assert.deepEqual(res.body, { started: true })
-  assert.equal(asked.length, 1)
-
-  // Recorded before asking, so a screen can say "waiting" at once.
-  assert.equal((await invoke(require('../actions/health'), cols)).body.sync.state, 'requested')
-
-  assert.equal((await screen({ method: 'POST', path: '/api/sync', sync })).statusCode, 401)
-  assert.equal((await screen({ path: '/api/sync', key: KEY, sync })).statusCode, 404)
-  assert.equal(asked.length, 1)
-})
-
-test('a sync the subscriber refuses comes back as the ERP\'s own error', async () => {
-  const { HttpError } = require('../lib/errors')
-  const sync = async () => { throw new HttpError(502, 'SYNC_REFUSED', 'The connected integration answered 401.') }
-
-  const res = await screen({ method: 'POST', path: '/api/sync', key: KEY, sync })
-
-  assert.equal(res.statusCode, 502)
-  assert.equal(res.body.errorCode, 'SYNC_REFUSED')
-  // ...and recorded, so a screen opened later still says why.
-  const recorded = (await invoke(require('../actions/health'), cols)).body.sync
-  assert.equal(recorded.state, 'failed')
-  assert.equal(recorded.error, 'The connected integration answered 401.')
+test('there is no sync route: /api/sync is an unknown action', async () => {
+  assert.equal((await screen({ method: 'POST', path: '/api/sync', key: KEY })).statusCode, 404)
 })
