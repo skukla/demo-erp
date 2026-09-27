@@ -45,3 +45,12 @@ test('a counter the database hands back as a 64-bit Long still counts up by one'
   assert.equal((await peek(cols)).shipment, '8000000002')
   assert.equal(formatDocumentNumber(await next(cols, 'shipment', STARTS.shipment)), '8000000002')
 })
+
+test('a counter the old code stored as joined text is repaired, and counts on from where it was', async () => {
+  // Bodea's shipment counter after the join: 8000000001 taken, then one more taken as
+  // "80000000011". The next number is 8000000003, and it is stored as a number again.
+  await cols.counters.replaceOne({ _id: 'shipment' }, { _id: 'shipment', value: '80000000011' }, { upsert: true })
+  assert.equal((await peek(cols)).shipment, '8000000003')
+  assert.equal(formatDocumentNumber(await next(cols, 'shipment', STARTS.shipment)), '8000000003')
+  assert.equal((await cols.counters.findOne({ _id: 'shipment' })).value, 8000000003)
+})
