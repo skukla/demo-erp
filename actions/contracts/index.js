@@ -35,10 +35,11 @@ function queryOf (params, key) {
   return typeof params?.[key] === 'string' && params[key].trim() ? params[key].trim() : null
 }
 
-async function inForce (cols, partnerId) {
-  if (partnerId) return { items: [{ partnerId, lines: await resolvedFor(cols, partnerId) }] }
+async function inForce (cols, partnerId, timeZone) {
+  const day = today(timeZone)
+  if (partnerId) return { items: [{ partnerId, lines: await resolvedFor(cols, partnerId, day) }] }
   const [lists, customers] = await Promise.all([listContracts(cols), findAll(cols.businessPartners, {}, { limit: 5000 })])
-  return { items: pricesInForce(lists, customers.map((p) => ({ id: p._id, priceGroup: p.priceGroup || null })), today()) }
+  return { items: pricesInForce(lists, customers.map((p) => ({ id: p._id, priceGroup: p.priceGroup || null })), day) }
 }
 
 async function priceGroups ({ cols, method, segments, body }) {
@@ -58,7 +59,7 @@ async function handler (ctx) {
   const [number, move] = segments
   if (number === 'price-groups') return priceGroups(ctx)
   if (method === 'GET' && !number) return ok({ items: await listContracts(cols, { partnerId: queryOf(params, 'partnerId'), priceGroup: queryOf(params, 'priceGroup') }) })
-  if (method === 'GET' && number === 'in-force') return ok(await inForce(cols, queryOf(params, 'partnerId')))
+  if (method === 'GET' && number === 'in-force') return ok(await inForce(cols, queryOf(params, 'partnerId'), ctx.settings?.timeZone))
   if (method === 'GET' && !move) return found(await getContract(cols, number), number)
   if (method === 'POST' && !number) return ok(await createContract(cols, body), 201)
   if (method === 'PATCH' && number && !move) return found(await updateContract(cols, number, body, params), number)

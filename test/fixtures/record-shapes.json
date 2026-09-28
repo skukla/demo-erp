@@ -156,6 +156,7 @@
     "lastImportAt",
     "lastWipeAt",
     "structureMirror",
+    "timeZone",
     "warehouses"
   ],
   "appearance": [

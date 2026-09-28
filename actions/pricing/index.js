@@ -13,10 +13,10 @@ const { badRequest } = require('../../lib/errors')
 const { listConditions, upsertCondition, deleteCondition } = require('../../lib/conditions')
 const { listProducts } = require('../../lib/products')
 const { resolvePartner } = require('../../lib/partners')
-const { quote } = require('../../lib/pricing')
+const { quote, today } = require('../../lib/pricing')
 const { listContracts } = require('../../lib/contracts')
 
-async function handler ({ cols, method, segments, body }) {
+async function handler ({ cols, method, segments, body, settings }) {
   if (method === 'GET' && segments.length === 0) return ok({ items: await listConditions(cols) })
   if (method === 'POST' && segments[0] === 'quote') {
     if (!Array.isArray(body.lines) || body.lines.length === 0) throw badRequest('quote needs a non-empty lines array')
@@ -29,7 +29,7 @@ async function handler ({ cols, method, segments, body }) {
       : []
     const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : undefined
     const salesOrg = typeof body.salesOrg === 'string' && body.salesOrg.trim() ? body.salesOrg.trim() : undefined
-    return ok(quote({ products, partner, conditions, contracts, lines: body.lines, date, salesOrg }))
+    return ok(quote({ products, partner, conditions, contracts, lines: body.lines, date: date ?? today(settings?.timeZone), salesOrg }))
   }
   if (method === 'POST' && segments.length === 0) return ok(await upsertCondition(cols, body), 201)
   if (method === 'DELETE' && segments[0]) return ok({ deleted: await deleteCondition(cols, segments[0]) })
