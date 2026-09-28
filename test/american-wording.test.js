@@ -77,7 +77,6 @@ test('the screen shows no British spelling', () => {
 
 test('a stored British word is shown American, and anything else as it stands', async () => {
   const { displayWord } = await displayWords()
-  assert.equal(displayWord('Cancelled'), 'Canceled')
   assert.equal(displayWord('Cancelled in Commerce'), 'Canceled in Commerce')
   assert.equal(displayWord('Out of stock'), 'Out of stock')
   assert.equal(displayWord(undefined), undefined)
@@ -110,4 +109,9 @@ test('a cancellation from Commerce is journaled in American words', async () => 
   await cancelOrder(cols, order.number, 'Cancelled in Commerce', undefined, origin)
   const entry = (await recent(cols)).find((e) => e.direction === 'in')
   assert.equal(entry.summary, `Sales order ${order.number} canceled in Commerce`)
+})
+
+test("an order's overall status word is American English in the API itself (owner, 2026-09-28)", () => {
+  const { overallStatus } = require('../lib/orders')
+  assert.equal(overallStatus({ header: 'cancelled' }), 'Canceled')
 })

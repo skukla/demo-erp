@@ -413,7 +413,7 @@ function describe (order) {
     partner: partner ? { id: partner.id, name: partner.name, paymentTerms: partner.paymentTerms } : null,
     shippingStatus: shipped === 0 ? 'none' : (open > 0 ? 'partial' : 'full'),
     billingStatus: order.invoice ? (order.invoice.status === 'credited' ? 'credited' : 'invoiced') : 'none',
-    overall: order.header === 'cancelled' ? 'Cancelled' : (order.invoice ? 'Completed' : (order.header === 'confirmed' ? 'In process' : 'Open')),
+    overall: order.header === 'cancelled' ? 'Canceled' : (order.invoice ? 'Completed' : (order.header === 'confirmed' ? 'In process' : 'Open')),
     credit: order.creditStatus ? { status: order.creditStatus, reason: order.creditReason, decidedAt: order.creditDecidedAt } : null,
     can,
     shipments: order.shipments.map((s) => ({ ...s, lines: s.lines.map(named) })),
@@ -489,7 +489,7 @@ function shippingStatus (o) {
   return open > 0 ? 'partial' : 'full'
 }
 function overallStatus (o) {
-  if (o.header === 'cancelled') return 'Cancelled'
+  if (o.header === 'cancelled') return 'Canceled'
   if (o.invoice) return 'Completed'
   return o.header === 'confirmed' ? 'In process' : 'Open'
 }

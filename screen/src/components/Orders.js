@@ -72,7 +72,7 @@ const STAGES = [
   { key: 'Open', label: 'Open' },
   { key: 'In process', label: 'In process' },
   { key: 'Completed', label: 'Completed' },
-  { key: 'Cancelled', label: 'Canceled' }
+  { key: 'Canceled', label: 'Canceled' }
 ]
 
 export default function Orders ({ api, query = {}, onChanged, onNavigate }) {
