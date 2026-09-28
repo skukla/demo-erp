@@ -2,6 +2,8 @@
  * GET  pricing                 the pricing conditions
  * POST pricing                 create or replace a condition
  * DELETE pricing/:id           remove one
+ *                              a create, change or delete raises contract.changed for each customer whose
+ *                              prices in force it moved (lib/conditions)
  * POST pricing/quote           { partnerId?, lines:[{sku, qty}], date?, salesOrg? }
  *                              date (YYYY-MM-DD) is the day priced on — today when absent; salesOrg scopes
  *                              the conditions to one sales organisation (a condition with none applies to all);
@@ -16,7 +18,7 @@ const { resolvePartner } = require('../../lib/partners')
 const { quote, today } = require('../../lib/pricing')
 const { listContracts } = require('../../lib/contracts')
 
-async function handler ({ cols, method, segments, body, settings }) {
+async function handler ({ cols, method, segments, body, settings, params }) {
   if (method === 'GET' && segments.length === 0) return ok({ items: await listConditions(cols) })
   if (method === 'POST' && segments[0] === 'quote') {
     if (!Array.isArray(body.lines) || body.lines.length === 0) throw badRequest('quote needs a non-empty lines array')
@@ -31,8 +33,8 @@ async function handler ({ cols, method, segments, body, settings }) {
     const salesOrg = typeof body.salesOrg === 'string' && body.salesOrg.trim() ? body.salesOrg.trim() : undefined
     return ok(quote({ products, partner, conditions, contracts, lines: body.lines, date: date ?? today(settings?.timeZone), salesOrg }))
   }
-  if (method === 'POST' && segments.length === 0) return ok(await upsertCondition(cols, body), 201)
-  if (method === 'DELETE' && segments[0]) return ok({ deleted: await deleteCondition(cols, segments[0]) })
+  if (method === 'POST' && segments.length === 0) return ok(await upsertCondition(cols, body, params), 201)
+  if (method === 'DELETE' && segments[0]) return ok({ deleted: await deleteCondition(cols, segments[0], params) })
 }
 
 exports.handler = handler

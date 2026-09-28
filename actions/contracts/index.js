@@ -3,7 +3,9 @@
  * the integration calls; people read "price list" (lib/contracts).
  *
  * GET    contracts                        every price list, newest first; ?partnerId= or ?priceGroup= narrows it
- * GET    contracts/in-force               prices in force today, per customer, groups resolved (lib/contract-prices):
+ * GET    contracts/in-force               prices in force today, per customer, as the ERP would charge them: price
+ *                                         lists, groups resolved, then loose pricing conditions, bounded by the
+ *                                         maximum discount (lib/net-prices):
  *                                         { items: [{ partnerId, lines: [{ sku, kind, price? | percent?, minQty,
  *                                         contractNumber, appliesTo }] }] }; customers with no line are left out;
  *                                         with ?partnerId= the answer is always that one customer, lines possibly empty
@@ -22,10 +24,8 @@
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound } = require('../../lib/errors')
-const { findAll } = require('../../lib/db')
-const { createContract, getContract, listContracts, updateContract, activateContract, deactivateContract, resolvedFor } = require('../../lib/contracts')
+const { createContract, getContract, listContracts, updateContract, activateContract, deactivateContract, resolvedFor, resolvedForAll } = require('../../lib/contracts')
 const { listPriceGroups, savePriceGroup, deletePriceGroup } = require('../../lib/price-groups')
-const { pricesInForce } = require('../../lib/contract-prices')
 const { today } = require('../../lib/pricing')
 
 const MOVES = { activate: activateContract, deactivate: deactivateContract }
@@ -38,8 +38,7 @@ function queryOf (params, key) {
 async function inForce (cols, partnerId, timeZone) {
   const day = today(timeZone)
   if (partnerId) return { items: [{ partnerId, lines: await resolvedFor(cols, partnerId, day) }] }
-  const [lists, customers] = await Promise.all([listContracts(cols), findAll(cols.businessPartners, {}, { limit: 5000 })])
-  return { items: pricesInForce(lists, customers.map((p) => ({ id: p._id, priceGroup: p.priceGroup || null })), day) }
+  return { items: await resolvedForAll(cols, day) }
 }
 
 async function priceGroups ({ cols, method, segments, body }) {
