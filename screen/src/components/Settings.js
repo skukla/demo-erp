@@ -4,7 +4,7 @@
  * the ERP does not see them.
  */
 import React, { useEffect, useState, useCallback } from 'react'
-import { Button, Text, Flex, DialogTrigger, AlertDialog, ProgressCircle, InlineAlert, Heading, Content } from '@adobe/react-spectrum'
+import { Button, Text, Flex, DialogTrigger, AlertDialog, ProgressCircle, InlineAlert, Heading, Content, NumberField } from '@adobe/react-spectrum'
 import Frame from './Frame'
 import Card from './Card'
 import Field from './Field'
@@ -112,6 +112,35 @@ function NumberingCard ({ numbering, currency }) {
   )
 }
 
+/**
+ * The maintenance window, as an ERP's basis team runs one: for a set time the ERP's
+ * interfaces answer that it is unavailable, and it comes back by itself when the time is up
+ * (lib/maintenance.js). Health and Settings stay open, so this card can always end it.
+ */
+function MaintenanceCard ({ maintenance, busy, onStart, onEnd }) {
+  const [minutes, setMinutes] = useState(30)
+  return (
+    <Card title='Maintenance'>
+      <Flex direction='column' gap='size-200'>
+        <Text>During a maintenance window the ERP's interfaces answer that it is unavailable, and messages it sends wait until the window ends. It ends by itself when the time is up.</Text>
+        {maintenance
+          ? (
+            <Flex gap='size-300' alignItems='center' wrap>
+              <Text>{maintenance.message}</Text>
+              <Button variant='secondary' isDisabled={busy} onPress={onEnd}>End maintenance</Button>
+            </Flex>
+            )
+          : (
+            <Flex gap='size-300' alignItems='end' wrap>
+              <NumberField label='Minutes' value={minutes} onChange={setMinutes} minValue={1} maxValue={1440} step={1} width='size-1200' />
+              <Button variant='secondary' isDisabled={busy || !(minutes >= 1)} onPress={() => onStart(minutes)}>Start maintenance</Button>
+            </Flex>
+            )}
+      </Flex>
+    </Card>
+  )
+}
+
 export default function Settings ({ api, onChanged, onPreview }) {
   const [settings, setSettings] = useState(null)
   const [structure, setStructure] = useState(null)
@@ -123,7 +152,10 @@ export default function Settings ({ api, onChanged, onPreview }) {
     setStructure(health.structure || null)
     setNumbering(health.numbering || null)
     setCurrency(health.currency || null)
+    setMaintenance(health.maintenance || null)
   }, [])
+  // The maintenance window in force, from health (null when none).
+  const [maintenance, setMaintenance] = useState(null)
   const [renaming, setRenaming] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -149,6 +181,17 @@ export default function Settings ({ api, onChanged, onPreview }) {
       onChanged()
     } catch (e) { setError(e) }
     setRenaming(null)
+  }
+
+  async function maintain (start) {
+    setBusy(true)
+    try {
+      const result = await start()
+      setMaintenance(result.maintenance || null)
+      setError(null)
+      await onChanged()
+    } catch (e) { setError(e) }
+    setBusy(false)
   }
 
   async function wipe () {
@@ -210,6 +253,7 @@ export default function Settings ({ api, onChanged, onPreview }) {
                 </Flex>
               </Card>
 
+              <MaintenanceCard maintenance={maintenance} busy={busy} onStart={(minutes) => maintain(() => api.startMaintenance(minutes))} onEnd={() => maintain(api.endMaintenance)} />
               <NumberingCard numbering={numbering} currency={currency} />
             </div>
 

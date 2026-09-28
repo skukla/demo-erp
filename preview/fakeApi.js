@@ -11,6 +11,7 @@
  */
 import { DEFAULT_APPEARANCE, normalizeAppearance } from '../lib/appearance.js'
 import { describeEvent } from '../lib/journal.js'
+import { maintenanceOf } from '../lib/maintenance.js'
 
 const NAMES = [
   ['Wide-leg trouser', 89], ['Cotton poplin shirt', 34.2], ['Canvas tote', 12],
@@ -264,6 +265,7 @@ function workList () {
 
 const health = {
   displayName: settings.displayName,
+  maintenance: null,
   appearance: settings.appearance,
   counts: { products: products.length, businessPartners: partners.length, salesOrders: orders.length, pricingConditions: conditions.length, contracts: contracts.length, priceGroups: priceGroups.length },
   // The next document numbers, nothing reserved (lib/counters peek), and the company code's currency.
@@ -561,6 +563,19 @@ export const fakeApi = {
     settings.appearance = normalizeAppearance(patch.appearance, settings.appearance)
     health.appearance = settings.appearance
     return copy(settings)
+  },
+  /* A maintenance window is a setting too, and the banner it raises is part of the look. */
+  startMaintenance: async (minutes = 30) => {
+    await wait()
+    settings.maintenanceUntil = new Date(Date.now() + minutes * 60 * 1000).toISOString()
+    health.maintenance = maintenanceOf(settings)
+    return copy({ maintenance: health.maintenance })
+  },
+  endMaintenance: async () => {
+    await wait()
+    settings.maintenanceUntil = null
+    health.maintenance = null
+    return { maintenance: null }
   },
   wipe: refuse,
   products: async () => { await wait(); return copy(products.map(withAvailability)) },

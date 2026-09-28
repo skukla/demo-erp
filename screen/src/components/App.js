@@ -72,6 +72,10 @@ const PAGES = AREAS.flatMap((area) => area.items)
    opening the page and health arriving, and it is drawn with the default mark. */
 const FALLBACK_NAME = 'ERP'
 
+/* How long after a maintenance window's end health is read again: past the end, so the
+   ERP already counts the window as over. */
+const AFTER_WINDOW_MS = 1000
+
 /**
  * @param {object} props `screenKey` from Demo Builder's link, and `api` — an override
  *   the local preview hands in so the whole screen can be looked at without a deployed
@@ -125,6 +129,15 @@ export default function App ({ screenKey, api: given }) {
   }, [api])
 
   useEffect(() => { if (ready) refreshHealth() }, [ready, refreshHealth])
+
+  /* A maintenance window ends by itself; read health again just after it does, so the
+     banner goes without anyone reloading. */
+  const until = health && health.maintenance && health.maintenance.until
+  useEffect(() => {
+    if (!until) return
+    const timer = setTimeout(refreshHealth, Math.max(0, Date.parse(until) - Date.now()) + AFTER_WINDOW_MS)
+    return () => clearTimeout(timer)
+  }, [until, refreshHealth])
 
   /* Back, Forward, and a hash someone typed. */
   useEffect(() => {
@@ -257,6 +270,12 @@ export default function App ({ screenKey, api: given }) {
             <InlineAlert variant='negative' marginBottom='size-300'>
               <Heading>The ERP did not answer</Heading>
               <Content>{error.message}</Content>
+            </InlineAlert>
+          )}
+          {ready && health && health.maintenance && (
+            <InlineAlert variant='notice' marginBottom='size-300' UNSAFE_className='erp-maintenance-banner'>
+              <Heading>In maintenance</Heading>
+              <Content>{health.maintenance.message} Until then its interfaces answer that it is unavailable.</Content>
             </InlineAlert>
           )}
           {ready && (

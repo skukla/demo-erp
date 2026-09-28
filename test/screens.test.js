@@ -410,3 +410,19 @@ test('the title line stays while a long list scrolls under it', async () => {
     await context.close()
   }
 })
+
+test('settings starts a maintenance window, the banner names its end, and ending it takes the banner away', async () => {
+  const { page, context, problems } = await open('settings')
+  try {
+    assert.equal(await page.locator('.erp-maintenance-banner').count(), 0)
+    await page.getByRole('button', { name: 'Start maintenance' }).click()
+    const banner = page.locator('.erp-maintenance-banner')
+    await banner.waitFor({ timeout: 5000 })
+    assert.match(await banner.textContent(), /is in maintenance until \d\d:\d\d UTC\./)
+    await page.getByRole('button', { name: 'End maintenance' }).click()
+    await banner.waitFor({ state: 'detached', timeout: 5000 })
+    assert.deepEqual(problems, [], 'maintenance console')
+  } finally {
+    await context.close()
+  }
+})
