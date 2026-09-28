@@ -36,6 +36,8 @@ const SCREENS = [
   { key: 'invoices', heading: /^Invoices$/, opens: /^Invoice \d{10}$/ },
   { key: 'products', heading: /^Products$/, opens: /.+/ },
   { key: 'partners', heading: /^Customers$/, opens: /.+/ },
+  { key: 'contracts', heading: /^Price Lists$/, opens: /^Price List \d{10}$/ },
+  { key: 'priceGroups', heading: /^Price Groups$/ },
   { key: 'pricing', heading: /^Pricing$/ },
   { key: 'events', heading: /^Event Journal$/ },
   { key: 'settings', heading: /^Settings$/ }

@@ -39,8 +39,8 @@ test('a collection the screen has no words for still shows its count', async () 
   assert.equal(wipeSummary({ widgets: 2 }), 'Wiped 2 widgets. The order numbering and the settings stay.')
 })
 
-test('contracts are named in the screen\'s words', async () => {
+test('price lists and price groups are named in the screen\'s words', async () => {
   const { wipeSummary } = await load()
-  assert.equal(wipeSummary({ contracts: 1 }), 'Wiped 1 contract. The order numbering and the settings stay.')
-  assert.equal(wipeSummary({ contracts: 2 }), 'Wiped 2 contracts. The order numbering and the settings stay.')
+  assert.equal(wipeSummary({ contracts: 1 }), 'Wiped 1 price list. The order numbering and the settings stay.')
+  assert.equal(wipeSummary({ contracts: 2, priceGroups: 1 }), 'Wiped 2 price lists and 1 price group. The order numbering and the settings stay.')
 })

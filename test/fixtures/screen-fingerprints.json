@@ -40,8 +40,8 @@
     "hash": "3a2e07d7ebf4aeb80a021c27ed3645bb0af0cae16437c5b28b732aef2a5f8961"
   },
   "partners:document": {
-    "elements": 192,
-    "hash": "80b6057df4730e850a1e844d894df8e4305f3a0b96012e7970ef84bf3a6d70b2"
+    "elements": 257,
+    "hash": "7a48647caed8481cad140b3d7e560adc88133346e96bee66b926b67215a1125d"
   },
   "pricing": {
     "elements": 367,
@@ -52,7 +52,19 @@
     "hash": "e4b680e44b67cc5c1a915855bbc1e18fe111f4ab6ccb672050cbfb5661c24f7c"
   },
   "settings": {
-    "elements": 174,
-    "hash": "9822024edc3a5aac77670ad6b5eece4f79d295d67e4a9ccc31e9597313599af9"
+    "elements": 177,
+    "hash": "a026033be89086ad9fead17873e1da21de176dc18a610de707a78efbd923b2da"
+  },
+  "contracts": {
+    "elements": 176,
+    "hash": "d416d3fed2efc4d08ae7b070344cb7d706002fc2c3e7b9bfcf283e8d5fbb55f0"
+  },
+  "contracts:document": {
+    "elements": 88,
+    "hash": "c617bc17166827b25c13e712169e8685f41fa7bea8903c773547a1b92ef0fc95"
+  },
+  "priceGroups": {
+    "elements": 59,
+    "hash": "348049f699acf47d60216676e8d50e5ad6ab446d32ff0aff841dbdfbfafedd62"
   }
 }

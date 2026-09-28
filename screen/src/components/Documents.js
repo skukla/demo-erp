@@ -11,8 +11,9 @@ import ShipmentDetail from './ShipmentDetail'
 import InvoiceDetail from './InvoiceDetail'
 import CustomerDetail from './CustomerDetail'
 import ProductDetail from './ProductDetail'
+import ContractDetail from './ContractDetail'
 
-const VIEWS = { order: OrderDetail, shipment: ShipmentDetail, invoice: InvoiceDetail, customer: CustomerDetail, product: ProductDetail }
+const VIEWS = { order: OrderDetail, shipment: ShipmentDetail, invoice: InvoiceDetail, customer: CustomerDetail, product: ProductDetail, contract: ContractDetail }
 
 /** What a document is called when Back points at it. */
 export function labelOf (entry) {
@@ -20,6 +21,7 @@ export function labelOf (entry) {
   if (entry.kind === 'shipment') return `Shipment ${entry.number}`
   if (entry.kind === 'invoice') return `Invoice ${entry.number}`
   if (entry.kind === 'product') return `Product ${entry.number}`
+  if (entry.kind === 'contract') return `Price List ${entry.number}`
   return entry.title || `Customer ${entry.number}`
 }
 

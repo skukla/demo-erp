@@ -76,9 +76,9 @@ const noLegal = { legalName: null, vatTaxId: null, resellerId: null, legalAddres
 const partners = [
   { id: 'P000000', name: 'Walk-in customers', salesOrgs: ['*'], ...noLegal, paymentTerms: 'NET30', creditLimit: 0, blocking: 'open', isDefault: true },
   { id: 'C000101', name: 'Northwind Trading', salesOrgs: ['1000'], legalName: 'Northwind Trading LLC', vatTaxId: 'US 83-1234567', resellerId: 'R-1042', legalAddress: { street: ['1 Harbor Way', 'Suite 400'], city: 'Seattle', region: 'WA', postcode: '98101', countryId: 'US', telephone: '206-555-0100' }, paymentTerms: 'NET30', creditLimit: 50000, blocking: 'open' },
-  { id: 'C000102', name: 'Contoso Supply', salesOrgs: ['1000', '2000'], legalName: 'Contoso Supply Inc.', vatTaxId: 'US 91-7654321', resellerId: null, legalAddress: { street: ['200 Market St'], city: 'San Francisco', region: 'CA', postcode: '94105', countryId: 'US', telephone: null }, paymentTerms: 'NET60', creditLimit: 120000, blocking: 'open' },
+  { id: 'C000102', name: 'Contoso Supply', salesOrgs: ['1000', '2000'], legalName: 'Contoso Supply Inc.', vatTaxId: 'US 91-7654321', resellerId: null, legalAddress: { street: ['200 Market St'], city: 'San Francisco', region: 'CA', postcode: '94105', countryId: 'US', telephone: null }, paymentTerms: 'NET60', creditLimit: 120000, blocking: 'open', priceGroup: 'TRADE' },
   { id: 'C000103', name: 'Fabrikam Retail', salesOrgs: ['2000'], legalName: 'Fabrikam Retail GmbH', vatTaxId: 'DE 812345678', resellerId: 'R-2210', legalAddress: { street: ['Hauptstraße 5'], city: 'Berlin', region: null, postcode: '10115', countryId: 'DE', telephone: '+49 30 555 0100' }, paymentTerms: 'NET15', creditLimit: 25000, blocking: 'all' },
-  { id: 'C000104', name: 'Adventure Works', salesOrgs: ['2000'], legalName: 'Adventure Works B.V.', vatTaxId: 'NL 001234567B01', resellerId: null, legalAddress: { street: ['Keizersgracht 100'], city: 'Amsterdam', region: null, postcode: '1015 AA', countryId: 'NL', telephone: null }, paymentTerms: 'NET30', creditLimit: 80000, blocking: 'open' }
+  { id: 'C000104', name: 'Adventure Works', salesOrgs: ['2000'], legalName: 'Adventure Works B.V.', vatTaxId: 'NL 001234567B01', resellerId: null, legalAddress: { street: ['Keizersgracht 100'], city: 'Amsterdam', region: null, postcode: '1015 AA', countryId: 'NL', telephone: null }, paymentTerms: 'NET30', creditLimit: 80000, blocking: 'open', priceGroup: 'TRADE' }
 ]
 
 /* The stored shape (lib/orders.js): a header word, quantities per line, the shipments
@@ -178,6 +178,18 @@ const conditions = [
   { _id: 'c6', id: 'c6', kind: 'contractDiscount', partnerId: 'C000102', sku: null, percent: 15, validFrom: null, validTo: null, minQty: null, salesOrg: '2000' }
 ]
 for (const c of conditions) if (c.salesOrg === undefined) c.salesOrg = null
+for (const p of partners) if (p.priceGroup === undefined) p.priceGroup = null
+
+/* Customer price lists (lib/contracts; the record keeps the integration's name) and the
+   customer price groups they may apply to (lib/price-groups). No list here ENDS: a status
+   that turns with the calendar would change a screen's look on a date, not by a change. */
+const priceGroups = [{ code: 'RETAIL', name: 'Retail shops' }, { code: 'TRADE', name: 'Trade accounts' }]
+const listLine = (sku, amount, extra = {}) => ({ sku, ...amount, minQty: 1, startingDate: null, endingDate: null, ...extra })
+const contracts = [
+  { number: '4000000003', appliesTo: 'customer', partnerId: 'C000103', priceGroup: null, description: 'Fabrikam 2027 proposal', startingDate: '2027-01-01', endingDate: null, status: 'draft', lines: [listLine('P000002', { kind: 'price', price: 30 })] },
+  { number: '4000000002', appliesTo: 'priceGroup', partnerId: null, priceGroup: 'TRADE', description: 'Trade price list', startingDate: '2026-01-01', endingDate: null, status: 'active', lines: [listLine('P000001', { kind: 'discount', percent: 10 }), listLine('P000001', { kind: 'discount', percent: 15 }, { minQty: 25 }), listLine('P000004', { kind: 'price', price: 99 }), listLine('P000004', { kind: 'price', price: 105 }, { startingDate: '2027-01-01' })] },
+  { number: '4000000001', appliesTo: 'customer', partnerId: 'C000101', priceGroup: null, description: 'Northwind terms', startingDate: '2026-01-01', endingDate: null, status: 'active', lines: [listLine('P000001', { kind: 'price', price: 79 }), listLine('P000003', { kind: 'price', price: 10 }, { minQty: 10 })] }
+].map((c) => ({ ...c, _id: c.number, createdAt: '2026-09-01T09:00:00.000Z', updatedAt: '2026-09-01T09:00:00.000Z' }))
 
 const settings = {
   displayName: 'Northwind ERP',
@@ -253,9 +265,9 @@ function workList () {
 const health = {
   displayName: settings.displayName,
   appearance: settings.appearance,
-  counts: { products: products.length, businessPartners: partners.length, salesOrders: orders.length, pricingConditions: conditions.length },
+  counts: { products: products.length, businessPartners: partners.length, salesOrders: orders.length, pricingConditions: conditions.length, contracts: contracts.length, priceGroups: priceGroups.length },
   // The next document numbers, nothing reserved (lib/counters peek), and the company code's currency.
-  numbering: { salesOrder: '0000001008', shipment: '8000000005', invoice: '9000000002' },
+  numbering: { salesOrder: '0000001008', shipment: '8000000005', invoice: '9000000002', contract: '4000000004' },
   currency: 'USD',
   eventsPending: events.filter((e) => e.direction === 'out' && !e.delivered && !e.failed).length,
   lastImportAt: settings.lastImportAt
@@ -501,7 +513,9 @@ function describePartner (partner) {
     salesOrgNames,
     credit: !partner.isDefault ? { limit, exposure, available: cents(limit - exposure), held } : null,
     orders: own,
-    conditions: conditions.filter((c) => c.partnerId === partner.id)
+    conditions: conditions.filter((c) => c.partnerId === partner.id),
+    // Its own price lists, then its price group's (lib/partners describePartner).
+    contracts: [...contracts.filter((c) => c.partnerId === partner.id), ...contracts.filter((c) => partner.priceGroup && c.priceGroup === partner.priceGroup)]
   }
 }
 
@@ -569,9 +583,19 @@ export const fakeApi = {
     const partner = partnerOf(id)
     if (patch.creditLimit !== undefined) partner.creditLimit = Number(patch.creditLimit)
     if (patch.blocking !== undefined) partner.blocking = String(patch.blocking)
+    if (patch.priceGroup !== undefined) partner.priceGroup = patch.priceGroup || null
     return copy(partner)
   },
   conditions: async () => { await wait(); return copy(conditions) },
+  contracts: async () => { await wait(); return copy(contracts) },
+  contract: async (number) => { await wait(); return copy(contracts.find((c) => c.number === number) || fail(`Price list ${number} was not found.`)) },
+  createContract: refuse,
+  updateContract: refuse,
+  activateContract: refuse,
+  deactivateContract: refuse,
+  priceGroups: async () => { await wait(); return copy(priceGroups) },
+  savePriceGroup: refuse,
+  deletePriceGroup: refuse,
   saveCondition: async (condition) => {
     await wait()
     const saved = { validFrom: null, validTo: null, minQty: null, ...condition, id: `c${nextConditionId++}`, _id: `c${nextConditionId}` }

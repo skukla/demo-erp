@@ -9,7 +9,7 @@
  *
  * The record still stores `kind`. Nothing here changes what is saved.
  */
-import { money } from '../money'
+import { money } from '../money.js'
 
 const RULES = {
   contractPrice: { code: 'CP01', label: 'Agreed price' },

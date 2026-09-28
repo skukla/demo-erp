@@ -1,7 +1,8 @@
 /*
  * One customer's document: the business-partner master, as an ERP shows it. The list
  * holds a row; this holds the account — its facts as labelled fields, its credit, its
- * own sales orders, and the pricing agreed with it.
+ * own sales orders, its price group, the price lists that apply to it, and the pricing
+ * rules agreed with it.
  *
  * Credit is the card an ERP eye looks for first, and it is the one that is NOT there for
  * the walk-in account: a customer with no Commerce company has no credit relationship,
@@ -12,7 +13,7 @@
  * document's actions are. The list keeps its switch for quick edits while preparing a
  * demo; here you look at the account before you block it.
  */
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Grid, Item, Link, Meter, Picker, StatusLight, Text, View,
   TableView, TableHeader, Column, TableBody, Row, Cell
@@ -24,7 +25,8 @@ import EditableNumber from './EditableNumber'
 import { useLoad } from './useLoad'
 import { toastFailed, toastSaved } from './toast'
 import { statusLight, statusText } from './OrderHeader'
-import { amountText, productText, ruleText } from './pricingRuleFormat'
+import { amountText, productText, ruleText, todayIso } from './pricingRuleFormat'
+import { appliesToText, contractStatus, termText } from './contractFormat'
 import { formatDate } from '../formatStamp'
 import { money, moneyOptions } from '../money'
 
@@ -229,6 +231,63 @@ function PricingCard ({ conditions, onNavigate }) {
   )
 }
 
+/* The price lists that apply to this customer: its own, then its price group's (lib/partners
+   describePartner); a row opens the list on the same trail. */
+function PriceListsCard ({ contracts, groupNames, onOpen, onNavigate }) {
+  const today = todayIso()
+  return (
+    <Card
+      title='Price lists'
+      actions={onNavigate && <Link isQuiet onPress={() => onNavigate('contracts')}>Price lists →</Link>}
+    >
+      {contracts.length === 0
+        ? <Text>No price list applies to this customer.</Text>
+        : (
+          <TableView
+            aria-label="This customer's price lists" density='compact' overflowMode='wrap'
+            UNSAFE_className='erp-rows-open' selectionMode='none' onAction={(key) => onOpen(String(key))}
+          >
+            <TableHeader>
+              <Column key='number' width={165}>Price list</Column>
+              <Column key='appliesTo' width={240}>Applies to</Column>
+              <Column key='description' width='1fr' minWidth={150}>Description</Column>
+              <Column key='term' width={230}>Term</Column>
+              <Column key='status' width={190}>Status</Column>
+            </TableHeader>
+            <TableBody items={contracts.map((c) => ({ ...c, id: c.number }))}>
+              {(c) => (
+                <Row key={c.number}>
+                  <Cell><span className='erp-key'>{c.number}</span></Cell>
+                  <Cell>{c.appliesTo === 'priceGroup' ? appliesToText(c, null, groupNames) : 'This customer'}</Cell>
+                  <Cell>{c.description || '—'}</Cell>
+                  <Cell>{termText(c)}</Cell>
+                  <Cell><StatusLight variant={contractStatus(c, today).variant}>{contractStatus(c, today).text}</StatusLight></Cell>
+                </Row>
+              )}
+            </TableBody>
+          </TableView>
+          )}
+    </Card>
+  )
+}
+
+/* The customer price group: the ERP's own, set here; Commerce never changes it. */
+function PriceGroupPicker ({ customer, groups, isDisabled, onChange }) {
+  const items = [{ id: '', name: 'None' }, ...groups.map((g) => ({ id: g.code, name: `${g.code} · ${g.name}` }))]
+  return (
+    <Picker
+      aria-label='Price group'
+      items={items}
+      selectedKey={customer.priceGroup || ''}
+      isDisabled={isDisabled}
+      onSelectionChange={(key) => onChange(String(key) || null)}
+      isQuiet
+    >
+      {(item) => <Item key={item.id}>{item.name}</Item>}
+    </Picker>
+  )
+}
+
 /**
  * @param {object} props `id` the customer; `onOpen(kind, number)` opens one of its orders
  *   on the same trail, so Back from the order returns here.
@@ -236,6 +295,8 @@ function PricingCard ({ conditions, onNavigate }) {
 export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBack, onOpen, onChanged, onNavigate }) {
   const { rows, error, reload, updateRow } = useLoad(async () => [await api.partner(id)], [api, id])
   const customer = rows && rows[0]
+  const { rows: groups } = useLoad(() => api.priceGroups(), [api])
+  const groupNames = useMemo(() => new Map((groups || []).map((g) => [g.code, g.name])), [groups])
   const [busy, setBusy] = useState(false)
 
   /* An edit shows at once and settles on the ERP's answer. The answer is the customer
@@ -293,6 +354,14 @@ export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBa
               {/* SAP extends a customer to each sales area it buys through; the list is that. */}
               <Field label='Sold-to in'>{salesOrgsText(customer)}</Field>
               <Field label='Payment terms'>{customer.paymentTerms || '—'}</Field>
+              <Field label='Price group' help='Its price lists apply to this customer too.'>
+                <PriceGroupPicker
+                  customer={customer}
+                  groups={groups || []}
+                  isDisabled={busy}
+                  onChange={(priceGroup) => patch({ priceGroup }, priceGroup ? `Price group: ${priceGroup}` : 'Price group removed')}
+                />
+              </Field>
             </Grid>
           </Card>
           {/* A company always has a legal identity; a field the mirror did not bring prints a
@@ -309,6 +378,12 @@ export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBa
             <CreditCard customer={customer} onLimit={(creditLimit) => patch({ creditLimit }, 'Credit limit saved')} />
           )}
           <OrdersCard orders={customer.orders || []} onOpen={(number) => onOpen('order', number)}  hasCredit={Boolean(customer.credit)} />
+          <PriceListsCard
+            contracts={customer.contracts || []}
+            groupNames={groupNames}
+            onOpen={(number) => onOpen('contract', number)}
+            onNavigate={onNavigate}
+          />
           <PricingCard conditions={customer.conditions || []} onNavigate={onNavigate} />
         </>
       )}

@@ -29,6 +29,8 @@ import Orders from './Orders'
 import Shipments from './Shipments'
 import Invoices from './Invoices'
 import Pricing from './Pricing'
+import Contracts from './Contracts'
+import PriceGroups from './PriceGroups'
 import Settings from './Settings'
 import Events from './Events'
 
@@ -50,6 +52,8 @@ const AREAS = [
     items: [
       { key: 'products', label: 'Products', Component: Products },
       { key: 'partners', label: 'Customers', Component: Partners },
+      { key: 'contracts', label: 'Price Lists', Component: Contracts },
+      { key: 'priceGroups', label: 'Price Groups', Component: PriceGroups },
       { key: 'pricing', label: 'Pricing', Component: Pricing }
     ]
   },

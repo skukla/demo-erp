@@ -88,7 +88,8 @@ function NumberingCard ({ numbering, currency }) {
   const ranges = [
     { label: 'Sales orders', key: 'salesOrder', from: '0000001000' },
     { label: 'Shipments', key: 'shipment', from: '8000000001' },
-    { label: 'Invoices', key: 'invoice', from: '9000000001' }
+    { label: 'Invoices', key: 'invoice', from: '9000000001' },
+    { label: 'Price lists', key: 'contract', from: '4000000001' }
   ]
   return (
     <Card title='Document numbering'>
