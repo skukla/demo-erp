@@ -52,7 +52,7 @@ export const blockingText = (level) => (BLOCKING_LEVELS.find((l) => l.id === lev
 /** "1000 · Main Website, 2000 · Online EU"; the walk-in account is in every one; none yet prints so. */
 export function salesOrgsText (customer) {
   const codes = customer.salesOrgs || []
-  if (codes.includes('*')) return 'Every sales organisation'
+  if (codes.includes('*')) return 'Every sales organization'
   if (codes.length === 0) return 'None yet'
   const names = customer.salesOrgNames || {}
   return codes.map((code) => (names[code] ? `${code} · ${names[code]}` : code)).join(', ')

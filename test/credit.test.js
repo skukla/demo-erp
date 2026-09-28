@@ -97,7 +97,7 @@ test('Reject cancels the held order with the reason "Credit rejected", and Comme
   assert.equal(rejected.creditStatus, 'held')
   const cancel = (await pending(cols)).find((e) => e.kind === 'order.cancelled')
   assert.equal(cancel.value.reason, 'Credit rejected')
-  await assert.rejects(releaseCredit(cols, held.number), /cancelled/)
+  await assert.rejects(releaseCredit(cols, held.number), /canceled/)
 })
 
 test('raising the credit limit does NOT release a held order — a release is a decision someone makes', async () => {

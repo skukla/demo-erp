@@ -80,7 +80,7 @@ test('a condition scoped to one sales organisation applies only there, beats an 
   assert.equal(eu.salesOrg, '2000')
   const us = quote({ products, partner, conditions, lines: [{ sku: 'A1', qty: 1 }], salesOrg: '1000' })
   assert.equal(us.lines[0].contractPrice, 90)
-  assert.deepEqual(us.lines[0].notApplied.map((n) => n.reason), ['for sales organisation 2000; this is 1000'])
+  assert.deepEqual(us.lines[0].notApplied.map((n) => n.reason), ['for sales organization 2000; this is 1000'])
   const anywhere = quote({ products, partner, conditions, lines: [{ sku: 'A1', qty: 1 }] })
   assert.equal(anywhere.lines[0].contractPrice, 75, 'a quote naming no sales organisation is not held back by a scope')
 })

@@ -66,7 +66,7 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
             <Card title='Seller'>
               <Grid columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }} gap='size-250'>
                 <Field label='Company code'>{`${invoice.seller.companyCode} · ${invoice.seller.name}`}</Field>
-                <Field label='Sales organisation'>{invoice.seller.salesOrg ? `${invoice.seller.salesOrg}${invoice.seller.salesOrgName ? ` · ${invoice.seller.salesOrgName}` : ''}` : '—'}</Field>
+                <Field label='Sales organization'>{invoice.seller.salesOrg ? `${invoice.seller.salesOrg}${invoice.seller.salesOrgName ? ` · ${invoice.seller.salesOrgName}` : ''}` : '—'}</Field>
                 <Field label='Country'>{invoice.seller.countryId || '—'}</Field>
                 <Field label='VAT number'>{invoice.seller.vatNumber || '—'}</Field>
               </Grid>

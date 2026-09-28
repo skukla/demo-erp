@@ -103,7 +103,7 @@ export default function AppearanceSettings ({ api, saved, name, onChanged, onPre
       </div>
 
       <div className='erp-setting'>
-        <p className='erp-field-label'>Colour</p>
+        <p className='erp-field-label'>Color</p>
         <div className='erp-swatch-row'>
           {Object.entries(PALETTES).map(([id, { label, tokens }]) => (
             <button

@@ -26,8 +26,8 @@ const KINDS = [
 const EMPTY = { kind: 'contractDiscount', partnerId: '', sku: '', price: 0, percent: 10, validFrom: '', validTo: '', minQty: null, salesOrg: '' }
 
 /** The sales organisations a rule may be scoped to: every one, or one the structure knows. */
-export function SalesOrgPicker ({ salesOrgs = [], selectedKey, onChange, label = 'Sales organisation', description }) {
-  const items = [{ id: '', name: 'Every sales organisation' }, ...salesOrgs.map((o) => ({ id: o.code, name: o.name && o.name !== o.code ? `${o.code} · ${o.name}` : o.code }))]
+export function SalesOrgPicker ({ salesOrgs = [], selectedKey, onChange, label = 'Sales organization', description }) {
+  const items = [{ id: '', name: 'Every sales organization' }, ...salesOrgs.map((o) => ({ id: o.code, name: o.name && o.name !== o.code ? `${o.code} · ${o.name}` : o.code }))]
   return (
     <Picker label={label} description={description} items={items} selectedKey={selectedKey || ''} onSelectionChange={(key) => onChange(String(key))} width='100%'>
       {(item) => <Item key={item.id}>{item.name}</Item>}

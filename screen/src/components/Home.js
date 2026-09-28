@@ -65,7 +65,7 @@ export default function Home ({ health, reloading, onNavigate }) {
             <div className='erp-home-column'>
               <Card title='Open order value'>
                 <Heading level={2} marginY='size-50'>{work.openValue.currency ? money(work.openValue.amount, work.openValue.currency) : `${work.openValue.amount} (mixed currencies)`}</Heading>
-                <Text UNSAFE_className='erp-subtle'>Net amount of every sales order not yet invoiced or cancelled.</Text>
+                <Text UNSAFE_className='erp-subtle'>Net amount of every sales order not yet invoiced or canceled.</Text>
               </Card>
             </div>
           </Flex>

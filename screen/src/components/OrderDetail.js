@@ -20,6 +20,7 @@ import CreateShipment from './CreateShipment'
 import Timeline from './Timeline'
 import { useLoad } from './useLoad'
 import { toastSaved } from './toast'
+import { displayWord } from '../displayWords'
 
 /** Cancel: pick a reason, then confirm. The dialog is the only way to reach it. */
 function CancelOrder ({ reasons, onCancel, isDisabled }) {
@@ -33,7 +34,7 @@ function CancelOrder ({ reasons, onCancel, isDisabled }) {
           <Divider />
           <Content>
             <Text>
-              The order stays on record, cancelled. It cannot be
+              The order stays on record, canceled. It cannot be
               reopened — an order that should run again is placed again.
             </Text>
             <Picker
@@ -44,7 +45,7 @@ function CancelOrder ({ reasons, onCancel, isDisabled }) {
               marginTop='size-200'
               width='100%'
             >
-              {(item) => <Item key={item.id}>{item.id}</Item>}
+              {(item) => <Item key={item.id}>{displayWord(item.id)}</Item>}
             </Picker>
           </Content>
           <ButtonGroup>
@@ -105,7 +106,7 @@ export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', 
           {can.ship && <CreateShipment key={order.shipments.length} order={order} isDisabled={busy} onCreate={(body) => act(() => api.createShipment(number, body), 'Shipment created — post it to ship the goods')} />}
           {can.invoice && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.createInvoice(number), 'Invoice created')}>Create invoice</Button>}
           {can.cancel && (
-            <CancelOrder reasons={order.cancelReasons} isDisabled={busy} onCancel={(reason) => act(() => api.cancelOrder(number, reason), 'Order cancelled')} />
+            <CancelOrder reasons={order.cancelReasons} isDisabled={busy} onCancel={(reason) => act(() => api.cancelOrder(number, reason), 'Order canceled')} />
           )}
         </>
       )}

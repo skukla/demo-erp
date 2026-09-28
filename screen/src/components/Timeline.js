@@ -8,12 +8,13 @@ import React from 'react'
 import { Text } from '@adobe/react-spectrum'
 import Card from './Card'
 import { formatStamp } from '../formatStamp'
+import { displayWord } from '../displayWords'
 
 /** What each stored status move is called on the timeline. */
 const MOVES = {
   created: 'Created',
   confirmed: 'Confirmed',
-  cancelled: 'Cancelled',
+  cancelled: 'Canceled',
   released: 'Credit hold released',
   held: 'Put on credit hold',
   shipped: 'Shipped',
@@ -26,7 +27,7 @@ export function momentsOf (order) {
   for (const h of order.history || []) {
     if (!h.at) continue
     const what = MOVES[h.status] || h.status
-    moments.push({ at: h.at, text: h.reason ? `${what} — ${h.reason}` : what })
+    moments.push({ at: h.at, text: h.reason ? `${what} — ${displayWord(h.reason)}` : what })
   }
   for (const s of order.shipments || []) {
     moments.push({ at: s.createdAt, text: `Shipment ${s.number} created`, link: { kind: 'shipment', number: s.number } })

@@ -24,12 +24,12 @@ function OrganisationCard ({ structure }) {
   if (!structure) return null
   const cc = structure.companyCode
   return (
-    <Card title='Organisation'>
+    <Card title='Organization'>
       <Flex direction='column' gap='size-200'>
         <Field label='Company code'>
           {`${cc.code} · ${cc.name}`}{cc.currency ? ` · ${cc.currency}` : ''}{cc.countryId ? ` · ${cc.countryId}` : ''}{cc.vatNumber ? ` · VAT ${cc.vatNumber}` : ''}
         </Field>
-        <Field label='Sales organisations'>
+        <Field label='Sales organizations'>
           {structure.salesOrgs.length === 0
             ? 'None yet — loading demo data brings the websites'
             : (
@@ -44,9 +44,9 @@ function OrganisationCard ({ structure }) {
         </Field>
         {structure.unmapped.length > 0 && (
           <InlineAlert variant='notice'>
-            <Heading>{structure.unmapped.length === 1 ? 'A website has no sales organisation' : 'Websites with no sales organisation'}</Heading>
+            <Heading>{structure.unmapped.length === 1 ? 'A website has no sales organization' : 'Websites with no sales organization'}</Heading>
             <Content>
-              {structure.unmapped.map((code) => `Website ${code} has no sales organisation; its orders use 1000.`).join(' ')} Set one on the integration's Admin page (Structure), then sync.
+              {structure.unmapped.map((code) => `Website ${code} has no sales organization; its orders use 1000.`).join(' ')} Set one on the integration's Admin page (Structure), then sync.
             </Content>
           </InlineAlert>
         )}

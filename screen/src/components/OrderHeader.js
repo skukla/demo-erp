@@ -12,10 +12,11 @@ import { Grid, StatusLight, Text } from '@adobe/react-spectrum'
 import Card from './Card'
 import Field from './Field'
 import { formatDate } from '../formatStamp'
+import { displayWord } from '../displayWords'
 
 /* How an order's status reads and what colour it wears — in ONE place, read by the list,
    the document and the customer's order card. */
-const STATUS_TEXT = { created: 'Open', confirmed: 'Confirmed', shipped: 'Shipped', invoiced: 'Invoiced', cancelled: 'Cancelled' }
+const STATUS_TEXT = { created: 'Open', confirmed: 'Confirmed', shipped: 'Shipped', invoiced: 'Invoiced', cancelled: 'Canceled' }
 const LIGHT = { created: 'neutral', confirmed: 'info', shipped: 'notice', invoiced: 'positive', cancelled: 'negative' }
 
 export function statusText (status) {
@@ -74,11 +75,11 @@ export default function OrderHeader ({ order, onOpen }) {
           function itself. Saying so is honest and it is the field an ERP eye looks for. */}
         <Field label='Ship-to'>Same as sold-to</Field>
         {/* The selling unit is the ORDER's (the website it came through), not the customer's. */}
-        <Field label='Sales organisation'>{order.salesOrg ? `${order.salesOrg}${order.salesOrgName ? ` · ${order.salesOrgName}` : ''}` : '—'}</Field>
+        <Field label='Sales organization'>{order.salesOrg ? `${order.salesOrg}${order.salesOrgName ? ` · ${order.salesOrgName}` : ''}` : '—'}</Field>
 
         <Field label='Payment terms'>{partner ? partner.paymentTerms : '—'}</Field>
         <Field label='Currency'>{order.currency || 'USD'}</Field>
-        <Field label='Overall status'><Status variant={OVERALL[order.overall] || 'neutral'}>{order.overall || statusText(order.status)}</Status></Field>
+        <Field label='Overall status'><Status variant={OVERALL[order.overall] || 'neutral'}>{displayWord(order.overall) || statusText(order.status)}</Status></Field>
 
         <Field label='Shipping status'><Status variant={shippingLight}>{shippingText}</Status></Field>
         <Field label='Billing status'><Status variant={billingLight}>{billingText}</Status></Field>
@@ -88,7 +89,7 @@ export default function OrderHeader ({ order, onOpen }) {
             {order.credit.reason && <Text UNSAFE_className='erp-subtle'>{order.credit.reason}</Text>}
           </Field>
         )}
-        {order.cancelReason && <Field label='Cancellation reason'>{order.cancelReason}</Field>}
+        {order.cancelReason && <Field label='Cancellation reason'>{displayWord(order.cancelReason)}</Field>}
       </Grid>
     </Card>
   )

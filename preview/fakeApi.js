@@ -287,7 +287,7 @@ const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100
 const specificity = (c) => (c.salesOrg ? 4 : 0) + (c.partnerId ? 2 : 0) + (c.sku ? 1 : 0)
 const matchesCondition = (c, partnerId, sku, salesOrg) =>
   (!c.partnerId || c.partnerId === partnerId) && (!c.sku || c.sku === sku) && (!c.salesOrg || !salesOrg || c.salesOrg === salesOrg)
-const otherSalesOrg = (c, salesOrg) => (c.salesOrg && salesOrg && c.salesOrg !== salesOrg ? `for sales organisation ${c.salesOrg}; this is ${salesOrg}` : null)
+const otherSalesOrg = (c, salesOrg) => (c.salesOrg && salesOrg && c.salesOrg !== salesOrg ? `for sales organization ${c.salesOrg}; this is ${salesOrg}` : null)
 const dayText = (d) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`))
 function ruledOut (c, { date, qty }) {
   if (c.validFrom && date < c.validFrom) return `not valid until ${dayText(c.validFrom)}`
