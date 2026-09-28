@@ -1,7 +1,8 @@
 /*
  * GET   partners                 the list, each with `exposure` and `available` (null for a customer with no credit)
  * GET   partners/:id             one customer as its document shows it (lib/partners describePartner)
- * PATCH partners/:id             { creditLimit?, blocking?, paymentTerms? } — blocking is open · shipping · invoicing · all
+ * PATCH partners/:id             { creditLimit?, blocking?, paymentTerms?, priceGroup? } — blocking is open · shipping · invoicing · all;
+ *                                priceGroup is a customer price group's code, or null for none
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')

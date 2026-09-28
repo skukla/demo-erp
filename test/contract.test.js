@@ -106,19 +106,27 @@ test('from version 5: the import carries Commerce\'s switch as the website accou
   assert.match(contract.import.partnersNote, /never changes the ERP's own credit block/)
 })
 
-test('the contract is at version 6: the ERP holds contracts, publishes their prices in force, and says when they change', () => {
-  assert.equal(contract.contractVersion, 6)
-  assert.deepEqual(contract.routes.contracts, ['GET', 'GET /in-force', 'GET /:number', 'POST', 'PATCH /:number', 'POST /:number/activate', 'POST /:number/deactivate'])
-  assert.deepEqual(contract.events['be-observer.company_contract_update'], {
-    raisedBy: 'contract.changed',
-    value: ['partnerId', 'lines'],
-    note: contract.events['be-observer.company_contract_update'].note
-  })
+test('from version 6: the ERP holds price lists (route contracts), publishes their prices in force, and says when they change', () => {
+  assert.ok(contract.contractVersion >= 6)
+  for (const route of ['GET', 'GET /in-force', 'GET /:number', 'POST', 'PATCH /:number', 'POST /:number/activate', 'POST /:number/deactivate']) assert.ok(contract.routes.contracts.includes(route), route)
+  assert.equal(contract.events['be-observer.company_contract_update'].raisedBy, 'contract.changed')
+  assert.deepEqual(contract.events['be-observer.company_contract_update'].value, ['partnerId', 'lines'])
   assert.match(contract.events['be-observer.company_contract_update'].note, /whole/)
-  // A discount line carries percent and no price; a price line price and no percent.
-  assert.deepEqual(contract.contracts.priceLine, ['sku', 'kind', 'price', 'minQty', 'contractNumber'])
-  assert.deepEqual(contract.contracts.discountLine, ['sku', 'kind', 'percent', 'minQty', 'contractNumber'])
   assert.deepEqual(contract.contracts.inForce, ['items'])
   assert.deepEqual(contract.contracts.inForceItem, ['partnerId', 'lines'])
   assert.ok(contract.quote.responseLine.includes('contractNumber'))
+})
+
+test('the contract is at version 7: price groups, lists for a customer or a group, dated lines, and where each line in force came from', () => {
+  assert.equal(contract.contractVersion, 7)
+  for (const route of ['GET /price-groups', 'POST /price-groups', 'DELETE /price-groups/:code']) assert.ok(contract.routes.contracts.includes(route), route)
+  assert.deepEqual(contract.contracts.appliesTo, ['customer', 'priceGroup'])
+  assert.deepEqual(contract.contracts.contract, ['number', 'appliesTo', 'partnerId', 'priceGroup', 'description', 'startingDate', 'endingDate', 'status', 'lines', 'createdAt', 'updatedAt'])
+  assert.deepEqual(contract.contracts.line, ['sku', 'kind', 'price', 'percent', 'minQty', 'startingDate', 'endingDate'])
+  assert.deepEqual(contract.contracts.priceGroup, ['code', 'name'])
+  // A discount line carries percent and no price; a price line price and no percent.
+  assert.deepEqual(contract.contracts.priceLine, ['sku', 'kind', 'price', 'minQty', 'contractNumber', 'appliesTo'])
+  assert.deepEqual(contract.contracts.discountLine, ['sku', 'kind', 'percent', 'minQty', 'contractNumber', 'appliesTo'])
+  assert.match(contract.contracts.inForceNote, /price group/)
+  assert.match(contract.events['be-observer.company_contract_update'].note, /member/)
 })

@@ -138,7 +138,7 @@ test('a contract line beats a loose condition for the same customer and SKU, and
   assert.equal(line.contractPrice, 85)
   assert.equal(line.source, 'contractPrice')
   assert.equal(line.contractNumber, '4000000001')
-  assert.deepEqual(line.notApplied, [{ id: 'loose', kind: 'contractPrice', reason: 'contract 4000000001 prices this product for this customer' }])
+  assert.deepEqual(line.notApplied, [{ id: 'loose', kind: 'contractPrice', reason: 'price list 4000000001 prices this product for this customer' }])
 })
 
 test('a contract discount line prices from the list price; the customer\'s loose all-products discount still covers other SKUs', () => {
@@ -184,4 +184,20 @@ test('another customer\'s contract never applies, and a quote reads the contract
   const q = quote({ products: [product], partner: { id: 'P2' }, conditions: [], contracts, lines: [{ sku: 'A1', qty: 2 }], date: TODAY })
   assert.equal(q.total, 170)
   assert.equal(q.lines[0].contractNumber, '4000000001')
+})
+
+test('precedence: the customer\'s own list, then its price group\'s list, then the loose conditions, then list price', () => {
+  const member = { id: 'P1', priceGroup: 'RETAIL' }
+  const conditions = [{ _id: 'loose', kind: 'contractDiscount', partnerId: 'P1', sku: null, percent: 5 }]
+  const lists = [
+    agreement([{ sku: 'A1', kind: 'price', price: 70, minQty: 1 }]),
+    agreement([{ sku: 'A1', kind: 'price', price: 90, minQty: 1 }, { sku: 'B2', kind: 'price', price: 60, minQty: 1 }], { number: '4000000009', appliesTo: 'priceGroup', partnerId: null, priceGroup: 'RETAIL' })
+  ]
+  const at = (sku, partner) => priceLine({ product: { sku, listPrice: 100 }, partner, conditions, contracts: lists, date: TODAY })
+  assert.equal(at('A1', member).contractPrice, 70, 'the customer\'s own list')
+  assert.equal(at('B2', member).contractPrice, 60, 'the group\'s list, for what the customer\'s does not price')
+  assert.equal(at('B2', member).contractNumber, '4000000009')
+  assert.equal(at('C3', member).contractPrice, 95, 'the loose discount, for what no list prices')
+  assert.equal(at('B2', partner).contractPrice, 95, 'outside the group, its list does not apply')
+  assert.equal(at('C3', { id: 'P9' }).contractPrice, 100, 'nothing at all: list price')
 })

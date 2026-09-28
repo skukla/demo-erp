@@ -56,10 +56,10 @@ test('what arrives is named by what it is, not by the system that sent it, with 
   assert.equal(inboundName('something.else'), 'Message received')
 })
 
-test('a contract change names the customer and how many prices are now in force, and links the customer', () => {
+test('a price list change names the customer and how many list prices are now in force, and links the customer', () => {
   const two = describeEvent(out('contract.changed', { partnerId: 'C000102', lines: [{ sku: 'A1' }, { sku: 'B2' }] }))
-  assert.deepEqual(two, { name: 'Contract prices changed', text: 'Contract prices of customer C000102: 2 in force', links: [{ kind: 'customer', number: 'C000102' }] })
-  assert.equal(describeEvent(out('contract.changed', { partnerId: 'C000102', lines: [{ sku: 'A1' }] })).text, 'Contract prices of customer C000102: 1 in force')
-  assert.equal(describeEvent(out('contract.changed', { partnerId: 'C000102', lines: [] })).text, 'Contract prices of customer C000102: none in force')
-  assert.equal(describeEvent({ direction: 'out', event: 'be-observer.company_contract_update', value: { partnerId: 'C1', lines: [] } }).name, 'Contract prices changed')
+  assert.deepEqual(two, { name: 'Customer prices changed', text: 'Price list prices of customer C000102: 2 in force', links: [{ kind: 'customer', number: 'C000102' }] })
+  assert.equal(describeEvent(out('contract.changed', { partnerId: 'C000102', lines: [{ sku: 'A1' }] })).text, 'Price list prices of customer C000102: 1 in force')
+  assert.equal(describeEvent(out('contract.changed', { partnerId: 'C000102', lines: [] })).text, 'Price list prices of customer C000102: none in force')
+  assert.equal(describeEvent({ direction: 'out', event: 'be-observer.company_contract_update', value: { partnerId: 'C1', lines: [] } }).name, 'Customer prices changed')
 })
