@@ -6,8 +6,8 @@
 import React from 'react'
 import { Flex, Text } from '@adobe/react-spectrum'
 
-/** An absent value reads as a dash, never as an empty gap. */
-export default function Field ({ label, children }) {
+/** An absent value reads as a dash, never as an empty gap. `help` is one line under the value. */
+export default function Field ({ label, help, children }) {
   // alignItems start, not the default stretch: a status badge is as wide as its word,
   // and a flex column would otherwise pull it across the whole field.
   return (
@@ -16,6 +16,7 @@ export default function Field ({ label, children }) {
       {typeof children === 'string' || typeof children === 'number'
         ? <Text>{children}</Text>
         : (children || <Text>—</Text>)}
+      {help && <Text UNSAFE_className='erp-subtle'>{help}</Text>}
     </Flex>
   )
 }

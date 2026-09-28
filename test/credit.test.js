@@ -48,6 +48,16 @@ test('a customer blocked for shipping or for all business gets held orders; bloc
   }
 })
 
+test('either switch holds an order: a website account closed in Commerce holds it with the credit block at None, and reopening lets the next one through', async () => {
+  await importPartners(cols, [{ id: 'C1', name: 'Acme', websiteAccountClosed: true }])
+  const held = await createOrder(cols, order('w-1', 1))
+  assert.equal(held.creditStatus, 'held')
+  assert.equal(held.creditReason, "Customer's website account is closed in Commerce")
+  assert.equal((await getPartner(cols, 'C1')).blocking, 'open')
+  await importPartners(cols, [{ id: 'C1', name: 'Acme', websiteAccountClosed: false }])
+  assert.equal((await createOrder(cols, order('w-2', 1))).creditStatus, 'approved')
+})
+
 test('the walk-in customer, and any customer without a Commerce company, is never held and has no credit status', async () => {
   const o = await createOrder(cols, { commerceOrderId: 'w', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 500, price: 100 }] })
   assert.equal(o.creditStatus, null)
@@ -134,12 +144,19 @@ test('any customer but the walk-in one has credit, whatever it was imported with
   assert.equal(hasCredit(null), false)
 })
 
-test('the blocking level replaces the boolean: Commerce\'s blocked flag imports as All, a legacy record reads as All, and the event keeps sending a boolean', async () => {
-  await importPartners(cols, [{ id: 'C2', name: 'Beta', commerceCompanyId: '8', blocked: true }])
-  assert.equal((await getPartner(cols, 'C2')).blocking, 'all')
-  assert.equal('blocked' in (await getPartner(cols, 'C2')), false)
-  await importPartners(cols, [{ id: 'C2', name: 'Beta', commerceCompanyId: '8', blocked: false }])
+test('two switches: Commerce\'s switch imports as the website account and never touches the ERP\'s credit block; a legacy record reads as All; the event keeps sending a boolean', async () => {
+  await importPartners(cols, [{ id: 'C2', name: 'Beta', websiteAccountClosed: true }])
+  assert.equal((await getPartner(cols, 'C2')).websiteAccount, 'closed')
   assert.equal((await getPartner(cols, 'C2')).blocking, 'open')
+  assert.equal('blocked' in (await getPartner(cols, 'C2')), false)
+  await patchPartner(cols, 'C2', { blocking: 'shipping' })
+  await importPartners(cols, [{ id: 'C2', name: 'Beta', websiteAccountClosed: false }])
+  assert.equal((await getPartner(cols, 'C2')).websiteAccount, 'active')
+  assert.equal((await getPartner(cols, 'C2')).blocking, 'shipping', 'the ERP\'s own credit block survives an import')
+  // An integration built before contract version 5 sends the same switch as `blocked`.
+  await importPartners(cols, [{ id: 'C2', name: 'Beta', blocked: true }])
+  assert.equal((await getPartner(cols, 'C2')).websiteAccount, 'closed')
+  assert.equal((await getPartner(cols, 'C2')).blocking, 'shipping')
 
   const legacy = { _id: 'C9', id: 'C9', name: 'Old', salesOrg: '1000', commerceCompanyId: '9', customerGroupId: null, emailDomain: null, paymentTerms: 'NET30', creditLimit: 10, blocked: true, updatedAt: 'x' }
   await cols.businessPartners.replaceOne({ _id: 'C9' }, legacy, { upsert: true })
@@ -148,7 +165,7 @@ test('the blocking level replaces the boolean: Commerce\'s blocked flag imports 
   await patchPartner(cols, 'C1', { blocking: 'shipping' })
   await patchPartner(cols, 'C1', { blocking: 'invoicing' })
   await patchPartner(cols, 'C1', { blocking: 'open' })
-  const events = (await pending(cols)).filter((e) => e.kind === 'partner.blocked')
+  const events = (await pending(cols)).filter((e) => e.kind === 'partner.blocked' && e.value.partnerId === 'C1')
   // shipping → blocked:true; invoicing changes the level but not the boolean → no event; open → blocked:false
   assert.deepEqual(events.map((e) => e.value.blocked), [true, false])
   assert.deepEqual(Object.keys(events[0].value).sort(), ['blocked', 'partnerId'])

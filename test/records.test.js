@@ -24,14 +24,15 @@ test('import creates then updates; what Commerce sends wins, what it omits keeps
   assert.equal(product.stock, 9)
 })
 
-test('a partner re-import takes the credit limit and block Commerce reports', async () => {
+test('a partner re-import takes the credit limit and website account Commerce reports, and keeps the ERP\'s own credit block', async () => {
   await importPartners(cols, [{ id: 'C2', name: 'Kukla', creditLimit: 100 }])
   await patchPartner(cols, 'C2', { creditLimit: 500, blocking: 'all', paymentTerms: 'NET60' })
-  await importPartners(cols, [{ id: 'C2', name: 'Kukla Studios', creditLimit: 250, blocked: false }])
+  await importPartners(cols, [{ id: 'C2', name: 'Kukla Studios', creditLimit: 250, websiteAccountClosed: false }])
   const partner = await getPartner(cols, 'C2')
   assert.equal(partner.name, 'Kukla Studios')
   assert.equal(partner.creditLimit, 250)
-  assert.equal(partner.blocking, 'open')
+  assert.equal(partner.blocking, 'all')
+  assert.equal(partner.websiteAccount, 'active')
   assert.equal(partner.paymentTerms, 'NET60')
 })
 

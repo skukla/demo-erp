@@ -30,13 +30,21 @@ import { money, moneyOptions } from '../money'
 
 const MONEY = moneyOptions()
 
-/* Business Central's four levels, in plainer words, each saying what it stops. */
+/* This ERP's own credit block: Business Central's four levels, in plainer words, each saying
+   what it stops. Set only here, by this ERP's finance team; Commerce never changes it. */
 export const BLOCKING_LEVELS = [
-  { id: 'open', label: 'Open', help: 'Everything allowed' },
-  { id: 'shipping', label: 'Blocked for shipping', help: 'New orders arrive on credit hold; nothing new ships; existing shipments can still be invoiced' },
-  { id: 'invoicing', label: 'Blocked for invoicing', help: 'New orders on hold; nothing ships; no new invoices' },
-  { id: 'all', label: 'Blocked for all business', help: 'Nothing proceeds' }
+  { id: 'open', label: 'None', help: 'Everything allowed' },
+  { id: 'shipping', label: 'Stop shipping', help: 'New orders arrive on credit hold; nothing new ships; existing shipments can still be invoiced' },
+  { id: 'invoicing', label: 'Stop invoicing', help: 'New orders on hold; nothing ships; no new invoices' },
+  { id: 'all', label: 'Stop all', help: 'Nothing proceeds' }
 ]
+export const CREDIT_BLOCK_LABEL = 'Credit block'
+export const CREDIT_BLOCK_HELP = 'Set here. Stops this ERP\'s orders only.'
+
+/* The website account: Commerce's company Active/Blocked switch, copied here, read-only. */
+export const WEBSITE_ACCOUNT_LABEL = 'Website account'
+export const WEBSITE_ACCOUNT_HELP = 'Set in Commerce. Closed stops all website orders.'
+export const websiteAccountText = (value) => (value === 'closed' ? 'Closed' : 'Active')
 export const blockingText = (level) => (BLOCKING_LEVELS.find((l) => l.id === level) || BLOCKING_LEVELS[0]).label
 
 /** "1000 · Main Website, 2000 · Online EU"; the walk-in account is in every one; none yet prints so. */
@@ -81,9 +89,14 @@ function CreditCard ({ customer, onLimit }) {
             {over ? 'Over limit' : 'Within limit'}
           </StatusLight>
         </Field>
-        <Field label='Blocking'>
+        <Field label={CREDIT_BLOCK_LABEL} help={CREDIT_BLOCK_HELP}>
           <StatusLight variant={customer.blocking === 'open' ? 'neutral' : 'negative'} marginStart='size-0'>
             {blockingText(customer.blocking)}
+          </StatusLight>
+        </Field>
+        <Field label={WEBSITE_ACCOUNT_LABEL} help={WEBSITE_ACCOUNT_HELP}>
+          <StatusLight variant={customer.websiteAccount === 'closed' ? 'negative' : 'neutral'} marginStart='size-0'>
+            {websiteAccountText(customer.websiteAccount)}
           </StatusLight>
         </Field>
         {/* SAP's work list of blocked documents, for this customer. */}
@@ -254,14 +267,14 @@ export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBa
       error={error}
       loading={!customer}
       actions={customer && customer.credit && (
-        /* The blocking level is the one decision made on this document; the walk-in account
+        /* The credit block is the one decision made on this document; the walk-in account
            cannot be blocked, since nothing in Commerce answers to it. */
         <Picker
-          aria-label='Blocking level'
+          aria-label={CREDIT_BLOCK_LABEL}
           items={BLOCKING_LEVELS}
           selectedKey={customer.blocking}
           isDisabled={busy}
-          onSelectionChange={(key) => patch({ blocking: String(key) }, `Customer ${blockingText(String(key)).toLowerCase()}`)}
+          onSelectionChange={(key) => patch({ blocking: String(key) }, `Credit block: ${blockingText(String(key))}`)}
           width='size-3000'
         >
           {(level) => <Item key={level.id} textValue={level.label}><Text>{level.label}</Text><Text slot='description'>{level.help}</Text></Item>}

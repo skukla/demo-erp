@@ -71,7 +71,7 @@ export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
   const { rows, error, reload, updateRow } = useLoad(() => api.partners(), [api])
   // Home's "Blocked customers" lands here with ?work=blocked.
   const [show, setShow] = useState(() => (query.work === 'blocked' ? 'blocked' : 'all'))
-  const shown = useMemo(() => (rows && show === 'blocked' ? rows.filter((p) => p.blocking && p.blocking !== 'open') : rows), [rows, show])
+  const shown = useMemo(() => (rows && show === 'blocked' ? rows.filter((p) => (p.blocking && p.blocking !== 'open') || p.websiteAccount === 'closed') : rows), [rows, show])
   const view = useGridView(shown, PARTNER_GRID)
   // The customer opened from the list, and the orders opened from the customer.
   const trail = useTrail('Customers')
@@ -110,7 +110,7 @@ export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
           <Column key='creditLimit' {...widths.columnProps('creditLimit')} align='end' allowsSorting>Credit limit</Column>
           <Column key='exposure' {...widths.columnProps('exposure')} align='end' allowsSorting>Exposure</Column>
           <Column key='available' {...widths.columnProps('available')} align='end' allowsSorting>Available</Column>
-          <Column key='blocking' {...widths.columnProps('blocking')} allowsSorting>Blocking</Column>
+          <Column key='blocking' {...widths.columnProps('blocking')} allowsSorting>Credit block</Column>
         </TableHeader>
         <TableBody items={view.items}>
           {(p) => (

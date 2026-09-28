@@ -88,8 +88,15 @@ test('from version 3 the business-structure fields are named on partners, orders
   }
 })
 
-test('the contract is at version 4: a delivered event names its ERP when the ERP was deployed with an id', () => {
-  assert.equal(contract.contractVersion, 4)
+test('from version 4: a delivered event names its ERP when the ERP was deployed with an id', () => {
+  assert.ok(contract.contractVersion >= 4)
   assert.match(contract.delivery.erpId, /erpId/)
   assert.match(contract.delivery.erpId, /ERP_ID/)
+})
+
+test('the contract is at version 5: the import carries Commerce\'s switch as the website account, never the ERP\'s credit block', () => {
+  assert.equal(contract.contractVersion, 5)
+  assert.ok(contract.import.partners.includes('websiteAccountClosed'))
+  assert.ok(!contract.import.partners.includes('blocked'))
+  assert.match(contract.import.partnersNote, /never changes the ERP's own credit block/)
 })
