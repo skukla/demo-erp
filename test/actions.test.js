@@ -105,7 +105,7 @@ test('orders: create is 201 then 200 for the same Commerce order; status moves p
   assert.equal(again.body.number, first.body.number)
   const moved = await invoke(orders, cols, { method: 'POST', path: `/${first.body.number}/status`, body: { status: 'confirmed' } })
   assert.equal(moved.body.status, 'confirmed')
-  assert.deepEqual(moved.body.nextStatuses, ['shipped', 'cancelled'])
+  assert.deepEqual(moved.body.nextStatuses, ['shipped', 'canceled'])
   const log = await invoke(events, cols)
   assert.equal(log.body.items.length, 1)
   assert.equal(log.body.pending, 1)

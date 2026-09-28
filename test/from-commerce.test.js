@@ -86,12 +86,12 @@ test('an invoice the ERP makes itself still raises its event: the origin is what
 
 test('a cancellation made in Commerce cancels the ERP order with its own reason, raises no event, and is nothing to do twice', async () => {
   const order = await createOrder(cols, input)
-  const cancelled = await cancelOrder(cols, order.number, 'Cancelled in Commerce', undefined, origin(ORDER_EVENT))
-  assert.equal(cancelled.header, 'cancelled')
-  assert.equal(cancelled.cancelReason, 'Cancelled in Commerce')
+  const cancelled = await cancelOrder(cols, order.number, 'Canceled in Commerce', undefined, origin(ORDER_EVENT))
+  assert.equal(cancelled.header, 'canceled')
+  assert.equal(cancelled.cancelReason, 'Canceled in Commerce')
   assert.deepEqual(await outbound(), [])
-  const again = await cancelOrder(cols, order.number, 'Cancelled in Commerce', undefined, origin(ORDER_EVENT))
-  assert.equal(again.header, 'cancelled')
+  const again = await cancelOrder(cols, order.number, 'Canceled in Commerce', undefined, origin(ORDER_EVENT))
+  assert.equal(again.header, 'canceled')
   assert.equal((await recent(cols)).filter((e) => e.direction === 'in').length, 1, 'journaled once')
 })
 
@@ -125,8 +125,8 @@ test('the routes: commerce-shipment and commerce-invoice answer 201, cancel and 
   assert.equal(held.body.credit.reason, 'Payment review')
   const released = await invoke(orders, cols, { method: 'POST', path: `/${second.body.number}/credit/release`, body: origin(ORDER_EVENT) })
   assert.equal(released.body.credit.status, 'released')
-  const cancelled = await invoke(orders, cols, { method: 'POST', path: `/${second.body.number}/cancel`, body: { reason: 'Cancelled in Commerce', ...origin(ORDER_EVENT) } })
-  assert.equal(cancelled.body.status, 'cancelled')
+  const cancelled = await invoke(orders, cols, { method: 'POST', path: `/${second.body.number}/cancel`, body: { reason: 'Canceled in Commerce', ...origin(ORDER_EVENT) } })
+  assert.equal(cancelled.body.status, 'canceled')
   assert.deepEqual(await outbound(), [])
 })
 

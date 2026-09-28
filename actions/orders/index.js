@@ -20,7 +20,7 @@
  * journals it as received, and raises no outbound event for it (Commerce already has it):
  * POST orders/:number/commerce-shipment         { commerceShipmentId, items:[{ orderItemId, qty }], sourceCode?, origin }
  * POST orders/:number/commerce-invoice          { commerceInvoiceId?, origin }
- * POST orders/:number/cancel                    { reason: "Cancelled in Commerce", origin }
+ * POST orders/:number/cancel                    { reason: "Canceled in Commerce", origin }
  * POST orders/:number/credit/release            { origin }
  * POST orders/:number/status                    { status, reason? } the whole-order move, for a caller that
  *                                               knows nothing of shipments; predates them and stays

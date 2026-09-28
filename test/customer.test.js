@@ -24,7 +24,7 @@ test('credit exposure is the net of orders not yet invoiced and not cancelled; a
   const done = await createOrder(cols, { commerceOrderId: '2', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 300 }] })
   for (const status of ['confirmed', 'shipped', 'invoiced']) await setStatus(cols, done.number, status)
   const gone = await createOrder(cols, { commerceOrderId: '3', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 500 }] })
-  await setStatus(cols, gone.number, 'cancelled', undefined, { reason: 'Customer request' })
+  await setStatus(cols, gone.number, 'canceled', undefined, { reason: 'Customer request' })
   await createOrder(cols, { commerceOrderId: '4', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 1, price: 50 }] })
 
   const doc = await describePartner(cols, await getPartner(cols, 'C1'))

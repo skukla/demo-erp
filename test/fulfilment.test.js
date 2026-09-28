@@ -139,9 +139,9 @@ test('one invoice covers the whole order, once, and raises the invoice event', a
 test('a cancellation carries its reason to Commerce', async () => {
   const order = await createOrder(cols, input)
   await cancelOrder(cols, order.number, 'Duplicate order')
-  const event = (await pending(cols)).find((e) => e.kind === 'order.cancelled')
+  const event = (await pending(cols)).find((e) => e.kind === 'order.canceled')
   assert.equal(event.value.reason, 'Duplicate order')
-  assert.equal(event.value.status, 'cancelled')
+  assert.equal(event.value.status, 'canceled')
 })
 
 test('confirming twice, and cancelling a shipped order, are refused in words', async () => {

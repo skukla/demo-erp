@@ -20,7 +20,6 @@ import CreateShipment from './CreateShipment'
 import Timeline from './Timeline'
 import { useLoad } from './useLoad'
 import { toastSaved } from './toast'
-import { displayWord } from '../displayWords'
 
 /** Cancel: pick a reason, then confirm. The dialog is the only way to reach it. */
 function CancelOrder ({ reasons, onCancel, isDisabled }) {
@@ -45,7 +44,7 @@ function CancelOrder ({ reasons, onCancel, isDisabled }) {
               marginTop='size-200'
               width='100%'
             >
-              {(item) => <Item key={item.id}>{displayWord(item.id)}</Item>}
+              {(item) => <Item key={item.id}>{item.id}</Item>}
             </Picker>
           </Content>
           <ButtonGroup>

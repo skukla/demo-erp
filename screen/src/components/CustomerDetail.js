@@ -135,7 +135,7 @@ function CreditCard ({ customer, onLimit }) {
   )
 }
 
-/* The orders exposure is made of: not yet invoiced, not cancelled, not on credit hold
+/* The orders exposure is made of: not yet invoiced, not canceled, not on credit hold
    (lib/partners describePartner uses the same rule). */
 const OPEN_ITEMS = new Set(['created', 'confirmed', 'shipped'])
 const isOpenItem = (o) => OPEN_ITEMS.has(o.status) && o.creditStatus !== 'held'
@@ -188,7 +188,7 @@ function OrdersCard ({ orders, onOpen, hasCredit }) {
                   <Cell>{o.commerceIncrementId || o.commerceOrderId || '—'}</Cell>
                   <Cell>{money(o.net, o.currency)}</Cell>
                   <Cell>
-                    {o.creditStatus === 'held' && o.status !== 'cancelled'
+                    {o.creditStatus === 'held' && o.status !== 'canceled'
                       ? <StatusLight variant='negative'>On credit hold</StatusLight>
                       : <StatusLight variant={statusLight(o.status)}>{statusText(o.status)}</StatusLight>}
                   </Cell>

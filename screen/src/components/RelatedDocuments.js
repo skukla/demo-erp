@@ -9,7 +9,6 @@ import React from 'react'
 import { StatusLight, Text } from '@adobe/react-spectrum'
 import Card from './Card'
 import { formatDate } from '../formatStamp'
-import { displayWord } from '../displayWords'
 
 function Box ({ kind, number, when, status, variant, onOpen, note }) {
   const title = `${kind} ${number || ''}`.trim()
@@ -44,7 +43,7 @@ export default function RelatedDocuments ({ order, onOpen }) {
   return (
     <Card title='Related Documents'>
       <div className='erp-doc-flow'>
-        <Box kind='Sales order' number={order.number} when={formatDate(order.createdAt)} status={displayWord(order.overall)} variant='info' />
+        <Box kind='Sales order' number={order.number} when={formatDate(order.createdAt)} status={order.overall} variant='info' />
         {shipments.map((s) => (
           <Box
             key={s.number}

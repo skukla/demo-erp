@@ -84,7 +84,7 @@ const partners = [
 
 /* The stored shape (lib/orders.js): a header word, quantities per line, the shipments
    and the invoice. The outward `status` is DERIVED below, as the ERP derives it. */
-const HEADERS = ['created', 'confirmed', 'confirmed', 'confirmed', 'cancelled', 'created', 'confirmed', 'created']
+const HEADERS = ['created', 'confirmed', 'confirmed', 'confirmed', 'canceled', 'created', 'confirmed', 'created']
 const cents = (value) => Math.round(value * 100) / 100
 const day = (d, h = 9) => new Date(Date.UTC(2026, 8, d, h, 12)).toISOString()
 const orders = HEADERS.map((header, i) => {
@@ -117,9 +117,9 @@ const orders = HEADERS.map((header, i) => {
   order.creditReason = i === 7 ? 'Credit limit 80,000.00 exceeded by 1,240.00' : null
   order.creditDecidedAt = null
   if (header === 'confirmed') order.history.push({ status: 'confirmed', at: day(4 + i, 11) })
-  if (header === 'cancelled') {
+  if (header === 'canceled') {
     order.cancelReason = 'Customer request'
-    order.history.push({ status: 'cancelled', at: day(4 + i, 11), reason: 'Customer request' })
+    order.history.push({ status: 'canceled', at: day(4 + i, 11), reason: 'Customer request' })
   }
   return order
 })
@@ -247,7 +247,7 @@ function workList () {
     if (can.ship) counts.toShip += 1
     if (can.invoice) counts.toInvoice += 1
     counts.toPost += o.shipments.filter((s) => s.status !== 'posted').length
-    if (o.header !== 'cancelled' && !o.invoice) amount += o.lines.reduce((sum, l) => sum + l.qty * l.price, 0)
+    if (o.header !== 'canceled' && !o.invoice) amount += o.lines.reduce((sum, l) => sum + l.qty * l.price, 0)
     const last = o.history.reduce((at, h) => (h.at > at ? h.at : at), o.createdAt)
     recent.push({ kind: 'order', number: o.number, at: last, title: `Sales Order ${o.number}` })
     for (const sh of o.shipments) recent.push({ kind: 'shipment', number: sh.number, at: sh.postedAt || sh.createdAt, title: `Shipment ${sh.number}` })
@@ -361,28 +361,28 @@ const totalsOf = (o) => ({
   open: o.lines.reduce((s, l) => s + openQty(l), 0)
 })
 function deriveStatus (o) {
-  if (o.header === 'cancelled') return 'cancelled'
+  if (o.header === 'canceled') return 'canceled'
   if (o.invoice) return 'invoiced'
   if (totalsOf(o).shipped > 0) return 'shipped'
   return o.header === 'confirmed' ? 'confirmed' : 'created'
 }
 function nextMoves (o) {
-  if (o.header === 'cancelled' || o.invoice) return []
-  if (o.header === 'created') return ['confirmed', 'cancelled']
+  if (o.header === 'canceled' || o.invoice) return []
+  if (o.header === 'created') return ['confirmed', 'canceled']
   const { shipped, open } = totalsOf(o)
-  if (shipped === 0) return open > 0 ? ['shipped', 'cancelled'] : ['cancelled']
+  if (shipped === 0) return open > 0 ? ['shipped', 'canceled'] : ['canceled']
   return open > 0 ? ['shipped'] : ['invoiced']
 }
 function abilities (o) {
   const { shipped, open } = totalsOf(o)
   const live = o.header === 'confirmed' && !o.invoice
-  const held = o.creditStatus === 'held' && o.header !== 'cancelled'
+  const held = o.creditStatus === 'held' && o.header !== 'canceled'
   return {
     confirm: o.header === 'created' && !held,
     ship: live && open > 0,
     close: live && open > 0,
     invoice: live && open === 0 && shipped > 0,
-    cancel: o.header !== 'cancelled' && !o.invoice && shipped === 0,
+    cancel: o.header !== 'canceled' && !o.invoice && shipped === 0,
     release: held,
     reject: held
   }
@@ -413,7 +413,7 @@ function describe (order) {
     partner: partner ? { id: partner.id, name: partner.name, paymentTerms: partner.paymentTerms } : null,
     shippingStatus: shipped === 0 ? 'none' : (open > 0 ? 'partial' : 'full'),
     billingStatus: order.invoice ? (order.invoice.status === 'credited' ? 'credited' : 'invoiced') : 'none',
-    overall: order.header === 'cancelled' ? 'Canceled' : (order.invoice ? 'Completed' : (order.header === 'confirmed' ? 'In process' : 'Open')),
+    overall: order.header === 'canceled' ? 'Canceled' : (order.invoice ? 'Completed' : (order.header === 'confirmed' ? 'In process' : 'Open')),
     credit: order.creditStatus ? { status: order.creditStatus, reason: order.creditReason, decidedAt: order.creditDecidedAt } : null,
     can,
     shipments: order.shipments.map((s) => ({ ...s, lines: s.lines.map(named) })),
@@ -489,7 +489,7 @@ function shippingStatus (o) {
   return open > 0 ? 'partial' : 'full'
 }
 function overallStatus (o) {
-  if (o.header === 'cancelled') return 'Canceled'
+  if (o.header === 'canceled') return 'Canceled'
   if (o.invoice) return 'Completed'
   return o.header === 'confirmed' ? 'In process' : 'Open'
 }
@@ -508,7 +508,7 @@ function describePartner (partner) {
       net: cents((o.lines || []).reduce((sum, l) => sum + l.qty * l.price, 0))
     }))
   const exposure = cents(own.filter((o) => OPEN.has(o.status) && o.creditStatus !== 'held').reduce((sum, o) => sum + o.net, 0))
-  const held = own.filter((o) => o.creditStatus === 'held' && o.status !== 'cancelled').length
+  const held = own.filter((o) => o.creditStatus === 'held' && o.status !== 'canceled').length
   const limit = Number(partner.creditLimit) || 0
   return {
     ...partner,
@@ -524,9 +524,9 @@ function describePartner (partner) {
 const refuse = () => Promise.reject(new Error('The preview holds stand-in records; nothing here writes.'))
 
 /* Committed and available, mirrored from lib/availability.js: the open quantity on orders
-   that are neither cancelled nor invoiced, and on hand less that. A configurable parent
+   that are neither canceled nor invoiced, and on hand less that. A configurable parent
    has no lines of its own here (its stand-in variants are not orders' SKUs). */
-const commitsStock = (o) => o.header !== 'cancelled' && !o.invoice
+const commitsStock = (o) => o.header !== 'canceled' && !o.invoice
 const openQtyOf = (l) => Math.max(0, l.qty - (l.shippedQty || 0) - (l.closedQty || 0))
 function committedOf (sku) {
   return orders.filter(commitsStock).reduce((sum, o) => sum + o.lines.filter((l) => l.sku === sku).reduce((s, l) => s + openQtyOf(l), 0), 0)
@@ -665,8 +665,8 @@ export const fakeApi = {
     await wait()
     const o = orderOf(number)
     if (o.creditStatus !== 'held') fail('This order is not on credit hold.')
-    o.header = 'cancelled'; o.cancelReason = 'Credit rejected'; o.creditDecidedAt = new Date().toISOString()
-    o.history.push({ status: 'cancelled', at: o.creditDecidedAt, reason: 'Credit rejected' })
+    o.header = 'canceled'; o.cancelReason = 'Credit rejected'; o.creditDecidedAt = new Date().toISOString()
+    o.history.push({ status: 'canceled', at: o.creditDecidedAt, reason: 'Credit rejected' })
     return copy(describe(o))
   },
   confirmOrder: async (number) => {
@@ -683,9 +683,9 @@ export const fakeApi = {
     const o = orderOf(number)
     if (!CANCEL_REASONS.includes(reason)) fail(`a cancellation needs one of these reasons: ${CANCEL_REASONS.join(', ')}`)
     if (totalsOf(o).shipped > 0) fail('This order has shipped; Commerce cannot cancel a shipped order.')
-    o.header = 'cancelled'
+    o.header = 'canceled'
     o.cancelReason = reason
-    o.history.push({ status: 'cancelled', at: new Date().toISOString(), reason })
+    o.history.push({ status: 'canceled', at: new Date().toISOString(), reason })
     return copy(describe(o))
   },
   createShipment: async (number, { lines, warehouse }) => {

@@ -139,8 +139,8 @@ test('the document names the customer, and says so plainly when there is none', 
 test('the document says where the order may go next', async () => {
   const order = await createOrder(cols, { commerceOrderId: '96', lines: [] })
 
-  assert.deepEqual((await describeOrder(cols, order)).nextStatuses, ['confirmed', 'cancelled'])
-  const cancelled = await setStatus(cols, order.number, 'cancelled', undefined, { reason: 'Out of stock' })
+  assert.deepEqual((await describeOrder(cols, order)).nextStatuses, ['confirmed', 'canceled'])
+  const cancelled = await setStatus(cols, order.number, 'canceled', undefined, { reason: 'Out of stock' })
   assert.deepEqual((await describeOrder(cols, cancelled)).nextStatuses, [])
 })
 
@@ -156,9 +156,9 @@ test('a line amount is money, not float dust', async () => {
 test('an order cannot be cancelled without a reason from the ERP\'s own list', async () => {
   const order = await createOrder(cols, { commerceOrderId: '98', lines: [] })
 
-  await assert.rejects(() => setStatus(cols, order.number, 'cancelled'), /needs one of these reasons/)
+  await assert.rejects(() => setStatus(cols, order.number, 'canceled'), /needs one of these reasons/)
   await assert.rejects(
-    () => setStatus(cols, order.number, 'cancelled', undefined, { reason: 'because I said so' }),
+    () => setStatus(cols, order.number, 'canceled', undefined, { reason: 'because I said so' }),
     /needs one of these reasons/
   )
   assert.equal((await cols.salesOrders.findOne({ _id: order.number })).status, 'created')
@@ -167,7 +167,7 @@ test('an order cannot be cancelled without a reason from the ERP\'s own list', a
 test('a cancellation records why, on the order and in its history', async () => {
   const order = await createOrder(cols, { commerceOrderId: '99', lines: [] })
 
-  const cancelled = await setStatus(cols, order.number, 'cancelled', undefined, { reason: 'Credit rejected' })
+  const cancelled = await setStatus(cols, order.number, 'canceled', undefined, { reason: 'Credit rejected' })
 
   assert.equal(cancelled.cancelReason, 'Credit rejected')
   assert.deepEqual(cancelled.history.at(-1).reason, 'Credit rejected')
@@ -188,6 +188,6 @@ test('the document offers the ERP\'s own cancellation reasons, and stops offerin
 
   assert.deepEqual((await describeOrder(cols, order)).cancelReasons, CANCEL_REASONS)
 
-  const cancelled = await setStatus(cols, order.number, 'cancelled', undefined, { reason: 'Duplicate order' })
+  const cancelled = await setStatus(cols, order.number, 'canceled', undefined, { reason: 'Duplicate order' })
   assert.deepEqual((await describeOrder(cols, cancelled)).cancelReasons, [])
 })

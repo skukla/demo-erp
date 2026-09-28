@@ -37,7 +37,7 @@ test('the payload of each raised event carries exactly the contract keys', async
   // After the order flow: a blocked customer's new orders are held, and a hold stops Confirm.
   await patchPartner(cols, 'C1', { creditLimit: 5, blocking: 'all' })
   const cancelled = await createOrder(cols, { commerceOrderId: '10', lines: [] })
-  await setStatus(cols, cancelled.number, 'cancelled', undefined, { reason: 'Customer request' })
+  await setStatus(cols, cancelled.number, 'canceled', undefined, { reason: 'Customer request' })
   // The blocked customer's next order is created and held (hold event, held: true), then released (held: false).
   const held = await createOrder(cols, { commerceOrderId: '11', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 11, commerceItemId: 4 }] })
   assert.equal(held.creditStatus, 'held')
@@ -149,8 +149,8 @@ test('from version 8: the maintenance window, which routes stay open in it, and 
   assert.deepEqual(Object.keys(refused.body).sort(), [...contract.maintenance.refusal.body].sort())
 })
 
-test('the contract is at version 9: prices in force are what the ERP would charge, pricing conditions and the ceiling included', async () => {
-  assert.equal(contract.contractVersion, 9)
+test('from version 9: prices in force are what the ERP would charge, pricing conditions and the ceiling included', async () => {
+  assert.ok(contract.contractVersion >= 9)
   assert.match(contract.contracts.inForceNote, /version 9/)
   assert.match(contract.contracts.inForceNote, /pricing condition/)
   assert.match(contract.contracts.inForceNote, /maximum discount/)
@@ -167,4 +167,15 @@ test('the contract is at version 9: prices in force are what the ERP would charg
   assert.deepEqual(Object.keys(discounted).sort(), [...contract.contracts.discountLine].sort())
   assert.deepEqual(Object.keys(priced).sort(), [...contract.contracts.priceLine].sort())
   assert.equal(priced.contractNumber, null)
+})
+
+test('the contract is at version 10: canceled, order.canceled and Canceled in Commerce, in American English', () => {
+  const { CANCEL_REASONS, STATUSES } = require('../lib/orders')
+  assert.equal(contract.contractVersion, 10)
+  assert.equal(contract.order.fromCommerce.cancelReasonFromCommerce, 'Canceled in Commerce')
+  assert.ok(CANCEL_REASONS.includes(contract.order.fromCommerce.cancelReasonFromCommerce))
+  assert.equal(contract.events['be-observer.sales_order_cancel'].raisedBy, 'order.canceled')
+  assert.ok(STATUSES.includes('canceled'))
+  assert.match(contract.order.spellingNote, /refused/)
+  assert.doesNotMatch(JSON.stringify(contract).replace(/\(was [^)]*\)/g, ''), /[Cc]ancelled/)
 })
