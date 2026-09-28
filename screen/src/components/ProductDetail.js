@@ -380,7 +380,7 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
                   // One string child: Spectrum's Link wraps a plain string and otherwise
                   // demands exactly one element, so "text + arrow" as two children crashes.
                   <Link isQuiet onPress={() => onNavigate('pricing')}>
-                    {`${contractPrices === 1 ? '1 contract price' : `${contractPrices} contract prices`} →`}
+                    {`${contractPrices === 1 ? '1 pricing rule' : `${contractPrices} pricing rules`} →`}
                   </Link>
                 )}
               >
@@ -402,7 +402,7 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
                         onChange={(listPrice) => edit({ listPrice: Number.isFinite(listPrice) ? listPrice : 0 })}
                         width='100%'
                       />
-                      {/* Read the way the customer document reads it, rather than "0 contract prices". */}
+                      {/* Read the way the customer document reads it, rather than "0 pricing rules". */}
                       {contractPrices === 0 && <Text UNSAFE_className='erp-subtle'>No pricing rule names this product; it sells at list price.</Text>}
                     </Flex>
                     )}
