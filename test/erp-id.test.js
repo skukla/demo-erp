@@ -37,3 +37,14 @@ test('an ERP_ID left unset at deploy is not an id', async () => {
     assert.deepEqual(data.value, ENTRY.value, JSON.stringify(ERP_ID))
   }
 })
+
+test('a list-valued event keeps its list shape when the ERP has an id', async () => {
+  const stock = [{ sku: 'A1', source: 'default', quantity: 3, outOfStock: false }]
+  const calls = []
+  await deliver({ EVENTS_WEBHOOK_URL: 'https://x.example/api/v1/web/ingestion/webhook', ERP_ID: 'brand-b' },
+    { _id: 'e2', event: 'be-observer.catalog_stock_update', value: stock }, {
+      headers: {},
+      fetch: async (url, init) => { calls.push(JSON.parse(init.body)); return { ok: true, status: 200 } }
+    })
+  assert.deepEqual(calls[0].data.value, stock, 'a stock line is routed by the product that owns it, so it carries no erpId')
+})

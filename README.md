@@ -154,7 +154,8 @@ enters and generates the key; by hand, set both in the app's env file before dep
 A third, optional input: `ERP_ID`, the id the Commerce integration's ERP list gives this ERP
 when it serves several (lower-case letters, digits and hyphens, e.g. `brand-b`). With it, every
 event the ERP delivers names the ERP (`erpId`, contract version 4), so the integration knows
-which ERP spoke. Without it the events are exactly as before, and the integration reads them as
+which ERP spoke; a stock event, whose value is a list, is sent as it is, and the integration
+finds its ERP from the product that owns each line. Without it the events are exactly as before, and the integration reads them as
 its single ERP's. Demo Builder sets it when an SC adds another ERP.
 
 ### Every screen, looked at by a machine
