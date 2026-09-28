@@ -74,10 +74,10 @@ test('a record applies only on a date inside its validity', () => {
   const line = priceLine({ product, partner, conditions: future, qty: 1, date: ON })
   assert.equal(line.contractPrice, 100)
   assert.equal(line.source, 'list')
-  assert.deepEqual(line.notApplied, [{ id: 'cp', kind: 'contractPrice', reason: 'not valid until 1 Oct 2026' }])
+  assert.deepEqual(line.notApplied, [{ id: 'cp', kind: 'contractPrice', reason: 'not valid until Oct 1, 2026' }])
 
   const expired = [dated({ validFrom: '2026-01-01', validTo: '2026-06-30' })]
-  assert.deepEqual(priceLine({ product, partner, conditions: expired, qty: 1, date: ON }).notApplied[0].reason, 'expired on 30 Jun 2026')
+  assert.deepEqual(priceLine({ product, partner, conditions: expired, qty: 1, date: ON }).notApplied[0].reason, 'expired on Jun 30, 2026')
 
   const current = [dated({ validFrom: '2026-09-01', validTo: '2026-12-31' })]
   const applied = priceLine({ product, partner, conditions: current, qty: 1, date: ON })

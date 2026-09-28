@@ -89,7 +89,7 @@ test('pricing: a condition then a quote for the customer it names; a Commerce id
   await invoke(pricing, cols, { method: 'POST', body: { kind: 'contractPrice', partnerId: 'P1', sku: 'A1', price: 50, validFrom: '2027-01-01' } })
   const future = await invoke(pricing, cols, { method: 'POST', path: '/quote', body: { partnerId: 'P1', date: '2026-09-24', lines: [{ sku: 'A1', qty: 2 }] } })
   assert.equal(future.body.lines[0].contractPrice, 80)
-  assert.equal(future.body.lines[0].notApplied[0].reason, 'not valid until 1 Jan 2027')
+  assert.equal(future.body.lines[0].notApplied[0].reason, 'not valid until Jan 1, 2027')
   const walkIn = await invoke(pricing, cols, { method: 'POST', path: '/quote', body: { lines: [{ sku: 'A1', qty: 1 }] } })
   assert.equal(walkIn.body.partnerId, 'P000000')
   assert.equal(walkIn.body.total, 100)
