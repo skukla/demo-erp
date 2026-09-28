@@ -16,7 +16,7 @@ What it holds, in SAP's words:
 | Pricing conditions | loose rules: contract prices, contract discounts, max-discount ceilings | created here |
 | Sales orders | created by the integration from Commerce orders; confirmed, shipped (in parts — each a **shipment** document, `8000000001`+), invoiced once whole (an **invoice** document, `9000000001`+) or cancelled here. Only the header word and the quantities are stored; shipping, billing and the outward `status` are derived from them | numbers are the ERP's, never reused |
 | Events | the ERP's outbound event log: every change it publishes (price, stock, credit limit, block, order status), delivered or pending | |
-| Settings | display name; warehouse names of the ERP's own (a code seen in an import takes the Commerce source name once); the structure the last fill sent (websites and their sales organisations); Wipe all records. Demo Builder fills the ERP: when it is added, on Reset records, and with Load demo data on the ERP's card. The Sync records button, which asked the integration to copy Commerce again, was removed with that copy (2026-09-27). The Organisation card (company code, sales organisations with counts, warehouses) is derived on read (`lib/structure.js`); the Document numbering card shows each range's next number without reserving it (`lib/counters.js peek`); money with no currency of its own is shown in the company code's currency (health `currency`) | |
+| Settings | display name; the end of a maintenance window, if one runs (see Maintenance window below); warehouse names of the ERP's own (a code seen in an import takes the Commerce source name once); the structure the last fill sent (websites and their sales organisations); Wipe all records. Demo Builder fills the ERP: when it is added, on Reset records, and with Load demo data on the ERP's card. The Sync records button, which asked the integration to copy Commerce again, was removed with that copy (2026-09-27). The Organisation card (company code, sales organisations with counts, warehouses) is derived on read (`lib/structure.js`); the Document numbering card shows each range's next number without reserving it (`lib/counters.js peek`); money with no currency of its own is shown in the company code's currency (health `currency`) | |
 
 Records are transitory, and Commerce is the master the demo is prepared in: the ERP only
 looks like the system of record. Every import (at install, on a Commerce change, on reset)
@@ -40,8 +40,8 @@ one exception is `screen`, below, which serves the ERP's own page.
 
 | Action | Routes |
 |---|---|
-| `health` | `GET` name, counts, last import/wipe, the work waiting (Home's cues), and `structure`: the company code, each sales organisation with its website and counts, each warehouse with its ERP name, Commerce source name and product count (`lib/structure.js`, derived on read) |
-| `settings` | `GET`, `PATCH { appearance?, timeZone?, warehouses?: { [code]: { name } } }` (the name is fixed when the ERP is added; a `displayName` is refused) (rename a warehouse; Commerce keeps its own source name) (`timeZone`, an IANA name, default UTC: the ERP's local date, which decides the day a price line is in force) |
+| `health` | `GET` name, `maintenance` (null, or `{ until, message }` while a maintenance window runs), counts, last import/wipe, the work waiting (Home's cues), and `structure`: the company code, each sales organisation with its website and counts, each warehouse with its ERP name, Commerce source name and product count (`lib/structure.js`, derived on read) |
+| `settings` | `GET`, `PATCH { appearance?, timeZone?, warehouses?: { [code]: { name } } }` (the name is fixed when the ERP is added; a `displayName` is refused) (rename a warehouse; Commerce keeps its own source name) (`timeZone`, an IANA name, default UTC: the ERP's local date, which decides the day a price line is in force); `POST /maintenance { minutes? }` starts a maintenance window (1 to 1440 minutes, default 30; starting again restarts it), `DELETE /maintenance` ends it |
 | `admin` | `POST /wipe`, `POST /import { products[], partners[], stock[], structure?, projectName?, origin? }` (any of the three arrays; `stock` moves quantities per warehouse on products the ERP has; `structure.websites[]` is what Demo Builder's fill saw, kept as `settings.structureMirror`; `origin: { event }` names the Commerce event behind a partial import) |
 | `products` | `GET` (each with `committed` and `available`), `GET /:sku` (plus `openOrders`: each order holding it, with the customer named), `PATCH /:sku { name?, listPrice?, warehouses?: [{ code, quantity }], salesStatus? }`, `DELETE /:sku` (a product deleted in Commerce) |
 | `partners` | `GET`, `GET /:id` (the customer document: the record plus `credit` { limit, exposure, available } — null for the walk-in customer — its `orders`, its `conditions` and `contracts`: the price lists that apply to it, its own then its price group's), `PATCH /:id { creditLimit?, blocking?, paymentTerms?, priceGroup? }` (`priceGroup` a group's code, or null for none) (a quote or order names its customer by number, `partnerId`; without one it is the walk-in customer's. Since contract version 3 the ERP holds no Commerce id: which Commerce company is which customer is the integration's key map) |
@@ -54,6 +54,19 @@ one exception is `screen`, below, which serves the ERP's own page.
 | `search` | `GET ?q=` the documents that match what was typed, best first (the shell's search bar) |
 
 Errors are `{ status: 'ERROR', errorCode, errorMessage }` with a 400/404/503/500.
+
+## Maintenance window
+
+A real ERP has maintenance windows, when its interfaces answer "unavailable"; so does this one
+(`lib/maintenance.js`). While a window runs, every route of every action except `health` and
+`settings` answers `503 { errorCode: 'ERP_MAINTENANCE', errorMessage: 'Contoso ERP is in
+maintenance until 14:30 UTC.', maintenanceUntil }`, the time told in the ERP's own time zone.
+Reads and writes alike are refused and pending events wait for the window to end. `health` still
+answers, with `maintenance: { until, message }`, so the integration can say why the ERP cannot be
+used; `settings` still answers, because it starts and ends the window. The screen still opens and
+shows a banner with the end time. The window ends by itself: an end time that has passed counts
+as off, so a window nobody ended cannot break the next demo. Start and end it on Settings, or with
+`POST settings/maintenance` and `DELETE settings/maintenance`.
 
 ## Customer prices
 
@@ -129,7 +142,7 @@ identity and website; a `structure` import of Commerce's websites and Store Info
 sales organisation on the order. Version 6 (2026-09-28) adds the price lists (route
 `contracts`), their prices in force and `be-observer.company_contract_update`; version 7 the
 same day adds price groups, lists for a customer or a group, dated lines, and `appliesTo` on
-each line in force. `test/records-shape.test.js` pins what the ERP STORES
+each line in force. Version 8 (2026-09-28) adds the maintenance window: its two routes, which actions stay open, health's `maintenance` field and the 503 every other route answers. `test/records-shape.test.js` pins what the ERP STORES
 against `test/fixtures/record-shapes.json`, so a field can only appear or vanish on purpose
 (`UPDATE_RECORD_SHAPES=1` rewrites the fixture; review the diff).
 

@@ -155,6 +155,7 @@
     "displayName",
     "lastImportAt",
     "lastWipeAt",
+    "maintenanceUntil",
     "structureMirror",
     "timeZone",
     "warehouses"

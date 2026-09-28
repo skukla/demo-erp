@@ -1,4 +1,4 @@
-/* GET health: is the ERP up, what is it called, how big is it. */
+/* GET health: is the ERP up, what is it called, is it in maintenance, how big is it. Answers in maintenance too. */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { COLLECTIONS } = require('../../lib/db')
@@ -6,6 +6,7 @@ const { pending } = require('../../lib/events')
 const { workList } = require('../../lib/work')
 const { describeStructure } = require('../../lib/structure')
 const { peek } = require('../../lib/counters')
+const { maintenanceOf } = require('../../lib/maintenance')
 
 async function handler ({ cols, settings }) {
   const counts = {}
@@ -26,8 +27,11 @@ async function handler ({ cols, settings }) {
   // The appearance rides along here rather than behind its own request: the screen
   // already waits on health before it draws, so the shell bar paints in the SC's own
   // palette instead of flashing the default first.
-  return ok({ ok: true, displayName: settings.displayName, appearance: settings.appearance, eventsPending, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, counts, work, structure, numbering, currency })
+  // `maintenance` is null, or when the window ends and the sentence to show for it: the
+  // integration and the screen say "in maintenance until …" from here (lib/maintenance.js).
+  return ok({ ok: true, displayName: settings.displayName, maintenance: maintenanceOf(settings), appearance: settings.appearance, eventsPending, lastImportAt: settings.lastImportAt, lastWipeAt: settings.lastWipeAt, counts, work, structure, numbering, currency })
 }
 
 exports.handler = handler
-exports.main = (params) => run(params, handler)
+exports.openInMaintenance = true
+exports.main = (params) => run(params, handler, { openInMaintenance: true })

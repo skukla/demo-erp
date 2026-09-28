@@ -117,8 +117,8 @@ test('from version 6: the ERP holds price lists (route contracts), publishes the
   assert.ok(contract.quote.responseLine.includes('contractNumber'))
 })
 
-test('the contract is at version 7: price groups, lists for a customer or a group, dated lines, and where each line in force came from', () => {
-  assert.equal(contract.contractVersion, 7)
+test('from version 7: price groups, lists for a customer or a group, dated lines, and where each line in force came from', () => {
+  assert.ok(contract.contractVersion >= 7)
   for (const route of ['GET /price-groups', 'POST /price-groups', 'DELETE /price-groups/:code']) assert.ok(contract.routes.contracts.includes(route), route)
   assert.deepEqual(contract.contracts.appliesTo, ['customer', 'priceGroup'])
   assert.deepEqual(contract.contracts.contract, ['number', 'appliesTo', 'partnerId', 'priceGroup', 'description', 'startingDate', 'endingDate', 'status', 'lines', 'createdAt', 'updatedAt'])
@@ -129,4 +129,22 @@ test('the contract is at version 7: price groups, lists for a customer or a grou
   assert.deepEqual(contract.contracts.discountLine, ['sku', 'kind', 'percent', 'minQty', 'contractNumber', 'appliesTo'])
   assert.match(contract.contracts.inForceNote, /price group/)
   assert.match(contract.events['be-observer.company_contract_update'].note, /member/)
+})
+
+test('the contract is at version 8: the maintenance window, which routes stay open in it, and what the others answer', async () => {
+  assert.equal(contract.contractVersion, 8)
+  assert.ok(contract.routes.settings.includes('POST /maintenance'))
+  assert.ok(contract.routes.settings.includes('DELETE /maintenance'))
+  // The open actions are the ones that say so in code, and no others.
+  const open = Object.keys(contract.routes).filter((name) => require(`../actions/${name}`).openInMaintenance).sort()
+  assert.deepEqual(open, [...contract.maintenance.openRoutes].sort())
+  // Health's field, and the refusal every other route gives, as the code produces them.
+  const { invoke } = require('./helpers/memory-db')
+  await invoke(require('../actions/settings'), cols, { method: 'POST', path: '/maintenance' })
+  const health = await invoke(require('../actions/health'), cols)
+  assert.deepEqual(Object.keys(health.body.maintenance).sort(), [...contract.maintenance.health].sort())
+  const refused = await invoke(require('../actions/products'), cols)
+  assert.equal(refused.statusCode, contract.maintenance.refusal.statusCode)
+  assert.equal(refused.body.errorCode, contract.maintenance.refusal.errorCode)
+  assert.deepEqual(Object.keys(refused.body).sort(), [...contract.maintenance.refusal.body].sort())
 })
