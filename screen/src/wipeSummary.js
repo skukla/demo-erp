@@ -15,6 +15,7 @@ const LABELS = {
   products: ['product', 'products'],
   businessPartners: ['customer', 'customers'],
   pricingConditions: ['pricing condition', 'pricing conditions'],
+  contracts: ['contract', 'contracts'],
   salesOrders: ['sales order', 'sales orders'],
   events: ['event', 'events']
 }
