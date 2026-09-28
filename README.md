@@ -109,6 +109,14 @@ overrides it). The call carries the ERP's own IMS token, so nothing is shared be
 two apps, and the ERP holds nothing that ties it to one Commerce instance: wipe it and it
 starts again.
 
+An ERP in a workspace of its own cannot reach its integration that way: the ingestion action
+accepts only its own workspace's technical account. Such an ERP is deployed with the
+integration's address (`EVENTS_WEBHOOK_URL`) and a publishing credential from the
+integration's workspace (`EVENTS_AUTH_CLIENT_ID`, `EVENTS_AUTH_CLIENT_SECRET`,
+`EVENTS_AUTH_ORG_ID`, `EVENTS_AUTH_SCOPES` as a JSON array), and signs its event posts with it,
+the way a real ERP posts to middleware with a credential the middleware issued. Demo Builder
+sets all five when it deploys an added ERP; without them the ERP signs with its own.
+
 ## The contract
 
 [`contract/erp-contract.json`](contract/erp-contract.json) states what the ERP promises its
