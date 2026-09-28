@@ -1,6 +1,6 @@
 {
   "name": "demo-erp",
-  "contractVersion": 5,
+  "contractVersion": 6,
   "description": "What the ERP promises its subscribers: the routes it serves, the shapes it accepts, and the events it publishes. The Commerce integration vendors this file and its tests fail when the two disagree.",
   "routes": {
     "health": ["GET"],
@@ -9,6 +9,7 @@
     "products": ["GET", "GET /:sku", "PATCH /:sku", "DELETE /:sku"],
     "partners": ["GET", "GET /:id", "PATCH /:id"],
     "pricing": ["GET", "POST", "DELETE /:id", "POST /quote"],
+    "contracts": ["GET", "GET /in-force", "GET /:number", "POST", "PATCH /:number", "POST /:number/activate", "POST /:number/deactivate"],
     "orders": ["GET", "GET /:number", "POST", "POST /:number/confirm", "POST /:number/cancel", "POST /:number/shipments", "POST /:number/shipments/:shipment/post", "POST /:number/lines/:item/close", "POST /:number/invoice", "POST /:number/credit/release", "POST /:number/credit/reject", "POST /:number/credit/hold", "POST /:number/commerce-shipment", "POST /:number/commerce-invoice", "POST /:number/status"],
     "shipments": ["GET", "GET /:number"],
     "invoices": ["GET", "GET /:number"],
@@ -33,8 +34,21 @@
   "quote": {
     "request": ["partnerId", "lines", "date", "salesOrg"],
     "requestLine": ["sku", "qty"],
-    "responseLine": ["sku", "qty", "listPrice", "contractPrice", "discountPercent", "maxDiscountPercent", "source", "lineTotal", "notApplied"],
-    "unknownLine": ["sku", "qty", "unknown"]
+    "responseLine": ["sku", "qty", "listPrice", "contractPrice", "discountPercent", "maxDiscountPercent", "source", "lineTotal", "notApplied", "contractNumber"],
+    "unknownLine": ["sku", "qty", "unknown"],
+    "contractNote": "version 6: contractNumber names the contract whose line priced this one, or is null. A customer's contract lines in force for a SKU take the place of its loose contract prices and discounts for that SKU; the maximum discount still bounds the result"
+  },
+  "contracts": {
+    "note": "version 6: a contract is one customer's price agreement (number, partnerId, description, startingDate, endingDate, status draft | active | inactive, lines). Only an active contract between its starting and ending dates (both included) prices anything. Prices in force are its lines; when two contracts price one SKU at one minimum quantity for a customer, the later starting date wins, then the higher contract number",
+    "contract": ["number", "partnerId", "description", "startingDate", "endingDate", "status", "lines", "createdAt", "updatedAt"],
+    "statuses": ["draft", "active", "inactive"],
+    "line": ["sku", "kind", "price", "percent", "minQty"],
+    "lineKinds": ["price", "discount"],
+    "inForce": ["items"],
+    "inForceItem": ["partnerId", "lines"],
+    "inForceNote": "GET contracts/in-force answers today's prices in force for every customer with at least one line; with ?partnerId= it answers exactly that customer, lines possibly empty",
+    "priceLine": ["sku", "kind", "price", "minQty", "contractNumber"],
+    "discountLine": ["sku", "kind", "percent", "minQty", "contractNumber"]
   },
   "order": {
     "request": ["commerceOrderId", "commerceIncrementId", "partnerId", "lines", "currency", "total", "salesOrg", "salesOrgName"],
@@ -60,7 +74,8 @@
     "be-observer.sales_order_hold": { "raisedBy": "order.hold", "value": ["id", "orderId", "incrementId", "erpNumber", "status", "items", "notifyCustomer", "held", "reason"], "note": "held true puts the Commerce order On Hold (the ERP created the order and held it for credit), false takes it off (a release); reason is the ERP's credit reason, or null on a release. A reject is a cancel and travels as sales_order_cancel" },
     "be-observer.sales_order_cancel": { "raisedBy": "order.cancelled", "value": ["id", "orderId", "incrementId", "erpNumber", "status", "items", "notifyCustomer", "reason"], "note": "reason is one of the ERP's own cancellation reasons, for the Commerce order comment" },
     "be-observer.company_credit_update": { "raisedBy": "partner.creditLimit", "value": ["partnerId", "creditLimit"] },
-    "be-observer.company_status_update": { "raisedBy": "partner.blocked", "value": ["partnerId", "blocked"] }
+    "be-observer.company_status_update": { "raisedBy": "partner.blocked", "value": ["partnerId", "blocked"] },
+    "be-observer.company_contract_update": { "raisedBy": "contract.changed", "value": ["partnerId", "lines"], "note": "version 6: raised whenever a change to a contract moves a customer's prices in force today. lines is that customer's whole set (contracts.priceLine or contracts.discountLine each), so a replay is harmless; an empty list means no contract price is left. A contract starting or ending with the calendar raises nothing: read GET contracts/in-force to follow dates" }
   },
   "orderEventItem": ["orderItemId", "qty", "sku"],
   "delivery": {

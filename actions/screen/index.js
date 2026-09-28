@@ -8,6 +8,7 @@ const handlers = {
   products: require('../products'),
   partners: require('../partners'),
   pricing: require('../pricing'),
+  contracts: require('../contracts'),
   orders: require('../orders'),
   shipments: require('../shipments'),
   invoices: require('../invoices'),

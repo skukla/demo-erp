@@ -94,3 +94,48 @@ test('a wipe removes contracts; the numbering carries on', async () => {
   await importPartners(cols, [{ id: 'P1', name: 'Acme' }])
   assert.equal((await createContract(cols, draft())).number, '4000000002')
 })
+
+/*
+ * contract.changed: raised whenever a customer's prices in force change, carrying that
+ * customer's WHOLE current set (lib/contract-prices), so delivering it twice is harmless.
+ */
+const { pending, EVENT_NAMES } = require('../lib/events')
+
+// Oldest first; nothing is delivered without action params, so every event is pending.
+const changes = async () => (await pending(cols)).filter((e) => e.kind === 'contract.changed')
+
+test('contract.changed is delivered as be-observer.company_contract_update', () => {
+  assert.equal(EVENT_NAMES['contract.changed'], 'be-observer.company_contract_update')
+})
+
+test('a draft changes no price, so creating or editing one raises nothing', async () => {
+  const c = await createContract(cols, draft())
+  await updateContract(cols, c.number, { description: 'Edited' })
+  assert.deepEqual(await changes(), [])
+})
+
+test('activating, editing and deactivating an in-date contract each raise the customer\'s whole set', async () => {
+  const c = await createContract(cols, draft())
+  await activateContract(cols, c.number)
+  await updateContract(cols, c.number, { lines: [{ sku: 'A1', kind: 'price', price: 75 }, { sku: 'B2', kind: 'discount', percent: 10, minQty: 5 }] })
+  await updateContract(cols, c.number, { description: 'Only the words' })
+  await deactivateContract(cols, c.number)
+  const values = (await changes()).map((e) => e.value)
+  assert.deepEqual(values, [
+    { partnerId: 'P1', lines: [{ sku: 'A1', kind: 'price', price: 80, minQty: 1, contractNumber: c.number }] },
+    {
+      partnerId: 'P1',
+      lines: [
+        { sku: 'A1', kind: 'price', price: 75, minQty: 1, contractNumber: c.number },
+        { sku: 'B2', kind: 'discount', percent: 10, minQty: 5, contractNumber: c.number }
+      ]
+    },
+    { partnerId: 'P1', lines: [] }
+  ], 'the description-only edit changed no price and raised nothing')
+})
+
+test('activating a contract that starts in the future raises nothing today', async () => {
+  const c = await createContract(cols, draft({ startingDate: '2999-01-01' }))
+  await activateContract(cols, c.number)
+  assert.deepEqual(await changes(), [])
+})

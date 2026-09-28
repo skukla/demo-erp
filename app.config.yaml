@@ -131,6 +131,18 @@ application:
               require-adobe-auth: true
               include-ims-credentials: true
               final: true
+          contracts:
+            function: actions/contracts/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+              ERP_ID: $ERP_ID
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
           orders:
             function: actions/orders/index.js
             web: 'yes'

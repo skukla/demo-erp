@@ -120,3 +120,68 @@ test('without a date the quote prices for today', () => {
   const q = quote({ products: [product], partner, conditions: [], lines: [{ sku: 'A1', qty: 1 }] })
   assert.match(q.date, /^\d{4}-\d{2}-\d{2}$/)
 })
+
+/*
+ * Contracts (lib/contracts). The precedence: a customer's contract lines in force for a SKU
+ * take the place of that customer's loose contract prices and discounts for that SKU, the
+ * SKU-specific ones and the all-products discount alike. The quantity break is the line with
+ * the highest minimum quantity the line reaches; below every break the list price stands.
+ * The maximum discount stays a loose, store-wide rule and still bounds the result.
+ */
+const TODAY = '2026-09-28'
+const agreement = (lines, extra) => ({ number: '4000000001', partnerId: 'P1', status: 'active', startingDate: '2026-01-01', endingDate: null, lines, ...extra })
+
+test('a contract line beats a loose condition for the same customer and SKU, and names its contract', () => {
+  const conditions = [{ _id: 'loose', kind: 'contractPrice', partnerId: 'P1', sku: 'A1', price: 60 }]
+  const contracts = [agreement([{ sku: 'A1', kind: 'price', price: 85, minQty: 1 }])]
+  const line = priceLine({ product, partner, conditions, contracts, date: TODAY })
+  assert.equal(line.contractPrice, 85)
+  assert.equal(line.source, 'contractPrice')
+  assert.equal(line.contractNumber, '4000000001')
+  assert.deepEqual(line.notApplied, [{ id: 'loose', kind: 'contractPrice', reason: 'contract 4000000001 prices this product for this customer' }])
+})
+
+test('a contract discount line prices from the list price; the customer\'s loose all-products discount still covers other SKUs', () => {
+  const conditions = [{ _id: 'all', kind: 'contractDiscount', partnerId: 'P1', sku: null, percent: 15 }]
+  const contracts = [agreement([{ sku: 'A1', kind: 'discount', percent: 25, minQty: 1 }])]
+  const a1 = priceLine({ product, partner, conditions, contracts, date: TODAY })
+  assert.equal(a1.contractPrice, 75)
+  assert.equal(a1.source, 'contractDiscount')
+  const b2 = priceLine({ product: { sku: 'B2', listPrice: 100 }, partner, conditions, contracts, date: TODAY })
+  assert.equal(b2.contractPrice, 85)
+  assert.equal(b2.contractNumber, null)
+})
+
+test('the quantity break is the highest minimum quantity the line reaches; below every break the list price stands', () => {
+  const conditions = [{ _id: 'loose', kind: 'contractPrice', partnerId: 'P1', sku: 'A1', price: 60 }]
+  const breaks = [agreement([{ sku: 'A1', kind: 'price', price: 90, minQty: 5 }, { sku: 'A1', kind: 'price', price: 80, minQty: 10 }])]
+  assert.equal(priceLine({ product, partner, conditions, contracts: breaks, qty: 12, date: TODAY }).contractPrice, 80)
+  assert.equal(priceLine({ product, partner, conditions, contracts: breaks, qty: 5, date: TODAY }).contractPrice, 90)
+  const below = priceLine({ product, partner, conditions, contracts: breaks, qty: 1, date: TODAY })
+  assert.equal(below.contractPrice, 100, 'the contract owns this SKU for this customer, so the loose price is set aside')
+  assert.equal(below.source, 'list')
+})
+
+test('the maximum discount still bounds a contract line', () => {
+  const conditions = [{ kind: 'maxDiscount', partnerId: null, sku: null, percent: 10 }]
+  const line = priceLine({ product, partner, conditions, contracts: [agreement([{ sku: 'A1', kind: 'price', price: 50, minQty: 1 }])], date: TODAY })
+  assert.equal(line.contractPrice, 90)
+  assert.equal(line.source, 'ceiling')
+})
+
+test('a draft, inactive or out-of-date contract leaves the loose conditions in charge', () => {
+  const conditions = [{ kind: 'contractPrice', partnerId: 'P1', sku: 'A1', price: 60 }]
+  for (const extra of [{ status: 'draft' }, { status: 'inactive' }, { endingDate: '2026-06-30' }, { startingDate: '2026-10-01' }]) {
+    const line = priceLine({ product, partner, conditions, contracts: [agreement([{ sku: 'A1', kind: 'price', price: 85, minQty: 1 }], extra)], date: TODAY })
+    assert.equal(line.contractPrice, 60, JSON.stringify(extra))
+    assert.equal(line.contractNumber, null)
+  }
+})
+
+test('another customer\'s contract never applies, and a quote reads the contracts it is handed', () => {
+  const contracts = [agreement([{ sku: 'A1', kind: 'price', price: 85, minQty: 1 }], { partnerId: 'P2' })]
+  assert.equal(priceLine({ product, partner, conditions: [], contracts, date: TODAY }).contractPrice, 100)
+  const q = quote({ products: [product], partner: { id: 'P2' }, conditions: [], contracts, lines: [{ sku: 'A1', qty: 2 }], date: TODAY })
+  assert.equal(q.total, 170)
+  assert.equal(q.lines[0].contractNumber, '4000000001')
+})

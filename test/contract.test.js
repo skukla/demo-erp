@@ -15,6 +15,7 @@ const { importProducts, patchProduct } = require('../lib/products')
 const { importPartners, patchPartner } = require('../lib/partners')
 const { createOrder, setStatus } = require('../lib/orders')
 const { releaseCredit } = require('../lib/fulfilment')
+const { createContract, activateContract } = require('../lib/contracts')
 
 let cols
 beforeEach(() => { cols = memoryCollections() })
@@ -41,6 +42,9 @@ test('the payload of each raised event carries exactly the contract keys', async
   const held = await createOrder(cols, { commerceOrderId: '11', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 11, commerceItemId: 4 }] })
   assert.equal(held.creditStatus, 'held')
   await releaseCredit(cols, held.number)
+  // An active, in-date contract moves the customer's prices in force: contract.changed.
+  const agreement = await createContract(cols, { partnerId: 'C1', startingDate: '2026-01-01', lines: [{ sku: 'A1', kind: 'price', price: 9 }] })
+  await activateContract(cols, agreement.number)
   const entries = await pending(cols)
   const seen = new Set()
   for (const e of entries) {
@@ -49,6 +53,7 @@ test('the payload of each raised event carries exactly the contract keys', async
     const sample = spec.valueIsArray ? e.value[0] : e.value
     assert.deepEqual(Object.keys(sample).sort(), [...spec.value].sort(), `payload keys of ${e.event}`)
     if (Array.isArray(sample.items) && sample.items.length) assert.deepEqual(Object.keys(sample.items[0]).sort(), [...contract.orderEventItem].sort())
+    if (spec.raisedBy === 'contract.changed') assert.deepEqual(Object.keys(sample.lines[0]).sort(), [...contract.contracts.priceLine].sort())
     seen.add(e.event)
   }
   assert.deepEqual([...seen].sort(), Object.keys(contract.events).sort(), 'every contract event was raised in this test')
@@ -94,9 +99,26 @@ test('from version 4: a delivered event names its ERP when the ERP was deployed 
   assert.match(contract.delivery.erpId, /ERP_ID/)
 })
 
-test('the contract is at version 5: the import carries Commerce\'s switch as the website account, never the ERP\'s credit block', () => {
-  assert.equal(contract.contractVersion, 5)
+test('from version 5: the import carries Commerce\'s switch as the website account, never the ERP\'s credit block', () => {
+  assert.ok(contract.contractVersion >= 5)
   assert.ok(contract.import.partners.includes('websiteAccountClosed'))
   assert.ok(!contract.import.partners.includes('blocked'))
   assert.match(contract.import.partnersNote, /never changes the ERP's own credit block/)
+})
+
+test('the contract is at version 6: the ERP holds contracts, publishes their prices in force, and says when they change', () => {
+  assert.equal(contract.contractVersion, 6)
+  assert.deepEqual(contract.routes.contracts, ['GET', 'GET /in-force', 'GET /:number', 'POST', 'PATCH /:number', 'POST /:number/activate', 'POST /:number/deactivate'])
+  assert.deepEqual(contract.events['be-observer.company_contract_update'], {
+    raisedBy: 'contract.changed',
+    value: ['partnerId', 'lines'],
+    note: contract.events['be-observer.company_contract_update'].note
+  })
+  assert.match(contract.events['be-observer.company_contract_update'].note, /whole/)
+  // A discount line carries percent and no price; a price line price and no percent.
+  assert.deepEqual(contract.contracts.priceLine, ['sku', 'kind', 'price', 'minQty', 'contractNumber'])
+  assert.deepEqual(contract.contracts.discountLine, ['sku', 'kind', 'percent', 'minQty', 'contractNumber'])
+  assert.deepEqual(contract.contracts.inForce, ['items'])
+  assert.deepEqual(contract.contracts.inForceItem, ['partnerId', 'lines'])
+  assert.ok(contract.quote.responseLine.includes('contractNumber'))
 })
