@@ -69,8 +69,8 @@ test('delivery rules match the code', () => {
   assert.ok(webhookUrl({ EVENTS_WEBHOOK_URL: 'https://x.example' + contract.delivery.webhookPath }).endsWith(contract.delivery.webhookPath))
 })
 
-test('the contract is at version 3: the business-structure fields are named on partners, orders and the structure import, and no Commerce id is', () => {
-  assert.equal(contract.contractVersion, 3)
+test('from version 3 the business-structure fields are named on partners, orders and the structure import, and no Commerce id is', () => {
+  assert.ok(contract.contractVersion >= 3)
   for (const key of ['salesOrgs', 'legalName', 'vatTaxId', 'resellerId', 'legalAddress']) assert.ok(contract.import.partners.includes(key), key)
   // Version 3: the ERP holds and speaks no Commerce id; the integration keeps the key map.
   for (const key of ['commerceCompanyId', 'customerGroupId', 'emailDomain', 'website']) assert.ok(!contract.import.partners.includes(key), key)
@@ -86,4 +86,10 @@ test('the contract is at version 3: the business-structure fields are named on p
     assert.ok(contract.order.request.includes(key), key)
     assert.ok(contract.order.response.includes(key), key)
   }
+})
+
+test('the contract is at version 4: a delivered event names its ERP when the ERP was deployed with an id', () => {
+  assert.equal(contract.contractVersion, 4)
+  assert.match(contract.delivery.erpId, /erpId/)
+  assert.match(contract.delivery.erpId, /ERP_ID/)
 })

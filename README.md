@@ -103,6 +103,12 @@ Two deploy-time inputs: `ERP_DISPLAY_NAME`, what the ERP calls itself (default "
 `ERP_SCREEN_KEY`, the key that opens the screen. Demo Builder writes the name from what the SC
 enters and generates the key; by hand, set both in the app's env file before deploying. A redeploy with a new name renames the ERP unless someone renamed it on its screen.
 
+A third, optional input: `ERP_ID`, the id the Commerce integration's ERP list gives this ERP
+when it serves several (lower-case letters, digits and hyphens, e.g. `brand-b`). With it, every
+event the ERP delivers names the ERP (`erpId`, contract version 4), so the integration knows
+which ERP spoke. Without it the events are exactly as before, and the integration reads them as
+its single ERP's. Demo Builder sets it when an SC adds another ERP.
+
 ### Every screen, looked at by a machine
 
 `test/screens.test.js` starts the preview on a free port, drives Playwright's headless
