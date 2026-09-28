@@ -131,8 +131,8 @@ test('from version 7: price groups, lists for a customer or a group, dated lines
   assert.match(contract.events['be-observer.company_contract_update'].note, /member/)
 })
 
-test('the contract is at version 8: the maintenance window, which routes stay open in it, and what the others answer', async () => {
-  assert.equal(contract.contractVersion, 8)
+test('from version 8: the maintenance window, which routes stay open in it, and what the others answer', async () => {
+  assert.ok(contract.contractVersion >= 8)
   assert.ok(contract.routes.settings.includes('POST /maintenance'))
   assert.ok(contract.routes.settings.includes('DELETE /maintenance'))
   // The open actions are the ones that say so in code, and no others.
@@ -147,4 +147,24 @@ test('the contract is at version 8: the maintenance window, which routes stay op
   assert.equal(refused.statusCode, contract.maintenance.refusal.statusCode)
   assert.equal(refused.body.errorCode, contract.maintenance.refusal.errorCode)
   assert.deepEqual(Object.keys(refused.body).sort(), [...contract.maintenance.refusal.body].sort())
+})
+
+test('the contract is at version 9: prices in force are what the ERP would charge, pricing conditions and the ceiling included', async () => {
+  assert.equal(contract.contractVersion, 9)
+  assert.match(contract.contracts.inForceNote, /version 9/)
+  assert.match(contract.contracts.inForceNote, /pricing condition/)
+  assert.match(contract.contracts.inForceNote, /maximum discount/)
+  assert.match(contract.contracts.lineNote, /contractNumber is null/)
+  assert.match(contract.events['be-observer.company_contract_update'].note, /version 9/)
+  assert.match(contract.events['be-observer.company_contract_update'].note, /list price/)
+  // A line a loose condition set keeps the published shape, as the code produces it.
+  const { upsertCondition } = require('../lib/conditions')
+  await importProducts(cols, [{ sku: 'A1', name: 'A', listPrice: 10 }])
+  await importPartners(cols, [{ id: 'C1', name: 'One' }])
+  await upsertCondition(cols, { kind: 'contractDiscount', partnerId: 'C1', percent: 10 })
+  await upsertCondition(cols, { kind: 'contractPrice', partnerId: 'C1', sku: 'A1', price: 9.5 })
+  const [discounted, priced] = (await pending(cols)).filter((e) => e.kind === 'contract.changed').map((e) => e.value.lines[0])
+  assert.deepEqual(Object.keys(discounted).sort(), [...contract.contracts.discountLine].sort())
+  assert.deepEqual(Object.keys(priced).sort(), [...contract.contracts.priceLine].sort())
+  assert.equal(priced.contractNumber, null)
 })

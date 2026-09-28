@@ -13,7 +13,7 @@ What it holds, in SAP's words:
 | Business partners | accounts (sold-to): name, **sales organisations** (the websites the company buys through), legal identity (legal name, VAT/tax id, reseller id, legal address, website), payment terms, **credit limit**, two separate stop switches: the **credit block** (`blocking`: None · Stop shipping · Stop invoicing · Stop all), set only here and never changed by Commerce, and the **website account** (`websiteAccount`: Active · Closed), Commerce's company Active/Blocked switch copied here read-only (contract version 5: `websiteAccountClosed` on the import). Either one stops an order; credit exposure is derived from open orders, never stored | filled from Commerce by Demo Builder, then kept current by Commerce's company event (companies, credit, website account, legal fields, the admin's website; never the credit block); edited here for the demo; one default partner for walk-in customers, in every sales organisation |
 | Customer price lists | Business Central's sales price lists: a number (`4000000001`+), applies to **one customer or one customer price group**, a term (starting date, optional ending date), a status (Draft · Active · Inactive) and lines, each a product with an **agreed price** or a **line discount**, a **from quantity** and optional dates of its own. Stored as `contracts` (the name the integration calls) | created here |
 | Customer price groups | a code and a name; a customer belongs to at most one (`priceGroup` on the business partner) | created here; a customer's group is set on its page, never by an import |
-| Pricing conditions | loose rules: contract prices, contract discounts, max-discount ceilings | created here |
+| Pricing conditions | loose rules: contract prices, contract discounts, max-discount ceilings; they price the storefront too, through the prices in force (see Customer prices) | created here |
 | Sales orders | created by the integration from Commerce orders; confirmed, shipped (in parts — each a **shipment** document, `8000000001`+), invoiced once whole (an **invoice** document, `9000000001`+) or cancelled here. Only the header word and the quantities are stored; shipping, billing and the outward `status` are derived from them | numbers are the ERP's, never reused |
 | Events | the ERP's outbound event log: every change it publishes (price, stock, credit limit, block, order status), delivered or pending | |
 | Settings | display name; the end of a maintenance window, if one runs (see Maintenance window below); warehouse names of the ERP's own (a code seen in an import takes the Commerce source name once); the structure the last fill sent (websites and their sales organisations); Wipe all records. Demo Builder fills the ERP: when it is added, on Reset records, and with Load demo data on the ERP's card. The Sync records button, which asked the integration to copy Commerce again, was removed with that copy (2026-09-27). The Organisation card (company code, sales organisations with counts, warehouses) is derived on read (`lib/structure.js`); the Document numbering card shows each range's next number without reserving it (`lib/counters.js peek`); money with no currency of its own is shown in the company code's currency (health `currency`) | |
@@ -88,11 +88,27 @@ access sequence underneath (`lib/contract-prices.js`):
 - **Quantity breaks.** A quote prices the line with the highest from quantity the quantity
   reaches; below every one, the list price stands.
 
-`GET contracts/in-force` answers each customer's lines in force today, groups resolved:
+`GET contracts/in-force` answers what the ERP would charge each customer today, by the order
+above (`lib/net-prices.js`, which reads the same decision a quote does, `decide` in
+`lib/pricing.js`):
 `{ items: [{ partnerId, lines: [{ sku, kind, price | percent, minQty, contractNumber, appliesTo }] }] }`,
 where `contractNumber` is the price list and `appliesTo` says whether it is the customer's own
-(`customer`) or its group's (`priceGroup`). Customers with no line are left out; with
+(`customer`) or its group's (`priceGroup`); a line a loose pricing condition set has
+`contractNumber: null` and `appliesTo: customer`. Customers with no line are left out; with
 `?partnerId=` it answers that one customer, its lines possibly empty.
+
+- **Pricing conditions reach the storefront.** A customer's loose contract price or discount
+  counts on today's date and from its minimum quantity, like a list line. An all-products
+  discount is one line per product the ERP sells (a configurable parent sells nothing; its
+  variants are priced), so a 10% discount for a customer is one line for every variant and
+  simple product.
+- **A discount stays a discount.** It is sent as a `discount` line, so Commerce keeps it
+  following the list price. A fixed price stays a `price` line.
+- **The maximum discount is applied, not passed on.** A discount above the ceiling is sent
+  at the ceiling's percent; a fixed price below list × (1 − ceiling) is raised to that floor
+  and sent as the ceiling's discount, which is the same price and follows the list price.
+- **Quantity breaks.** A product's breaks are the minimum quantities of its list lines and
+  conditions; a break is a line only where the charged price moves.
 
 ## Events
 
@@ -106,11 +122,16 @@ starter kit's back-office vocabulary (`be-observer.catalog_product_update`,
 to the subscriber, the Commerce integration's ingestion webhook.
 
 `be-observer.company_contract_update` (kind `contract.changed`) is raised for every customer
-whose price list prices in force a change moved: a list's create, edit, activation or
-deactivation (a group's list reaches every member whose prices moved), and a customer moved
-into or out of a price group. It carries `{ partnerId, lines }`, that customer's whole set as
-`contracts/in-force` answers it, so a replay is harmless and an empty `lines` means no list
-price is left. A change that moves no price raises nothing, and nor does the calendar: a
+whose prices in force a change moved: a list's create, edit, activation or deactivation (a
+group's list reaches every member whose prices moved), a customer moved into or out of a
+price group, a pricing condition created, changed or deleted (one naming no customer, such as
+a store-wide maximum discount, is checked against every customer), and a list price edited on
+the product page (a fixed price the maximum discount holds up sits at list × (1 − ceiling),
+so it moves with the list price; discounts follow it by themselves). A fill or an import that
+changes list prices raises none of these; the integration's hourly publish reads
+`contracts/in-force`. It carries `{ partnerId, lines }`, that customer's whole set as
+`contracts/in-force` answers it, so a replay is harmless and an empty `lines` means the
+customer pays list price for everything. A change that moves no price raises nothing, and nor does the calendar: a
 subscriber that follows dates reads `contracts/in-force`. Undelivered events are retried every minute; after ten failed
 attempts an event is marked failed and left alone until someone requeues it from the Events
 page.
@@ -142,7 +163,7 @@ identity and website; a `structure` import of Commerce's websites and Store Info
 sales organisation on the order. Version 6 (2026-09-28) adds the price lists (route
 `contracts`), their prices in force and `be-observer.company_contract_update`; version 7 the
 same day adds price groups, lists for a customer or a group, dated lines, and `appliesTo` on
-each line in force. Version 8 (2026-09-28) adds the maintenance window: its two routes, which actions stay open, health's `maintenance` field and the 503 every other route answers. `test/records-shape.test.js` pins what the ERP STORES
+each line in force. Version 8 (2026-09-28) adds the maintenance window: its two routes, which actions stay open, health's `maintenance` field and the 503 every other route answers. Version 9 (2026-09-28) makes the prices in force and `be-observer.company_contract_update` what the ERP would charge: pricing conditions and the maximum discount included, raised also when a condition or a list price changes. `test/records-shape.test.js` pins what the ERP STORES
 against `test/fixtures/record-shapes.json`, so a field can only appear or vanish on purpose
 (`UPDATE_RECORD_SHAPES=1` rewrites the fixture; review the diff).
 
