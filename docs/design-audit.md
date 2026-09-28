@@ -10,15 +10,15 @@ rendered page.
 
 | | Count | Should be |
 |---|---|---|
-| Colour literals in `theme.css` | **29 distinct** | ~10 named roles |
+| Color literals in `theme.css` | **29 distinct** | ~10 named roles |
 | Spectrum dimension tokens in components (`size-200`…) | **17 distinct**, 68 uses | one space scale |
 | `UNSAFE_style` escapes in components | **17** | 0 |
 | Border radii declared | **5** (0, 5, 6, 7, 8px) | 2 |
 | Type styles rendered on the Products page | 7 | 6–7 is fine |
-| Text colours rendered on one page | **8** | 4 |
+| Text colors rendered on one page | **8** | 4 |
 | Surfaces rendered on one page | **7** | 4 |
 
-Two of those rendered text colours — `#222222` and `#464646` — and one surface,
+Two of those rendered text colors — `#222222` and `#464646` — and one surface,
 `#fdfdfd`, are **not in our palette at all**. Nobody chose them. They are Spectrum's
 defaults showing through wherever the theme did not happen to override something.
 
@@ -30,7 +30,7 @@ defaults showing through wherever the theme did not happen to override something
    intervened.
 2. **Spectrum's dimension tokens in JSX** — `marginTop='size-200'`, 17 different ones,
    chosen per call site.
-3. **`theme.css`** — our overrides, 29 colour literals deep, each added in response to
+3. **`theme.css`** — our overrides, 29 color literals deep, each added in response to
    something looking wrong.
 4. **`UNSAFE_style` escapes** — 17 of them, several setting font sizes (12, 13, 15px) the
    theme has never heard of.
@@ -51,7 +51,7 @@ reveals another inconsistency: the surface area of "not yet noticed" is the whol
 
 Spectrum publishes about 1,750 CSS custom properties, and it reads them for everything it
 draws. Rather than overriding components one at a time, **redefine the small set of
-Spectrum alias variables at the Provider root** — its grey ramp, its accent, its radii,
+Spectrum alias variables at the Provider root** — its gray ramp, its accent, its radii,
 its type sizes. Then a Spectrum component we have never touched still comes out in our
 system, and the leaks above stop by construction rather than by inspection.
 
@@ -98,7 +98,7 @@ without a freeze.
 
 ## What needs deciding first
 
-1. **How far to take the Spectrum remapping.** Mapping its grey ramp and accent is safe
+1. **How far to take the Spectrum remapping.** Mapping its gray ramp and accent is safe
    and high-value. Mapping its type scale changes every component's metrics and needs a
    look at each screen afterwards.
 2. **Density.** Rows are 52px today, which is comfortable and not what an ERP looks like.
@@ -119,20 +119,20 @@ type scale, 44px rows everywhere, and a deep teal accent.
 
 | File | Holds |
 |---|---|
-| `screen/src/design/tokens.css` | The system. Every colour, space, radius, density and type role, named once. |
+| `screen/src/design/tokens.css` | The system. Every color, space, radius, density and type role, named once. |
 | `screen/src/design/spectrum-bridge.css` | Spectrum's own variables, pointed at those tokens. |
 | `screen/src/design/app.css` | Our components — shell, rail, page, card, grid, status, forms — built only from tokens. |
 
-`theme.css`, the 29-colour patch list, is gone.
+`theme.css`, the 29-color patch list, is gone.
 
 ## The measurement that says it worked
 
-Sweep every page for a colour that is **not in the palette**, ignoring anything a person
+Sweep every page for a color that is **not in the palette**, ignoring anything a person
 cannot see:
 
 | | Before | After |
 |---|---|---|
-| Colours on screen that nobody chose | 3 named, more unmeasured | **0 across all seven pages** |
+| Colors on screen that nobody chose | 3 named, more unmeasured | **0 across all seven pages** |
 | Row heights | 44 and 52, unintentionally | 44 everywhere |
 | Declared radii | 5 | 3, each named |
 
@@ -143,8 +143,8 @@ check ran, not that it could not fail.
 
 Five leaks were invisible in the stylesheet and only showed up on screen:
 
-1. **`--spectrum-alias-label-text-color`** — a field label sets its own colour, so the
-   grey ramp never reached it.
+1. **`--spectrum-alias-label-text-color`** — a field label sets its own color, so the
+   gray ramp never reached it.
 2. **The column-resize indicator** — Spectrum's blue, 0×0 until someone drags a column
    header, at which point it would have appeared exactly once.
 3. **Switch tracks, placeholders and icons** — each keeps its own alias rather than
@@ -158,7 +158,7 @@ Five leaks were invisible in the stylesheet and only showed up on screen:
 
 ## The rule that keeps it
 
-Nothing outside `tokens.css` writes a colour, a font size or a raw pixel value. If a
+Nothing outside `tokens.css` writes a color, a font size or a raw pixel value. If a
 value is needed that the tokens do not have, **the missing thing is the token**.
 
 The 17 `UNSAFE_style` escapes in the components are the remaining debt. They are where
@@ -170,11 +170,11 @@ slightly apart from the rest.
 
 # The contrast floor, and why it had to become a measurement
 
-**2026-09-23.** Colour was being chosen by reasoning about hex values and judged by
+**2026-09-23.** Color was being chosen by reasoning about hex values and judged by
 somebody looking at it. That is how the same class of fault kept surviving: each round
 fixed the thing that had been named, and the value next to it was still under.
 
-There are now two rules, and both are checked the same way the stray-colour sweep is
+There are now two rules, and both are checked the same way the stray-color sweep is
 checked — by walking every visible element on every page.
 
 ## The rules
