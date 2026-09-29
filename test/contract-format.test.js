@@ -21,7 +21,7 @@ test('a line reads as what it does and its amount', async () => {
   const { lineKindText, lineAmountText } = await load()
   assert.equal(lineKindText('price'), 'Agreed price')
   assert.equal(lineKindText('discount'), 'Line discount')
-  assert.equal(lineAmountText({ kind: 'price', price: 80 }), '$80.00')
+  assert.equal(lineAmountText({ kind: 'price', price: 80 }), 'USD 80.00')
   assert.equal(lineAmountText({ kind: 'discount', percent: 12.5 }), '12.5%')
 })
 

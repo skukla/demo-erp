@@ -1,7 +1,7 @@
 /* How products read on screen: price ranges, variant values, kinds. */
 import { money } from '../money'
 
-/** "$799.99" or "$799.99 – $1,099.00"; a parent with no variants has no price. */
+/** "USD 799.99" or "USD 799.99 – USD 1,099.00"; a parent with no variants has no price. */
 export function priceText (product) {
   if (product.type !== 'configurable') return money(product.listPrice)
   const range = product.priceRange

@@ -35,7 +35,7 @@ test('an order within the limit is approved; one that takes exposure past it is 
   assert.equal(over.status, 'created')
   assert.equal(over.creditStatus, 'held')
   // Exposure was 600 (order 1, uninvoiced) + this order's 500 = 1,100 against 1,000.
-  assert.equal(over.creditReason, 'Credit limit 1,000.00 exceeded by 100.00')
+  assert.equal(over.creditReason, 'Credit limit USD 1,000.00 exceeded by USD 100.00')
   assert.equal(await cols.salesOrders.countDocuments({}), 2)
 })
 
@@ -69,18 +69,18 @@ test('the walk-in customer, and any customer without a Commerce company, is neve
 test('a held order refuses to confirm, and says what to do; Release clears it and Confirm then works', async () => {
   await createOrder(cols, order('1', 6))
   const held = await createOrder(cols, order('2', 5))
-  await assert.rejects(confirmOrder(cols, held.number), /Credit limit 1,000.00 exceeded by 100.00\. Release the order first\./)
+  await assert.rejects(confirmOrder(cols, held.number), /Credit limit USD 1,000.00 exceeded by USD 100.00\. Release the order first\./)
   const doc = await describeOrder(cols, await getOrder(cols, held.number))
   assert.equal(doc.can.confirm, false)
   assert.equal(doc.can.release, true)
   assert.equal(doc.can.reject, true)
   // Commerce heard the hold when the order was created, and hears the release now.
   const holdEvents = () => pending(cols).then((all) => all.filter((e) => e.kind === 'order.hold').map((e) => e.value))
-  assert.deepEqual((await holdEvents()).map((v) => [v.erpNumber, v.held, v.reason]), [[held.number, true, 'Credit limit 1,000.00 exceeded by 100.00']])
+  assert.deepEqual((await holdEvents()).map((v) => [v.erpNumber, v.held, v.reason]), [[held.number, true, 'Credit limit USD 1,000.00 exceeded by USD 100.00']])
   const released = await releaseCredit(cols, held.number)
   assert.equal(released.creditStatus, 'released')
   assert.ok(released.creditDecidedAt)
-  assert.deepEqual((await holdEvents()).map((v) => [v.held, v.reason]), [[true, 'Credit limit 1,000.00 exceeded by 100.00'], [false, null]])
+  assert.deepEqual((await holdEvents()).map((v) => [v.held, v.reason]), [[true, 'Credit limit USD 1,000.00 exceeded by USD 100.00'], [false, null]])
   const confirmed = await confirmOrder(cols, held.number)
   assert.equal(confirmed.header, 'confirmed')
   const after = await describeOrder(cols, confirmed)
@@ -181,7 +181,7 @@ test('the customer document carries the blocking level and its held orders; the 
   assert.deepEqual(customer.orders.map((o) => o.creditStatus), ['held', 'approved'])
   assert.equal(customer.credit.held, 1)
   const doc = await describeOrder(cols, await getOrder(cols, held.number))
-  assert.deepEqual(doc.credit, { status: 'held', reason: 'Credit limit 1,000.00 exceeded by 100.00', decidedAt: null })
+  assert.deepEqual(doc.credit, { status: 'held', reason: 'Credit limit USD 1,000.00 exceeded by USD 100.00', decidedAt: null })
 })
 
 test('an order stored before credit existed reads as approved', async () => {

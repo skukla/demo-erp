@@ -26,11 +26,15 @@ export function defaultCurrency () {
 /**
  * Options for an Intl formatter, or for a Spectrum NumberField's `formatOptions`.
  *
+ * The currency shows as its ISO CODE ("USD 1,850.00"), not a symbol: an ERP serves sales
+ * organisations that can each keep their own currency, so the code that names it beats a
+ * symbol that hides which one.
+ *
  * @param {string} [currency] ISO code from the record
- * @returns {object} `{ style: 'currency', currency }`
+ * @returns {object} `{ style: 'currency', currency, currencyDisplay: 'code' }`
  */
 export function moneyOptions (currency) {
-  return { style: 'currency', currency: currency || fallback }
+  return { style: 'currency', currency: currency || fallback, currencyDisplay: 'code' }
 }
 
 /**
