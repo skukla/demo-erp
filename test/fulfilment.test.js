@@ -60,6 +60,20 @@ test('posting a shipment moves the shipped quantities and raises the shipment ev
   assert.equal(shipped.value.stockSourceCode, 'east')
 })
 
+test("a shipment with no warehouse named ships from the products' single warehouse, not \"default\"", async () => {
+  // A null warehouse became stockSourceCode "default" in Commerce, where the goods are not,
+  // and the ship 400'd. An ERP ships from where the goods are (Bodea's accesspoint is in
+  // "northwind", not "default").
+  await importProducts(cols, [{ sku: 'NW1', name: 'Access Point', listPrice: 100, warehouses: [{ code: 'northwind', name: 'Northwind Warehouse', quantity: 30 }] }])
+  const order = await createOrder(cols, { commerceOrderId: '99', commerceIncrementId: '000000099', lines: [{ sku: 'NW1', qty: 2, price: 100, commerceItemId: 9 }] })
+  await confirmOrder(cols, order.number)
+  const next = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 2 }] })
+  assert.equal(next.shipments[0].warehouse, 'northwind')
+  await postShipment(cols, order.number, next.shipments[0].number)
+  const shipped = (await pending(cols)).find((e) => e.kind === 'order.shipped')
+  assert.equal(shipped.value.stockSourceCode, 'northwind')
+})
+
 test('a shipment cannot be posted twice, and says when it was', async () => {
   const order = await confirmed()
   await createShipment(cols, order.number, { lines: [{ item: 10, qty: 5 }] })
