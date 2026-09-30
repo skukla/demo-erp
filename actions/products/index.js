@@ -10,7 +10,7 @@ const { notFound } = require('../../lib/errors')
 const { listProducts, getProduct, patchProduct, deleteProduct } = require('../../lib/products')
 const { listOrders } = require('../../lib/orders')
 const { listPartners } = require('../../lib/partners')
-const { committedBySku, openOrdersFor, withAvailability, withAvailabilityAll } = require('../../lib/availability')
+const { committedBySku, openOrdersFor, withAvailability, withAvailabilityAll, promiseLine } = require('../../lib/availability')
 const { journalDelete } = require('../../lib/inbound')
 
 /** One product as its page shows it: committed, available, and the orders behind them. */
@@ -27,6 +27,23 @@ async function handler ({ cols, method, segments, body, params }) {
   if (method === 'GET' && !sku) {
     const [rows, orders] = await Promise.all([listProducts(cols), listOrders(cols)])
     return ok({ items: withAvailabilityAll(rows, committedBySku(orders)) })
+  }
+  // Available-to-promise (AB-19): the live question a synced stock number cannot answer —
+  // "can I have this quantity, and by when". Batch, for a whole cart. Ships today what is
+  // available now; the shortfall after the product's lead time.
+  if (method === 'POST' && segments[0] === 'availability') {
+    const lines = Array.isArray(body && body.lines) ? body.lines : []
+    const [rows, orders] = await Promise.all([listProducts(cols), listOrders(cols)])
+    const committed = committedBySku(orders)
+    const bySku = new Map(rows.map((p) => [p.sku, p]))
+    const today = new Date()
+    const answers = lines.map((line) => {
+      const product = bySku.get(line.sku)
+      if (!product) return { sku: line.sku, unknown: true }
+      const { available } = withAvailability(product, committed)
+      return promiseLine({ sku: product.sku, available, requested: line.qty, leadTimeDays: product.leadTimeDays, today })
+    })
+    return ok({ lines: answers })
   }
   if (method === 'GET') {
     const product = await getProduct(cols, sku)
