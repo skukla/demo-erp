@@ -169,9 +169,19 @@ test('from version 9: prices in force are what the ERP would charge, pricing con
   assert.equal(priced.contractNumber, null)
 })
 
-test('the contract is at version 10: canceled, order.canceled and Canceled in Commerce, in American English', () => {
+test('the contract is at version 11: the live checks at placement — availability and credit-check are routes with their shapes', () => {
+  assert.equal(contract.contractVersion, 11)
+  assert.ok(contract.routes.products.includes('POST /availability'))
+  assert.ok(contract.routes.partners.includes('POST /:id/credit-check'))
+  assert.deepEqual(contract.availability.responseLine, ['sku', 'requested', 'availableNow', 'canPromiseNow', 'promiseDate', 'leadTimeDays'])
+  assert.deepEqual(contract.creditCheck.response, ['partnerId', 'status', 'reason', 'requested', 'exposure', 'limit', 'available'])
+  // The v10 seed block rides along under 11: it shipped without a bump.
+  assert.deepEqual(contract.import.seed, ['priceGroups', 'partnerGroups', 'contracts'])
+})
+
+test('since version 10: canceled, order.canceled and Canceled in Commerce, in American English', () => {
   const { CANCEL_REASONS, STATUSES } = require('../lib/orders')
-  assert.equal(contract.contractVersion, 10)
+  assert.ok(contract.contractVersion >= 10)
   assert.equal(contract.order.fromCommerce.cancelReasonFromCommerce, 'Canceled in Commerce')
   assert.ok(CANCEL_REASONS.includes(contract.order.fromCommerce.cancelReasonFromCommerce))
   assert.equal(contract.events['be-observer.sales_order_cancel'].raisedBy, 'order.canceled')
