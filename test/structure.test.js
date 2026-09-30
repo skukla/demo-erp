@@ -108,8 +108,8 @@ test('the structure is derived on read: company code, sales organisations with c
     { code: '2000', name: 'Online EU', websiteCode: 'eu', customers: 1, orders: 1 }
   ])
   assert.deepEqual(structure.warehouses, [
-    { code: 'default', name: 'Default Source', commerceName: 'Default Source', products: 1 },
-    { code: 'east', name: 'Plant 1100', commerceName: 'East DC', products: 1 }
+    { code: 'default', name: 'Default Source', commerceName: 'Default Source', products: 1, stock: 5 },
+    { code: 'east', name: 'Plant 1100', commerceName: 'East DC', products: 1, stock: 2 }
   ])
   assert.deepEqual(structure.unmapped, ['base'], 'base fell back to 1000 while eu named one')
   const res = await invoke(health, cols)

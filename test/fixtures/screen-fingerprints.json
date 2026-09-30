@@ -52,8 +52,8 @@
     "hash": "e4b680e44b67cc5c1a915855bbc1e18fe111f4ab6ccb672050cbfb5661c24f7c"
   },
   "settings": {
-    "elements": 198,
-    "hash": "fe29fa0499d47af75ce1503a3c0ee7bc66e6af0e7cba74a6cfc1b21bc1fccfaa"
+    "elements": 184,
+    "hash": "7759421399c6d559a92ca8b2daa050cdd0d0f112343d8e3161e5a4817402c0e4"
   },
   "contracts": {
     "elements": 176,
@@ -66,5 +66,9 @@
   "priceGroups": {
     "elements": 59,
     "hash": "348049f699acf47d60216676e8d50e5ad6ab446d32ff0aff841dbdfbfafedd62"
+  },
+  "warehouses": {
+    "elements": 56,
+    "hash": "58443b0bfd3d9d4f0ba6877750fcf04dc8aef46fff3e96fb0144980a36c5b3fb"
   }
 }

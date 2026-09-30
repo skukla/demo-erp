@@ -8,11 +8,9 @@ import { Button, Text, Flex, DialogTrigger, AlertDialog, ProgressCircle, InlineA
 import Frame from './Frame'
 import Card from './Card'
 import Field from './Field'
-import EditableText from './EditableText'
 import AppearanceSettings from './AppearanceSettings'
 import { formatStamp } from '../formatStamp'
 import { wipeSummary } from '../wipeSummary'
-import { toastSaved } from './toast'
 
 /**
  * The selling structure, read-only: this ERP as a company code, its sales organisations
@@ -51,28 +49,6 @@ function OrganisationCard ({ structure }) {
           </InlineAlert>
         )}
       </Flex>
-    </Card>
-  )
-}
-
-/** The warehouses, each renamed in place; the Commerce source it stands for is read-only. */
-function WarehousesCard ({ structure, saving, onRename }) {
-  if (!structure) return null
-  return (
-    <Card title='Warehouses'>
-      {structure.warehouses.length === 0
-        ? <Text>None yet — loading demo data brings the inventory sources.</Text>
-        : (
-          <Flex direction='column' gap='size-150'>
-            {structure.warehouses.map((w) => (
-              <div key={w.code} className='erp-warehouse-row'>
-                <EditableText label={`Name of ${w.code}`} value={w.name} isSaving={saving === w.code} onSave={(name) => onRename(w.code, name)} />
-                <Text UNSAFE_className='erp-subtle'>{`Commerce source ${w.code}${w.commerceName && w.commerceName !== w.name ? ` · ${w.commerceName}` : ''} · ${w.products} product${w.products === 1 ? '' : 's'}`}</Text>
-              </div>
-            ))}
-            <Text UNSAFE_className='erp-field-label'>The ERP's own name for each plant; click one to rename it. Commerce keeps its source code and name.</Text>
-          </Flex>
-          )}
     </Card>
   )
 }
@@ -156,7 +132,6 @@ export default function Settings ({ api, onChanged, onPreview }) {
   }, [])
   // The maintenance window in force, from health (null when none).
   const [maintenance, setMaintenance] = useState(null)
-  const [renaming, setRenaming] = useState(null)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
   // What the last wipe removed, until the next import makes it stale.
@@ -169,19 +144,6 @@ export default function Settings ({ api, onChanged, onPreview }) {
     // The Organisation and Warehouses cards read the structure the ERP derives.
     api.health().then(takeHealth).catch(setError)
   }, [api, takeHealth])
-
-  async function renameWarehouse (code, name) {
-    setRenaming(code)
-    try {
-      await api.saveSettings({ warehouses: { [code]: { name } } })
-      const health = await api.health()
-      takeHealth(health)
-      setError(null)
-      toastSaved('Warehouse renamed')
-      onChanged()
-    } catch (e) { setError(e) }
-    setRenaming(null)
-  }
 
   async function maintain (start) {
     setBusy(true)
@@ -259,7 +221,6 @@ export default function Settings ({ api, onChanged, onPreview }) {
 
             <div className='erp-settings-column'>
               <OrganisationCard structure={structure} />
-              <WarehousesCard structure={structure} saving={renaming} onRename={renameWarehouse} />
               <Card title='Appearance'>
                 <AppearanceSettings
                   api={api}

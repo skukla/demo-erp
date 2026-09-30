@@ -24,6 +24,7 @@ import Logo from './Logo'
 import Home from './Home'
 import ShellSearch from './ShellSearch'
 import Products from './Products'
+import Warehouses from './Warehouses'
 import Partners from './Partners'
 import Orders from './Orders'
 import Shipments from './Shipments'
@@ -51,6 +52,7 @@ const AREAS = [
     group: 'Master Data',
     items: [
       { key: 'products', label: 'Products', Component: Products },
+      { key: 'warehouses', label: 'Warehouses', Component: Warehouses },
       { key: 'partners', label: 'Customers', Component: Partners },
       { key: 'contracts', label: 'Price Lists', Component: Contracts },
       { key: 'priceGroups', label: 'Price Groups', Component: PriceGroups },

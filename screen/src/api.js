@@ -28,6 +28,9 @@ export function makeApi (screenKey, base = screenBase()) {
     health: () => call('health'),
     settings: () => call('settings'),
     saveSettings: (patch) => call('settings', { method: 'PATCH', body: patch }),
+    // A warehouse is the ERP's own name for a Commerce inventory source; its name is stored
+    // with the settings, but the SC manages warehouses on their own Master Data screen.
+    renameWarehouse: (code, name) => call('settings', { method: 'PATCH', body: { warehouses: { [code]: { name } } } }),
     wipe: () => call('admin', { method: 'POST', path: '/wipe' }),
     startMaintenance: (minutes) => call('settings', { method: 'POST', path: '/maintenance', body: { minutes } }),
     endMaintenance: () => call('settings', { method: 'DELETE', path: '/maintenance' }),
