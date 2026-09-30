@@ -21,7 +21,8 @@ beforeEach(async () => {
 })
 
 const changes = async () => (await pending(cols)).filter((e) => e.kind === 'contract.changed').map((e) => e.value)
-const loose = (sku, extra) => ({ sku, minQty: 1, contractNumber: null, appliesTo: 'customer', ...extra })
+// Every published line carries salesOrg (contract version 12): null is "for every website".
+const loose = (sku, extra) => ({ sku, minQty: 1, contractNumber: null, appliesTo: 'customer', salesOrg: null, ...extra })
 const tenOff = [loose('A1', { kind: 'discount', percent: 10 }), loose('B2', { kind: 'discount', percent: 10 })]
 
 test('GET contracts/in-force answers a customer whose only price is a loose all-products discount', async () => {

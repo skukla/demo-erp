@@ -21,7 +21,8 @@ const P1 = { id: 'P1', priceGroup: null }
 const list = (lines, extra) => ({ number: '4000000001', appliesTo: 'customer', partnerId: 'P1', priceGroup: null, status: 'active', startingDate: '2026-01-01', endingDate: null, lines, ...extra })
 const listLine = (extra) => ({ sku: 'A1', kind: 'price', price: 80, minQty: 1, startingDate: null, endingDate: null, ...extra })
 const net = (conditions, lists = [], customer = P1) => netPricesFor({ products, conditions, lists, customer, date: ON })
-const loose = (sku, extra) => ({ sku, contractNumber: null, appliesTo: 'customer', minQty: 1, ...extra })
+// Every published line carries salesOrg (contract version 12): null is "for every website".
+const loose = (sku, extra) => ({ sku, contractNumber: null, appliesTo: 'customer', minQty: 1, salesOrg: null, ...extra })
 
 test('a loose all-products discount becomes one discount line per product the ERP sells, never a configurable parent', () => {
   const lines = net([{ kind: 'contractDiscount', partnerId: 'P1', sku: null, percent: 10 }])
@@ -35,7 +36,7 @@ test('a loose all-products discount becomes one discount line per product the ER
 test('a price list line for a product sets the customer\'s loose discount aside for it; the loose one still covers the rest', () => {
   const lines = net([{ kind: 'contractDiscount', partnerId: 'P1', sku: null, percent: 10 }, { kind: 'contractDiscount', partnerId: 'P1', sku: 'A1', percent: 25 }], [list([listLine()])])
   assert.deepEqual(lines.filter((l) => l.sku !== 'SHIRT-M'), [
-    { sku: 'A1', kind: 'price', price: 80, minQty: 1, contractNumber: '4000000001', appliesTo: 'customer' },
+    { sku: 'A1', kind: 'price', price: 80, minQty: 1, contractNumber: '4000000001', appliesTo: 'customer', salesOrg: null },
     loose('B2', { kind: 'discount', percent: 10 })
   ])
 })
@@ -56,7 +57,7 @@ test('the maximum discount cuts a larger discount to the ceiling, list line or l
   const ceiling = { kind: 'maxDiscount', partnerId: null, sku: null, percent: 15 }
   const lines = net([ceiling, { kind: 'contractDiscount', partnerId: 'P1', sku: 'B2', percent: 30 }], [list([listLine({ kind: 'discount', percent: 20, price: undefined })])])
   assert.deepEqual(lines, [
-    { sku: 'A1', kind: 'discount', percent: 15, minQty: 1, contractNumber: '4000000001', appliesTo: 'customer' },
+    { sku: 'A1', kind: 'discount', percent: 15, minQty: 1, contractNumber: '4000000001', appliesTo: 'customer', salesOrg: null },
     loose('B2', { kind: 'discount', percent: 15 })
   ])
 })
@@ -64,7 +65,7 @@ test('the maximum discount cuts a larger discount to the ceiling, list line or l
 test('the maximum discount raises a fixed price below list × (1 − ceiling) to that floor, sent as the ceiling\'s discount', () => {
   const lines = net([{ kind: 'maxDiscount', partnerId: 'P1', sku: null, percent: 15 }, { kind: 'contractPrice', partnerId: 'P1', sku: 'B2', price: 30 }], [list([listLine({ price: 70 })])])
   assert.deepEqual(lines, [
-    { sku: 'A1', kind: 'discount', percent: 15, minQty: 1, contractNumber: '4000000001', appliesTo: 'customer' },
+    { sku: 'A1', kind: 'discount', percent: 15, minQty: 1, contractNumber: '4000000001', appliesTo: 'customer', salesOrg: null },
     loose('B2', { kind: 'discount', percent: 15 })
   ])
   // A fixed price at or above the floor stays a fixed price.
@@ -86,8 +87,8 @@ test('quantity breaks: each break where the charged price moves is a line; one t
   const conditions = [{ kind: 'contractDiscount', partnerId: 'P1', sku: 'B2', percent: 5 }, { kind: 'contractDiscount', partnerId: 'P1', sku: 'B2', percent: 5, minQty: 20 }]
   const lists = [list([listLine({ price: 95 }), listLine({ price: 90, minQty: 10 })])]
   assert.deepEqual(net(conditions, lists), [
-    { sku: 'A1', kind: 'price', price: 95, minQty: 1, contractNumber: '4000000001', appliesTo: 'customer' },
-    { sku: 'A1', kind: 'price', price: 90, minQty: 10, contractNumber: '4000000001', appliesTo: 'customer' },
+    { sku: 'A1', kind: 'price', price: 95, minQty: 1, contractNumber: '4000000001', appliesTo: 'customer', salesOrg: null },
+    { sku: 'A1', kind: 'price', price: 90, minQty: 10, contractNumber: '4000000001', appliesTo: 'customer', salesOrg: null },
     loose('B2', { kind: 'discount', percent: 5 })
   ])
 })
@@ -96,7 +97,7 @@ test('another customer\'s conditions never apply; a price group\'s list line say
   assert.deepEqual(net([{ kind: 'contractDiscount', partnerId: 'P2', sku: null, percent: 10 }]), [])
   const group = list([listLine({ sku: 'B2', price: 40 })], { number: '4000000009', appliesTo: 'priceGroup', partnerId: null, priceGroup: 'RETAIL' })
   assert.deepEqual(net([], [group], { id: 'P1', priceGroup: 'RETAIL' }), [
-    { sku: 'B2', kind: 'price', price: 40, minQty: 1, contractNumber: '4000000009', appliesTo: 'priceGroup' }
+    { sku: 'B2', kind: 'price', price: 40, minQty: 1, contractNumber: '4000000009', appliesTo: 'priceGroup', salesOrg: null }
   ])
 })
 

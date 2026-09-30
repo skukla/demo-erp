@@ -42,7 +42,7 @@ test('activate, patch and deactivate, and prices in force follow', async () => {
   const inForce = () => invoke(contracts, cols, { path: '/in-force' })
   assert.deepEqual((await inForce()).body, { items: [] })
   assert.equal((await invoke(contracts, cols, { method: 'POST', path: `/${c.number}/activate` })).body.status, 'active')
-  assert.deepEqual((await inForce()).body, { items: [{ partnerId: 'P1', lines: [{ sku: 'A1', kind: 'price', price: 80, minQty: 1, contractNumber: c.number, appliesTo: 'customer' }] }] })
+  assert.deepEqual((await inForce()).body, { items: [{ partnerId: 'P1', lines: [{ sku: 'A1', kind: 'price', price: 80, minQty: 1, contractNumber: c.number, appliesTo: 'customer', salesOrg: null }] }] })
   const patched = await invoke(contracts, cols, { method: 'PATCH', path: `/${c.number}`, body: { lines: [{ sku: 'B2', kind: 'discount', percent: 15, minQty: 3, startingDate: '2026-02-01' }] } })
   assert.deepEqual(patched.body.lines, [{ sku: 'B2', kind: 'discount', percent: 15, minQty: 3, startingDate: '2026-02-01', endingDate: null }])
   assert.equal((await invoke(contracts, cols, { method: 'POST', path: `/${c.number}/deactivate` })).body.status, 'inactive')

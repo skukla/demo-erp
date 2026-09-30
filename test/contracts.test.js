@@ -160,7 +160,7 @@ const { pending, EVENT_NAMES } = require('../lib/events')
 
 // Oldest first; nothing is delivered without action params, so every event is pending.
 const changes = async () => (await pending(cols)).filter((e) => e.kind === 'contract.changed').map((e) => e.value)
-const own = (number, extra) => ({ sku: 'A1', kind: 'price', price: 80, minQty: 1, contractNumber: number, appliesTo: 'customer', ...extra })
+const own = (number, extra) => ({ sku: 'A1', kind: 'price', price: 80, minQty: 1, contractNumber: number, appliesTo: 'customer', salesOrg: null, ...extra })
 
 test('contract.changed is delivered as be-observer.company_contract_update', () => {
   assert.equal(EVENT_NAMES['contract.changed'], 'be-observer.company_contract_update')
@@ -180,7 +180,7 @@ test('activating, editing and deactivating an in-date list each raise the custom
   await deactivateContract(cols, c.number)
   assert.deepEqual(await changes(), [
     { partnerId: 'P1', lines: [own(c.number)] },
-    { partnerId: 'P1', lines: [own(c.number, { price: 75 }), { sku: 'B2', kind: 'discount', percent: 10, minQty: 5, contractNumber: c.number, appliesTo: 'customer' }] },
+    { partnerId: 'P1', lines: [own(c.number, { price: 75 }), { sku: 'B2', kind: 'discount', percent: 10, minQty: 5, contractNumber: c.number, appliesTo: 'customer', salesOrg: null }] },
     { partnerId: 'P1', lines: [] }
   ], 'the description-only edit changed no price and raised nothing')
 })

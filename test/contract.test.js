@@ -124,9 +124,10 @@ test('from version 7: price groups, lists for a customer or a group, dated lines
   assert.deepEqual(contract.contracts.contract, ['number', 'appliesTo', 'partnerId', 'priceGroup', 'description', 'startingDate', 'endingDate', 'status', 'lines', 'createdAt', 'updatedAt'])
   assert.deepEqual(contract.contracts.line, ['sku', 'kind', 'price', 'percent', 'minQty', 'startingDate', 'endingDate'])
   assert.deepEqual(contract.contracts.priceGroup, ['code', 'name'])
-  // A discount line carries percent and no price; a price line price and no percent.
-  assert.deepEqual(contract.contracts.priceLine, ['sku', 'kind', 'price', 'minQty', 'contractNumber', 'appliesTo'])
-  assert.deepEqual(contract.contracts.discountLine, ['sku', 'kind', 'percent', 'minQty', 'contractNumber', 'appliesTo'])
+  // A discount line carries percent and no price; a price line price and no percent. Every
+  // line carries salesOrg since version 12 (null: for every website).
+  assert.deepEqual(contract.contracts.priceLine, ['sku', 'kind', 'price', 'minQty', 'contractNumber', 'appliesTo', 'salesOrg'])
+  assert.deepEqual(contract.contracts.discountLine, ['sku', 'kind', 'percent', 'minQty', 'contractNumber', 'appliesTo', 'salesOrg'])
   assert.match(contract.contracts.inForceNote, /price group/)
   assert.match(contract.events['be-observer.company_contract_update'].note, /member/)
 })
@@ -169,8 +170,11 @@ test('from version 9: prices in force are what the ERP would charge, pricing con
   assert.equal(priced.contractNumber, null)
 })
 
-test('the contract is at version 11: the live checks at placement — availability and credit-check are routes with their shapes', () => {
-  assert.equal(contract.contractVersion, 11)
+test('the contract is at version 12: a published line may name its sales organization (AB-46); availability and credit-check are routes with their shapes (v11)', () => {
+  assert.equal(contract.contractVersion, 12)
+  assert.ok(contract.contracts.priceLine.includes('salesOrg'))
+  assert.ok(contract.contracts.discountLine.includes('salesOrg'))
+  assert.match(contract.contracts.lineNote, /version 12: salesOrg/)
   assert.ok(contract.routes.products.includes('POST /availability'))
   assert.ok(contract.routes.partners.includes('POST /:id/credit-check'))
   assert.deepEqual(contract.availability.responseLine, ['sku', 'requested', 'availableNow', 'canPromiseNow', 'promiseDate', 'leadTimeDays'])
