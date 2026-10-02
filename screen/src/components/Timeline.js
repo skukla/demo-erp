@@ -3,6 +3,7 @@
  * dates, Business Central's entries. The order stores its `history` (every status move,
  * with a reason where one was given) and shows it nowhere until now; its shipments and
  * invoice carry their own times. This card merges them by time and links the documents.
+ * A return order's own timeline is drawn by the same card (returnMomentsOf).
  */
 import React from 'react'
 import { Text } from '@adobe/react-spectrum'
@@ -36,11 +37,38 @@ export function momentsOf (order) {
     const number = order.invoice.number
     moments.push({ at: order.invoice.createdAt, text: number ? `Invoice ${number} created` : 'Invoiced (no invoice document)', ...(number ? { link: { kind: 'invoice', number } } : {}) })
   }
+  for (const r of order.returnOrders || []) {
+    const link = { kind: 'return', number: r.number }
+    moments.push({ at: r.createdAt, text: `Return order ${r.number} created`, link })
+    if (r.receivedAt) moments.push({ at: r.receivedAt, text: `Return order ${r.number} received`, link })
+  }
+  for (const m of order.creditMemos || []) {
+    moments.push({ at: m.createdAt, text: `Credit memo ${m.number} posted`, link: { kind: 'creditMemo', number: m.number } })
+  }
+  return byTime(moments)
+}
+
+/** A return order's moments: its own history (lib/returns), the credit memo linked. */
+export function returnMomentsOf (returnOrder) {
+  const moments = (returnOrder.history || []).map((h) => {
+    if (h.status === 'credited' && h.creditMemo) return { at: h.at, text: `Credited by credit memo ${h.creditMemo}`, link: { kind: 'creditMemo', number: h.creditMemo } }
+    return { at: h.at, text: RETURN_MOVES[h.status] || h.status }
+  })
+  return byTime(moments)
+}
+
+const RETURN_MOVES = { open: 'Created', received: 'Received — the goods are back in stock', credited: 'Credited' }
+
+function byTime (moments) {
   return moments.filter((m) => m.at).sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
 }
 
-export default function Timeline ({ order, onOpen }) {
-  const moments = momentsOf(order)
+/**
+ * @param {object} props `order` for a sales order's timeline, or `moments` for any other
+ *   document's; `onOpen(kind, number)` opens a linked document
+ */
+export default function Timeline ({ order, moments: given, onOpen }) {
+  const moments = given || momentsOf(order)
   if (moments.length === 0) return null
   return (
     <Card title='Timeline'>

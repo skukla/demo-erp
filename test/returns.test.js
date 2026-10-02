@@ -219,3 +219,54 @@ test('returns are listed newest first and opened by number; an unknown one is a 
   assert.equal((await invoke(returns, cols, { path: '6000000099' })).statusCode, 404)
   assert.equal((await move('6000000099', 'receive')).statusCode, 404)
 })
+
+/* What the screen reads (AB-16e screen slice): the order's return orders, a list row's
+   sold-to, Home's two return cues, and the shell search. */
+const { workList } = require('../lib/work')
+const { search } = require('../lib/search')
+
+test('the order document lists its return orders, oldest first, each with its status and credit memo', async () => {
+  await post(request())
+  await post(request({ commerceReturnId: 8, lines: [{ commerceItemId: 2, qty: 1 }] }))
+  await move('6000000001', 'receive')
+  await move('6000000001', 'credit-memo')
+  const doc = await describeOrder(cols, await getOrder(cols, order.number))
+  assert.deepEqual(doc.returnOrders.map((r) => [r.number, r.status, r.creditMemo && r.creditMemo.number]), [
+    ['6000000001', 'credited', '9500000001'],
+    ['6000000002', 'open', null]
+  ])
+  assert.equal(doc.returnOrders[0]._id, undefined, 'no storage key on the document')
+})
+
+test('a return order row in the list names its sold-to', async () => {
+  await post(request())
+  const [row] = (await invoke(returns, cols)).body.items
+  assert.equal(row.partnerId, 'C1')
+  assert.equal(row.partnerName, 'Acme')
+  assert.equal(row.lines.length, 2)
+})
+
+test('Home counts open return orders to receive and received ones to credit, and no credited one', async () => {
+  const before = (await workList(cols)).counts
+  assert.deepEqual([before.returnsToReceive, before.returnsToCredit], [0, 0])
+  await post(request({ lines: [{ commerceItemId: 1, qty: 1 }] }))
+  await post(request({ commerceReturnId: 8, lines: [{ commerceItemId: 1, qty: 1 }] }))
+  await post(request({ commerceReturnId: 9, lines: [{ commerceItemId: 2, qty: 1 }] }))
+  await move('6000000002', 'receive')
+  await move('6000000003', 'receive')
+  await move('6000000003', 'credit-memo')
+  const { counts } = await workList(cols)
+  assert.deepEqual([counts.returnsToReceive, counts.returnsToCredit], [1, 1])
+})
+
+test('the shell search finds a return order and a credit memo by number', async () => {
+  await post(request())
+  await move('6000000001', 'receive')
+  await move('6000000001', 'credit-memo')
+  const [byReturn] = await search(cols, '6000000001')
+  assert.deepEqual(byReturn, { kind: 'return', number: '6000000001', title: 'Return Order 6000000001', subtitle: `for sales order ${order.number}` })
+  const [byMemo] = await search(cols, '9500000001')
+  assert.deepEqual(byMemo, { kind: 'creditMemo', number: '9500000001', title: 'Credit Memo 9500000001', subtitle: `for sales order ${order.number}` })
+  // Commerce's own return number finds the return order too.
+  assert.equal((await search(cols, '000000007'))[0].number, '6000000001')
+})

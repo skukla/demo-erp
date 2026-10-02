@@ -76,4 +76,4 @@ export default function Home ({ health, reloading, onNavigate }) {
 }
 
 /** Which list page shows each kind of document. */
-export const LIST_OF = { order: 'orders', shipment: 'shipments', invoice: 'invoices', product: 'products', customer: 'partners' }
+export const LIST_OF = { order: 'orders', shipment: 'shipments', invoice: 'invoices', return: 'returns', creditMemo: 'creditMemos', product: 'products', customer: 'partners' }

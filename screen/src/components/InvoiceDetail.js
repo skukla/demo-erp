@@ -2,31 +2,40 @@
  * One invoice's document: the whole order, billed once. Bill-to is the sold-to, as
  * ship-to is on the order — SAP's simplest case, and the honest one here.
  *
- * No action yet. A credit memo against it is the next document (plan slice 5), and
- * until it exists the invoice says so rather than offering a button that does nothing.
+ * Its one move is Post credit memo: the whole invoice, once (contract version 13). The
+ * ERP refuses it in words when a return order is open on the invoice or has credited
+ * part of it, and the page shows that refusal as it stands. Credited, the invoice offers
+ * nothing and names the credit memo that credited it.
  */
 import React from 'react'
-import { Grid, StatusLight, TableView, TableHeader, Column, TableBody, Row, Cell } from '@adobe/react-spectrum'
+import { Grid, StatusLight, TableView, TableHeader, Column, TableBody, Row, Cell, Text, View } from '@adobe/react-spectrum'
 import DocumentPage from './DocumentPage'
 import Card from './Card'
 import Field from './Field'
 import Totals from './Totals'
+import PostCreditMemo from './PostCreditMemo'
 import { useLoad } from './useLoad'
+import { useDocumentAction } from './useDocumentAction'
+import { canCreditInvoice } from '../../../lib/return-moves'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
 
-export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', onBack, onOpen }) {
-  const { rows, error } = useLoad(async () => [await api.invoice(number)], [api, number])
+export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', onBack, onOpen, onChanged }) {
+  const { rows, error, reload } = useLoad(async () => [await api.invoice(number)], [api, number])
   const invoice = rows && rows[0]
   const credited = invoice && invoice.status === 'credited'
+  const { act, busy, error: actionError } = useDocumentAction(reload, onChanged)
   return (
     <DocumentPage
       backLabel={backLabel}
       onBack={onBack}
       title={invoice ? `Invoice ${invoice.number}` : ''}
       subtitle={invoice ? `Sales order ${invoice.orderNumber}` : undefined}
-      error={error}
+      error={actionError || error}
       loading={!invoice}
+      actions={canCreditInvoice(invoice) && (
+        <PostCreditMemo what='this invoice in full' isDisabled={busy} onPost={() => act(() => api.creditInvoice(invoice.orderNumber), 'Credit memo posted')} />
+      )}
     >
       {invoice && (
         <>
@@ -59,6 +68,12 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
               <Field label='Due date'>{invoice.dueDate ? `${formatDate(invoice.dueDate)}${invoice.paymentDays ? ` · ${invoice.paymentDays} days` : ''}` : '—'}</Field>
               <Field label='Currency'>{invoice.currency || 'USD'}</Field>
             </Grid>
+            {credited && invoice.creditMemo && (
+              <View marginTop='size-200'>
+                <Text>Credited by credit memo </Text>
+                <button type='button' className='erp-link' onClick={() => onOpen('creditMemo', invoice.creditMemo)}>{invoice.creditMemo}</button>
+              </View>
+            )}
           </Card>
           {/* Who is invoicing: the company code and the sales organisation the order came
               through (a real invoice carries the seller; the structure mirror supplies it). */}

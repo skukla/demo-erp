@@ -2,15 +2,19 @@
  * What this order became. SAP calls it the document flow and puts it one click from the
  * order; Business Central heads the same idea Related documents.
  *
- * Each box is a number, a date and a status, and each opens that document. Before
+ * Each box is a number, a date and a status, and each opens that document: the order's
+ * shipments, its invoice, then its return orders and credit memos. Before
  * anything follows, the strip says so — which is itself an ERP thing to see.
  */
 import React from 'react'
 import { StatusLight, Text } from '@adobe/react-spectrum'
 import Card from './Card'
 import { formatDate } from '../formatStamp'
+import { money } from '../money'
+import { returnStatusText, returnStatusLight } from './returnFormat'
 
-function Box ({ kind, number, when, status, variant, onOpen, note }) {
+/** One document in a flow: exported so a return order can draw its own flow from the same boxes. */
+export function Box ({ kind, number, when, status, variant, onOpen, note }) {
   const title = `${kind} ${number || ''}`.trim()
   const body = (
     <>
@@ -30,9 +34,14 @@ function quantityNote (lines) {
   return `${lines.length} lines`
 }
 
+/** "3 returned": the quantity a return order takes back. */
+const returnedNote = (r) => `${r.lines.reduce((sum, l) => sum + l.qty, 0)} returned`
+
 export default function RelatedDocuments ({ order, onOpen }) {
   const shipments = order.shipments || []
   const invoice = order.invoice
+  const returnOrders = order.returnOrders || []
+  const creditMemos = order.creditMemos || []
   if (shipments.length === 0 && !invoice) {
     return (
       <Card title='Related Documents'>
@@ -68,6 +77,31 @@ export default function RelatedDocuments ({ order, onOpen }) {
               onOpen={onOpen && (() => onOpen('invoice', invoice.number))}
             />
             ))}
+        {/* After the invoice, what came back and what was credited (contract version 13). */}
+        {returnOrders.map((r) => (
+          <Box
+            key={r.number}
+            kind='Return order'
+            number={r.number}
+            when={formatDate(r.createdAt)}
+            note={returnedNote(r)}
+            status={returnStatusText(r)}
+            variant={returnStatusLight(r)}
+            onOpen={onOpen && (() => onOpen('return', r.number))}
+          />
+        ))}
+        {creditMemos.map((m) => (
+          <Box
+            key={m.number}
+            kind='Credit memo'
+            number={m.number}
+            when={formatDate(m.createdAt)}
+            note={money(m.total, order.currency)}
+            status='Posted'
+            variant='positive'
+            onOpen={onOpen && (() => onOpen('creditMemo', m.number))}
+          />
+        ))}
       </div>
     </Card>
   )

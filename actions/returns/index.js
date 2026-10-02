@@ -1,5 +1,5 @@
 /*
- * GET  returns                        every return order, newest first
+ * GET  returns                        every return order, newest first, each naming its sold-to (`partnerName`)
  * GET  returns/:number                one return order
  * POST returns                        { commerceReturnId, commerceReturnIncrementId?, orderNumber,
  *                                     lines:[{ commerceItemId, qty, reason? }], origin? } make a return
@@ -14,10 +14,18 @@ const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound } = require('../../lib/errors')
 const { createReturn, listReturns, getReturn, receiveReturn, creditReturn } = require('../../lib/returns')
+const { listPartners } = require('../../lib/partners')
+
+/** The list rows, each naming its sold-to, as the credit memo list does. */
+async function listRows (cols) {
+  const [rows, partners] = await Promise.all([listReturns(cols), listPartners(cols)])
+  const names = new Map(partners.map((p) => [p.id, p.name]))
+  return rows.map((r) => ({ ...r, partnerName: names.get(r.partnerId) || null }))
+}
 
 async function handler ({ cols, method, segments, body, params }) {
   const [number, verb] = segments
-  if (method === 'GET' && !number) return ok({ items: await listReturns(cols) })
+  if (method === 'GET' && !number) return ok({ items: await listRows(cols) })
   if (method === 'GET' && !verb) {
     const found = await getReturn(cols, number)
     if (!found) throw notFound(`Return order ${number}`)

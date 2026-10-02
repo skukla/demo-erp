@@ -1,31 +1,31 @@
 {
   "home": {
-    "elements": 61,
-    "hash": "a13823260ec94324ed82fba2dcc2767055b8bd076dff6ab67720545975b0a2f2"
+    "elements": 67,
+    "hash": "a8d3962876b7583de27a3b913c7f5a9158cbe185efb64fc199aee1be5e9eaba7"
   },
   "orders": {
-    "elements": 414,
-    "hash": "b9cd1340bab07988b76f2cf9c355c6ae39464013c8426728294abf72e0d709e8"
+    "elements": 443,
+    "hash": "3c8a8808f976a2d0b2203425596242e99621bcdf71187f733e85656b2f78302b"
   },
   "orders:document": {
-    "elements": 173,
-    "hash": "43fad541f43814a1578f394ca716440fc55c26b35707ea8831380fd674455d83"
+    "elements": 203,
+    "hash": "9b5aed1fcdac83046a722e4f02ea6346c6a7a7f712180606e31badc0e9ba52b4"
   },
   "shipments": {
-    "elements": 264,
-    "hash": "42f3ee6fe3a357fa06293e9440049578910b61a9eabd1daa77d112f7369e3661"
+    "elements": 288,
+    "hash": "f6dc1c9e8ad1622c02d7ec7245a595905fc7b8f9ce12a2319bff8f128e085e83"
   },
   "shipments:document": {
     "elements": 92,
-    "hash": "38fef88203f603a44d98bcaf61df561e8605ee86f6bb242afba0262693c99f65"
+    "hash": "b6030bffcfd13693a79de786fbcfd75477454fbc1d31d4486a5b6af7b499d854"
   },
   "invoices": {
-    "elements": 146,
-    "hash": "9e3a83ddd69fc22476bf76bdfeab9b3cef65d252a976f1e7250e122f4b849f5a"
+    "elements": 167,
+    "hash": "61222c1b27874ebc7bfc16a2a74f9a81ba27d348d90459900c36fe40077194b0"
   },
   "invoices:document": {
-    "elements": 145,
-    "hash": "7d1aa1612db4ff59445f3a605de0ef3ab068c4325f1df3a8998f7e34d457d9c5"
+    "elements": 147,
+    "hash": "2ecb25fa13a297297a4239ed9eb9c9dc8450662978c4b5c59c91ddc68574d9ce"
   },
   "products": {
     "elements": 695,
@@ -48,12 +48,12 @@
     "hash": "64132efe78d33c290a5dbaf6aeedea12a81fa2b8cef1584f19e4390ed4f1f3eb"
   },
   "events": {
-    "elements": 234,
-    "hash": "e4b680e44b67cc5c1a915855bbc1e18fe111f4ab6ccb672050cbfb5661c24f7c"
+    "elements": 272,
+    "hash": "ad55bcdce18246d941fcca05fddfad3ed406a718e19beabd49b960ef8c0a1bdc"
   },
   "settings": {
     "elements": 184,
-    "hash": "7759421399c6d559a92ca8b2daa050cdd0d0f112343d8e3161e5a4817402c0e4"
+    "hash": "2cef713c919c19450afa9250418169dafeead598b47e092dbab6fe54e70443fe"
   },
   "contracts": {
     "elements": 176,
@@ -70,5 +70,21 @@
   "warehouses": {
     "elements": 56,
     "hash": "58443b0bfd3d9d4f0ba6877750fcf04dc8aef46fff3e96fb0144980a36c5b3fb"
+  },
+  "returns": {
+    "elements": 203,
+    "hash": "b0904ce6647d4ea1bee2fff4222193d958bb52f3d1bd2ee1a0b73bcdee776e00"
+  },
+  "returns:document": {
+    "elements": 106,
+    "hash": "dd5d17c718184bc267686c6b27945ba309bd0bd3ea8965c9f2ee473c1e90a32e"
+  },
+  "creditMemos": {
+    "elements": 191,
+    "hash": "f774b267b9467a1cacec2c8394f16c78d881fa7c5f414c1524760a77ad010214"
+  },
+  "creditMemos:document": {
+    "elements": 108,
+    "hash": "91b9a4f64ea137a106fe0053d6c87d47d5eaa0d0aa1c9c742d193f8bc972e6cd"
   }
 }

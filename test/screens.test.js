@@ -34,6 +34,8 @@ const SCREENS = [
   { key: 'orders', heading: /^Sales Orders$/, opens: /^Sales Order \d{10}$/ },
   { key: 'shipments', heading: /^Shipments$/, opens: /^Shipment \d{10}$/ },
   { key: 'invoices', heading: /^Invoices$/, opens: /^Invoice \d{10}$/ },
+  { key: 'returns', heading: /^Returns$/, opens: /^Return Order \d{10}$/ },
+  { key: 'creditMemos', heading: /^Credit Memos$/, opens: /^Credit Memo \d{10}$/ },
   { key: 'products', heading: /^Products$/, opens: /.+/ },
   { key: 'warehouses', heading: /^Warehouses$/ },
   { key: 'partners', heading: /^Customers$/, opens: /.+/ },
@@ -263,6 +265,8 @@ test('the rail counts the work behind each item, from the same numbers as the cu
     const rail = await page.locator('.erp-rail button').evaluateAll((nodes) => Object.fromEntries(nodes.map((n) => [n.textContent.replace(/\d+$/, ''), Number((n.querySelector('.erp-rail-count') || {}).textContent || 0)])))
     assert.equal(rail['Sales Orders'], cues['Orders to confirm'] + cues['Orders on credit hold'] + cues['Orders to ship'] + cues['Orders to invoice'])
     assert.equal(rail.Shipments, cues['Shipments to post'])
+    assert.equal(rail.Returns, cues['Returns to receive'] + cues['Returns to credit'])
+    assert.ok(rail.Returns > 0, 'the preview seeds a return to receive and one to credit')
     assert.equal(rail['Event Journal'], cues['Messages not sent'])
   } finally {
     await context.close()
@@ -423,6 +427,170 @@ test('settings starts a maintenance window, the banner names its end, and ending
     await page.getByRole('button', { name: 'End maintenance' }).click()
     await banner.waitFor({ state: 'detached', timeout: 5000 })
     assert.deepEqual(problems, [], 'maintenance console')
+  } finally {
+    await context.close()
+  }
+})
+
+/* Return orders and credit memos (AB-16e screen slice). The preview seeds, on sales order
+   0000001002: return 6000000001 credited by credit memo 9500000001, 6000000002 received,
+   6000000003 open; and sales order 0000001008, whose invoice 9000000002 was credited whole
+   by credit memo 9500000002. */
+
+/** The buttons on a document's title line. */
+async function actionsOf (page) {
+  return page.locator('.erp-page-actions button').allTextContents()
+}
+
+test('an open return order offers Receive; receiving it turns the offer into Post credit memo', async () => {
+  const { page, context, problems } = await open('returns?open=6000000003')
+  try {
+    await headed(page, /^Return Order 6000000003$/, /^Returns$/)
+    assert.deepEqual(await actionsOf(page), ['Receive'])
+    const text = await page.locator('.erp-content').textContent()
+    assert.match(text, /Open/)
+    assert.match(text, /000000009/, 'the Commerce return number')
+    assert.match(text, /Damaged/, 'a line carries its reason')
+    await page.getByRole('button', { name: 'Receive' }).click()
+    await page.getByRole('button', { name: 'Post credit memo' }).waitFor({ timeout: 5000 })
+    assert.deepEqual(await actionsOf(page), ['Post credit memo'])
+    assert.match(await page.locator('.erp-content').textContent(), /Received/)
+    assert.deepEqual(problems, [], 'return console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a received return order posts its credit memo after a confirmation, and then offers nothing', async () => {
+  const { page, context, problems } = await open('returns?open=6000000002')
+  try {
+    await headed(page, /^Return Order 6000000002$/, /^Returns$/)
+    assert.deepEqual(await actionsOf(page), ['Post credit memo'])
+    await page.getByRole('button', { name: 'Post credit memo' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Post credit memo' }).click()
+    // The header line and the timeline both say it; the header is enough to wait on.
+    await page.getByText(/Credited by credit memo 9500000003/).first().waitFor({ timeout: 5000 })
+    assert.deepEqual(await actionsOf(page), [])
+    assert.deepEqual(problems, [], 'credit console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a credited return order links its sales order and its credit memo, which opens', async () => {
+  const { page, context, problems } = await open('returns?open=6000000001')
+  try {
+    await headed(page, /^Return Order 6000000001$/, /^Returns$/)
+    assert.deepEqual(await actionsOf(page), [])
+    const text = await page.locator('.erp-content').textContent()
+    assert.match(text, /Sales order 0000001002/)
+    assert.match(text, /Timeline/)
+    assert.match(text, /Received/)
+    await page.locator('.erp-doc-open', { hasText: 'Credit memo 9500000001' }).click()
+    await settled(page)
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Credit Memo 9500000001$/)
+    const memo = await page.locator('.erp-content').textContent()
+    assert.match(memo, /Invoice/)
+    assert.match(memo, /9000000001/)
+    assert.match(memo, /6000000001/)
+    assert.match(memo, /Net amount/)
+    assert.deepEqual(problems, [], 'return → credit memo console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('an invoice offers Post credit memo, and a refusal is shown in the ERP\'s own words', async () => {
+  const { page, context } = await open('invoices?open=9000000001')
+  try {
+    await headed(page, /^Invoice 9000000001$/, /^Invoices$/)
+    assert.deepEqual(await actionsOf(page), ['Post credit memo'])
+    assert.doesNotMatch(await page.locator('.erp-content').textContent(), /No action yet/)
+    await page.getByRole('button', { name: 'Post credit memo' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Post credit memo' }).click()
+    await page.getByText('Return order 6000000001 credited part of this invoice (credit memo 9500000001); credit the rest by return.').waitFor({ timeout: 5000 })
+  } finally {
+    await context.close()
+  }
+})
+
+test('a credited invoice offers no credit and says which credit memo credited it, which opens', async () => {
+  const { page, context, problems } = await open('invoices?open=9000000002')
+  try {
+    await headed(page, /^Invoice 9000000002$/, /^Invoices$/)
+    assert.deepEqual(await actionsOf(page), [])
+    await page.getByRole('button', { name: '9500000002' }).click()
+    await settled(page)
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Credit Memo 9500000002$/)
+    assert.deepEqual(problems, [], 'credited invoice console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('the sales order shows its return orders and credit memos among its related documents', async () => {
+  const { page, context, problems } = await open('orders?open=0000001002')
+  try {
+    await headed(page, /^Sales Order 0000001002$/, /^Sales Orders$/)
+    const related = await page.locator('.erp-doc-flow').textContent()
+    for (const doc of ['Return order 6000000001', 'Return order 6000000002', 'Return order 6000000003', 'Credit memo 9500000001']) assert.match(related, new RegExp(doc))
+    await page.locator('.erp-doc-open', { hasText: 'Return order 6000000003' }).click()
+    await settled(page)
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Return Order 6000000003$/)
+    assert.deepEqual(problems, [], 'order → return console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('the return list filters to what a cue counted, and the lists name the sold-to', async () => {
+  const { page, context, problems } = await open('returns?work=open')
+  try {
+    assert.equal(await bodyRows(page), 1)
+    const header = await page.locator('[role="columnheader"]').allTextContents()
+    assert.ok(header.includes('Sales order') && header.includes('Sold-to') && header.includes('Lines'), `returns: ${header.join(' | ')}`)
+    assert.deepEqual(problems, [], 'returns list console')
+  } finally {
+    await context.close()
+  }
+  const memos = await open('creditMemos')
+  try {
+    const header = await memos.page.locator('[role="columnheader"]').allTextContents()
+    assert.ok(header.includes('Invoice') && header.includes('Return order') && header.includes('Total'), `credit memos: ${header.join(' | ')}`)
+  } finally {
+    await memos.context.close()
+  }
+})
+
+test('the shell search opens a return order and a credit memo by number', async () => {
+  const { page, context, problems } = await open('home')
+  try {
+    const box = page.getByRole('combobox', { name: 'Search the ERP' })
+    await box.fill('6000000003')
+    const option = page.getByRole('option', { name: /Return Order 6000000003/ })
+    await option.waitFor({ timeout: 5000 })
+    await option.click()
+    await settled(page)
+    assert.equal(new URL(page.url()).hash, '#returns?open=6000000003')
+    await box.fill('9500000002')
+    const memo = page.getByRole('option', { name: /Credit Memo 9500000002/ })
+    await memo.waitFor({ timeout: 5000 })
+    await memo.click()
+    await settled(page)
+    assert.equal(new URL(page.url()).hash, '#creditMemos?open=9500000002')
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Credit Memo 9500000002$/)
+    assert.deepEqual(problems, [], 'search console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('the journal names a received return and a credit memo', async () => {
+  const { page, context } = await open('events')
+  try {
+    const text = await page.locator('.erp-rows-open').textContent()
+    assert.match(text, /Return order 6000000002 received/)
+    assert.match(text, /Credit memo 9500000001 for sales order 0000001002 \(return order 6000000001\)/)
   } finally {
     await context.close()
   }

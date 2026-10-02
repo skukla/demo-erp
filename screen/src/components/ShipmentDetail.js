@@ -6,34 +6,20 @@
  * shipment's event: what SAP calls the goods issue. Posted, the shipment cannot be
  * changed; the ERP says so, with the date, when asked twice.
  */
-import React, { useState } from 'react'
+import React from 'react'
 import { Button, Grid, StatusLight, TableView, TableHeader, Column, TableBody, Row, Cell, Text, View } from '@adobe/react-spectrum'
 import DocumentPage from './DocumentPage'
 import Card from './Card'
 import Field from './Field'
 import { useLoad } from './useLoad'
-import { toastSaved } from './toast'
+import { useDocumentAction } from './useDocumentAction'
 import { formatDate } from '../formatStamp'
 
 export default function ShipmentDetail ({ api, number, backLabel = 'Shipments', onBack, onOpen, onChanged }) {
   const { rows, error, reload } = useLoad(async () => [await api.shipment(number)], [api, number])
   const shipment = rows && rows[0]
-  const [actionError, setActionError] = useState(null)
-  const [busy, setBusy] = useState(false)
-
-  async function post () {
-    setBusy(true)
-    try {
-      await api.postShipment(shipment.orderNumber, number)
-      setActionError(null)
-      await reload()
-      toastSaved('Shipment posted')
-      onChanged()
-    } catch (e) {
-      setActionError(e)
-    }
-    setBusy(false)
-  }
+  const { act, busy, error: actionError } = useDocumentAction(reload, onChanged)
+  const post = () => act(() => api.postShipment(shipment.orderNumber, number), 'Shipment posted')
 
   const posted = shipment && shipment.status === 'posted'
   return (

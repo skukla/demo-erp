@@ -19,7 +19,7 @@ import RelatedDocuments from './RelatedDocuments'
 import CreateShipment from './CreateShipment'
 import Timeline from './Timeline'
 import { useLoad } from './useLoad'
-import { toastSaved } from './toast'
+import { useDocumentAction } from './useDocumentAction'
 
 /** Cancel: pick a reason, then confirm. The dialog is the only way to reach it. */
 function CancelOrder ({ reasons, onCancel, isDisabled }) {
@@ -66,25 +66,8 @@ function CancelOrder ({ reasons, onCancel, isDisabled }) {
 export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', onBack, onOpen, onChanged }) {
   const { rows, error, reload } = useLoad(async () => [await api.order(number)], [api, number])
   const order = rows && rows[0]
-  const [actionError, setActionError] = useState(null)
-  const [busy, setBusy] = useState(false)
-
-  /* Every action: ask the ERP, read the document again, tell the shell. The document is
-     re-read rather than patched because most moves change several things at once — a
-     posted shipment moves quantities, statuses and the related-documents strip. */
-  async function act (call, saved) {
-    setBusy(true)
-    try {
-      await call()
-      setActionError(null)
-      await reload()
-      if (saved) toastSaved(saved)
-      onChanged()
-    } catch (e) {
-      setActionError(e)
-    }
-    setBusy(false)
-  }
+  // Every action: ask the ERP, read the document again, tell the shell (useDocumentAction).
+  const { act, busy, error: actionError } = useDocumentAction(reload, onChanged)
 
   const can = (order && order.can) || {}
   return (
