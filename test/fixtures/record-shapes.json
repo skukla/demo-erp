@@ -164,5 +164,16 @@
     "logo",
     "nav",
     "palette"
+  ],
+  "payment": [
+    "_id",
+    "amount",
+    "createdAt",
+    "currency",
+    "invoiceNumber",
+    "number",
+    "orderNumber",
+    "partnerId",
+    "reference"
   ]
 }

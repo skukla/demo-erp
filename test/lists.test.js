@@ -68,14 +68,15 @@ test('a shipment row names its sold-to and its warehouse by the ERP\'s own name;
 })
 
 test('a customer row carries the credit exposure and what is left, by the document\'s rule; the walk-in account has no credit', async () => {
-  // C1: one invoiced order (no longer open) and one open order of 40 → exposure 40.
+  // C1: one invoiced order, unpaid (an open item of 30, contract version 14), and one open
+  // order of 40 → exposure 70.
   await shippedAndInvoiced('C1', '4')
   await createOrder(cols, { commerceOrderId: '5', partnerId: 'C1', lines: [{ sku: 'A1', qty: 4, price: 10 }] })
   // C2: an order over its limit is created and HELD, and a held order is not yet owed for.
   await createOrder(cols, { commerceOrderId: '6', partnerId: 'C2', lines: [{ sku: 'A1', qty: 60, price: 10 }] })
   const rows = (await invoke(partners, cols, { method: 'GET' })).body.items
   const byId = Object.fromEntries(rows.map((r) => [r.id, r]))
-  assert.deepEqual([byId.C1.exposure, byId.C1.available], [40, 960])
+  assert.deepEqual([byId.C1.exposure, byId.C1.available], [70, 930])
   assert.deepEqual([byId.C2.exposure, byId.C2.available], [0, 500])
   assert.deepEqual([byId.P000000.exposure, byId.P000000.available], [null, null])
 })

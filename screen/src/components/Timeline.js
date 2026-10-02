@@ -2,7 +2,7 @@
  * An order's timeline: what happened to it and when, oldest first — SAP's document flow
  * dates, Business Central's entries. The order stores its `history` (every status move,
  * with a reason where one was given) and shows it nowhere until now; its shipments and
- * invoice carry their own times. This card merges them by time and links the documents.
+ * invoice carry their own times, as do its payments, return orders and credit memos. This card merges them by time and links the documents.
  * A return order's own timeline is drawn by the same card (returnMomentsOf).
  */
 import React from 'react'
@@ -41,6 +41,9 @@ export function momentsOf (order) {
     const link = { kind: 'return', number: r.number }
     moments.push({ at: r.createdAt, text: `Return order ${r.number} created`, link })
     if (r.receivedAt) moments.push({ at: r.receivedAt, text: `Return order ${r.number} received`, link })
+  }
+  for (const p of order.payments || []) {
+    moments.push({ at: p.createdAt, text: `Payment ${p.number} posted`, link: { kind: 'payment', number: p.number } })
   }
   for (const m of order.creditMemos || []) {
     moments.push({ at: m.createdAt, text: `Credit memo ${m.number} posted`, link: { kind: 'creditMemo', number: m.number } })

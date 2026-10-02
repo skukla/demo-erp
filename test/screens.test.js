@@ -36,6 +36,7 @@ const SCREENS = [
   { key: 'invoices', heading: /^Invoices$/, opens: /^Invoice \d{10}$/ },
   { key: 'returns', heading: /^Returns$/, opens: /^Return Order \d{10}$/ },
   { key: 'creditMemos', heading: /^Credit Memos$/, opens: /^Credit Memo \d{10}$/ },
+  { key: 'payments', heading: /^Payments$/, opens: /^Payment \d{10}$/ },
   { key: 'products', heading: /^Products$/, opens: /.+/ },
   { key: 'warehouses', heading: /^Warehouses$/ },
   { key: 'partners', heading: /^Customers$/, opens: /.+/ },
@@ -266,6 +267,8 @@ test('the rail counts the work behind each item, from the same numbers as the cu
     assert.equal(rail['Sales Orders'], cues['Orders to confirm'] + cues['Orders on credit hold'] + cues['Orders to ship'] + cues['Orders to invoice'])
     assert.equal(rail.Shipments, cues['Shipments to post'])
     assert.equal(rail.Returns, cues['Returns to receive'] + cues['Returns to credit'])
+    assert.equal(rail.Invoices, cues['Invoices to collect'])
+    assert.ok(rail.Invoices > 0, 'the preview seeds an invoice partly paid')
     assert.ok(rail.Returns > 0, 'the preview seeds a return to receive and one to credit')
     assert.equal(rail['Event Journal'], cues['Messages not sent'])
   } finally {
@@ -390,8 +393,9 @@ test('the documents carry their timeline, due date, credit meter and open items'
   try {
     assert.equal(await customer.page.getByRole('meter').count(), 1)
     const text = await customer.page.locator('.erp-content').textContent()
+    assert.match(text, /Open orders/)
     assert.match(text, /Open items/)
-    assert.match(text, /the exposure above is this list/)
+    assert.match(text, /\d+ open orders? · .* — ordered, not yet invoiced\./)
     assert.deepEqual(customer.problems, [], 'customer console')
   } finally {
     await customer.context.close()
@@ -504,7 +508,8 @@ test('an invoice offers Post credit memo, and a refusal is shown in the ERP\'s o
   const { page, context } = await open('invoices?open=9000000001')
   try {
     await headed(page, /^Invoice 9000000001$/, /^Invoices$/)
-    assert.deepEqual(await actionsOf(page), ['Post credit memo'])
+    // Version 14: something is still open on it, so Post payment is offered first.
+    assert.deepEqual(await actionsOf(page), ['Post payment', 'Post credit memo'])
     assert.doesNotMatch(await page.locator('.erp-content').textContent(), /No action yet/)
     await page.getByRole('button', { name: 'Post credit memo' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'Post credit memo' }).click()
@@ -591,6 +596,136 @@ test('the journal names a received return and a credit memo', async () => {
     const text = await page.locator('.erp-rows-open').textContent()
     assert.match(text, /Return order 6000000002 received/)
     assert.match(text, /Credit memo 9500000001 for sales order 0000001002 \(return order 6000000001\)/)
+  } finally {
+    await context.close()
+  }
+})
+
+/* Open items and incoming payments (AB-26s screen slice). The preview seeds invoice
+   9000000001 partly paid by payment 7000000001 (EUR 100.00 of 256.00, with return credit
+   memo 9500000001 of 12.00 off it: 144.00 open) and invoice 9000000003 paid in full by
+   payment 7000000002. */
+
+test('a partly paid invoice shows what is open and offers Post payment, prefilled with the open amount', async () => {
+  const { page, context, problems } = await open('invoices?open=9000000001')
+  try {
+    await headed(page, /^Invoice 9000000001$/, /^Invoices$/)
+    assert.deepEqual(await actionsOf(page), ['Post payment', 'Post credit memo'])
+    const text = await page.locator('.erp-content').textContent()
+    assert.match(text, /Payment status/)
+    assert.match(text, /Partly paid/)
+    assert.match(text, /Open amount\s*EUR\s*144\.00/)
+    assert.match(await page.locator('.erp-doc-flow').textContent(), /Payment 7000000001/)
+    await page.getByRole('button', { name: 'Post payment' }).click()
+    const amount = page.getByRole('dialog').getByRole('textbox', { name: 'Amount' })
+    assert.match(await amount.inputValue(), /144\.00/)
+    assert.deepEqual(problems, [], 'invoice console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a payment over the open amount is refused in the ERP\'s words; the rest paid, the invoice reads paid', async () => {
+  const { page, context, problems } = await open('invoices?open=9000000001')
+  try {
+    await headed(page, /^Invoice 9000000001$/, /^Invoices$/)
+    await page.getByRole('button', { name: 'Post payment' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('textbox', { name: 'Amount' }).fill('1000')
+    await dialog.getByRole('textbox', { name: 'Reference' }).fill('Wire 77')
+    await dialog.getByRole('button', { name: 'Post payment' }).click()
+    await page.getByText('Invoice 9000000001 has 144.00 open; a payment of 1,000.00 is more than that.').waitFor({ timeout: 5000 })
+    // Now the whole open amount, as prefilled.
+    await page.getByRole('button', { name: 'Post payment' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Post payment' }).click()
+    await page.locator('.erp-doc-flow', { hasText: 'Payment 7000000003' }).waitFor({ timeout: 5000 })
+    assert.deepEqual(await actionsOf(page), ['Post credit memo'])
+    assert.match(await page.locator('.erp-content').textContent(), /Paid/)
+    assert.deepEqual(problems, [], 'payment console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a paid invoice offers no payment, and its payment opens as a document of its own', async () => {
+  const { page, context, problems } = await open('invoices?open=9000000003')
+  try {
+    await headed(page, /^Invoice 9000000003$/, /^Invoices$/)
+    assert.ok(!(await actionsOf(page)).includes('Post payment'))
+    await page.locator('.erp-doc-open', { hasText: 'Payment 7000000002' }).click()
+    await settled(page)
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Payment 7000000002$/)
+    const text = await page.locator('.erp-content').textContent()
+    assert.match(text, /9000000003/)
+    assert.match(text, /Check 1042/)
+    assert.match(text, /USD\s*218\.67/)
+    assert.deepEqual(problems, [], 'paid invoice → payment console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('the invoice list says what is open and filters to what the cue counted', async () => {
+  const { page, context, problems } = await open('invoices?work=toCollect')
+  try {
+    assert.equal(await bodyRows(page), 1)
+    const header = await page.locator('[role="columnheader"]').allTextContents()
+    assert.ok(header.includes('Open amount') && header.includes('Payment status'), `invoices: ${header.join(' | ')}`)
+    assert.match(await page.locator('[role="grid"]').textContent(), /9000000001/)
+    assert.deepEqual(problems, [], 'invoice list console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('the customer page splits exposure into open orders and open items, and lists the open items', async () => {
+  const { page, context, problems } = await open('partners?open=C000103')
+  try {
+    await headed(page, /^Fabrikam Retail$/, /^Customers$/)
+    const text = await page.locator('.erp-content').textContent()
+    assert.match(text, /Open orders/)
+    assert.match(text, /1 open item · EUR\s*144\.00 — invoiced, not yet paid\./)
+    const items = page.locator('[role="grid"][aria-label="This customer\'s open items"]')
+    assert.match(await items.textContent(), /9000000001/)
+    assert.match(await items.textContent(), /Partly paid/)
+    await items.locator('.erp-key', { hasText: '9000000001' }).click()
+    await settled(page)
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Invoice 9000000001$/)
+    assert.deepEqual(problems, [], 'customer open items console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('the shell search opens a payment by number, and the sales order shows it in its flow', async () => {
+  const { page, context, problems } = await open('home')
+  try {
+    const box = page.getByRole('combobox', { name: 'Search the ERP' })
+    await box.fill('7000000002')
+    const option = page.getByRole('option', { name: /Payment 7000000002/ })
+    await option.waitFor({ timeout: 5000 })
+    await option.click()
+    await settled(page)
+    assert.equal(new URL(page.url()).hash, '#payments?open=7000000002')
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Payment 7000000002$/)
+    assert.deepEqual(problems, [], 'search console')
+  } finally {
+    await context.close()
+  }
+  const order = await open('orders?open=0000001009')
+  try {
+    await headed(order.page, /^Sales Order 0000001009$/, /^Sales Orders$/)
+    assert.match(await order.page.locator('.erp-doc-flow').textContent(), /Payment 7000000002/)
+    assert.match(await order.page.locator('.erp-content').textContent(), /Payment 7000000002 posted/)
+  } finally {
+    await order.context.close()
+  }
+})
+
+test('the journal names a posted payment', async () => {
+  const { page, context } = await open('events')
+  try {
+    assert.match(await page.locator('.erp-rows-open').textContent(), /Payment 7000000002 of USD 218\.67 against invoice 9000000003 for sales order 0000001009/)
   } finally {
     await context.close()
   }

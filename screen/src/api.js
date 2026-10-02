@@ -75,6 +75,10 @@ export function makeApi (screenKey, base = screenBase()) {
     creditReturn: (number) => call('returns', { method: 'POST', path: `/${number}/credit-memo` }),
     creditMemos: () => call('credit-memos'),
     creditMemo: (number) => call('credit-memos', { path: `/${number}` }),
+    // An incoming payment is posted on its invoice (contract version 14); the payment is a document of its own.
+    postPayment: (invoiceNumber, body) => call('invoices', { method: 'POST', path: `/${invoiceNumber}/payments`, body }),
+    payments: () => call('payments'),
+    payment: (number) => call('payments', { path: `/${number}` }),
     search: (q) => call('search', { path: `?q=${encodeURIComponent(q)}` }),
     events: () => call('events'),
     retryEvents: () => call('events', { method: 'POST', path: '/retry' }),

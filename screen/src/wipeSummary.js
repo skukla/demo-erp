@@ -19,6 +19,7 @@ const LABELS = {
   priceGroups: ['price group', 'price groups'],
   salesOrders: ['sales order', 'sales orders'],
   returnOrders: ['return order', 'return orders'],
+  payments: ['payment', 'payments'],
   events: ['event', 'events']
 }
 

@@ -1,31 +1,31 @@
 {
   "home": {
-    "elements": 67,
-    "hash": "a8d3962876b7583de27a3b913c7f5a9158cbe185efb64fc199aee1be5e9eaba7"
+    "elements": 70,
+    "hash": "94b090ef04d33356bf90e5a4357f32594cd2e9c18bbf963229faf84638a0335d"
   },
   "orders": {
-    "elements": 443,
-    "hash": "3c8a8808f976a2d0b2203425596242e99621bcdf71187f733e85656b2f78302b"
+    "elements": 472,
+    "hash": "8e1e7317153e120207d7b63e9f370813f48efc53faaacaf4cdcd32310652dc60"
   },
   "orders:document": {
     "elements": 203,
-    "hash": "9b5aed1fcdac83046a722e4f02ea6346c6a7a7f712180606e31badc0e9ba52b4"
+    "hash": "72e311463760feb24babd12f443c9b7836d77571ea614477aac48224964d9f65"
   },
   "shipments": {
-    "elements": 288,
-    "hash": "f6dc1c9e8ad1622c02d7ec7245a595905fc7b8f9ce12a2319bff8f128e085e83"
+    "elements": 312,
+    "hash": "be70a35b6ed1125ef7cf98af8b001e6cd07ab47b9c287764c794f7801c41810e"
   },
   "shipments:document": {
     "elements": 92,
-    "hash": "b6030bffcfd13693a79de786fbcfd75477454fbc1d31d4486a5b6af7b499d854"
+    "hash": "15466af02346b7015372bbf758e8e7b31969b6f982e7dff038119af3e92abad8"
   },
   "invoices": {
-    "elements": 167,
-    "hash": "61222c1b27874ebc7bfc16a2a74f9a81ba27d348d90459900c36fe40077194b0"
+    "elements": 232,
+    "hash": "73fb4c197cd83fad7c0b1c46f06f2020c81a2a797356673969736b992bce278b"
   },
   "invoices:document": {
-    "elements": 147,
-    "hash": "2ecb25fa13a297297a4239ed9eb9c9dc8450662978c4b5c59c91ddc68574d9ce"
+    "elements": 169,
+    "hash": "b74dc11bfaef5504393d7a8df4fa22ed965dee01e713cce8948936857aa80d9c"
   },
   "products": {
     "elements": 695,
@@ -40,20 +40,20 @@
     "hash": "f3d7fa68e7288c40e558a3bcb38f4dcbc8564d096f51713a8689af8bc3f6ed4f"
   },
   "partners:document": {
-    "elements": 257,
-    "hash": "e750f593ca5adfe0de1ca0e732e88741a525b428c27f9b61631f4892221d684e"
+    "elements": 267,
+    "hash": "6d851fadd179fafdc65d55d6178f2ecb9e88c8b1c5012df4cab42c84d9f199d5"
   },
   "pricing": {
     "elements": 367,
     "hash": "64132efe78d33c290a5dbaf6aeedea12a81fa2b8cef1584f19e4390ed4f1f3eb"
   },
   "events": {
-    "elements": 272,
-    "hash": "ad55bcdce18246d941fcca05fddfad3ed406a718e19beabd49b960ef8c0a1bdc"
+    "elements": 291,
+    "hash": "c322358168acdd02cf5049a464ff938b013a051678de94849420fb502cf016b3"
   },
   "settings": {
     "elements": 184,
-    "hash": "2cef713c919c19450afa9250418169dafeead598b47e092dbab6fe54e70443fe"
+    "hash": "4658b2041582b789f11c8aacf40c6ad9bb9e9b420fccae029747e006303d7afd"
   },
   "contracts": {
     "elements": 176,
@@ -86,5 +86,13 @@
   "creditMemos:document": {
     "elements": 108,
     "hash": "91b9a4f64ea137a106fe0053d6c87d47d5eaa0d0aa1c9c742d193f8bc972e6cd"
+  },
+  "payments": {
+    "elements": 176,
+    "hash": "e69c81ba92d1fe4a7de949c4166db31d28df58bdb162c53c6a8f902a91d46d7d"
+  },
+  "payments:document": {
+    "elements": 34,
+    "hash": "512315139978da269b7f1f6211dc1c47b2f25cb0c00b1f274657d1135b86b674"
   }
 }

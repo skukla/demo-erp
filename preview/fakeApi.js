@@ -12,7 +12,8 @@
 import { DEFAULT_APPEARANCE, normalizeAppearance } from '../lib/appearance.js'
 import { describeEvent } from '../lib/journal.js'
 import { maintenanceOf } from '../lib/maintenance.js'
-import { returnMoves } from '../lib/return-moves.js'
+import { returnMoves, canPayInvoice } from '../lib/return-moves.js'
+import { openItemOf } from '../lib/open-items.js'
 
 const NAMES = [
   ['Wide-leg trouser', 89], ['Cotton poplin shirt', 34.2], ['Canvas tote', 12],
@@ -85,7 +86,7 @@ const partners = [
 
 /* The stored shape (lib/orders.js): a header word, quantities per line, the shipments
    and the invoice. The outward `status` is DERIVED below, as the ERP derives it. */
-const HEADERS = ['created', 'confirmed', 'confirmed', 'confirmed', 'canceled', 'created', 'confirmed', 'created', 'confirmed']
+const HEADERS = ['created', 'confirmed', 'confirmed', 'confirmed', 'canceled', 'created', 'confirmed', 'created', 'confirmed', 'confirmed']
 const cents = (value) => Math.round(value * 100) / 100
 const day = (d, h = 9) => new Date(Date.UTC(2026, 8, d, h, 12)).toISOString()
 const orders = HEADERS.map((header, i) => {
@@ -193,6 +194,25 @@ seedInvoice(orders[8], '9000000002', day(14))
   orders[8].history.push({ status: 'invoiced', at: day(14) }, { status: 'credited', at: day(15), creditMemo: memo.number })
 }
 
+/* Order 1009: shipped, invoiced as 9000000003 and paid in full by payment 7000000002. Its
+   lines are two sellable products (the index would have picked P000010, which is blocked
+   for sales and could not have shipped). */
+orders[9].lines = [
+  { ...orders[9].lines[0], sku: 'P000001', price: 89 },
+  { ...orders[9].lines[1], sku: 'P000003', price: 12 }
+]
+orders[9].total = cents(orders[9].lines.reduce((sum, l) => sum + l.qty * l.price, 0) * 1.0825)
+seedShipment(orders[9], '8000000007', orders[9].lines.map((l) => ({ item: l.item, qty: l.qty })), 'default', true)
+seedInvoice(orders[9], '9000000003', day(16))
+orders[9].history.push({ status: 'invoiced', at: day(16) })
+
+/* Incoming payments (lib/payments): 7000000001 pays part of invoice 9000000001, so it reads
+   partly paid; 7000000002 pays invoice 9000000003 in full. */
+const payments = [
+  { number: '7000000001', createdAt: day(17), partnerId: orders[2].partnerId, orderNumber: orders[2].number, invoiceNumber: '9000000001', amount: 100, currency: orders[2].currency, reference: 'Wire 2026-0917' },
+  { number: '7000000002', createdAt: day(18), partnerId: orders[9].partnerId, orderNumber: orders[9].number, invoiceNumber: '9000000003', amount: orders[9].invoice.total, currency: orders[9].currency, reference: 'Check 1042' }
+]
+
 /* Return orders (lib/returns), all on sales order 1002: 6000000001 received and credited by
    credit memo 9500000001, 6000000002 received and waiting for its credit memo, 6000000003
    open — one of each state, so each document's move can be looked at. */
@@ -229,9 +249,19 @@ const returnOrders = [
   seedReturn(orders[2], '6000000003', '9', [{ item: 10, qty: 1, reason: 'Damaged' }], { open: day(19) })
 ]
 
-let nextShipment = 8000000007
-let nextInvoice = 9000000003
+let nextShipment = 8000000008
+let nextInvoice = 9000000004
 let nextCreditMemo = 9500000003
+let nextPayment = 7000000003
+
+/* What is still open on an order's invoice, by the ERP's own rule (lib/open-items): its
+   payments, and the credit memos of its returns. Empty for an order with no invoice. */
+const paymentsOf = (order) => payments.filter((p) => p.orderNumber === order.number).sort((a, b) => (a.number < b.number ? -1 : 1))
+function openItem (order) {
+  if (!order.invoice || !order.invoice.number) return {}
+  const credits = returnOrders.filter((r) => r.orderNumber === order.number && r.creditMemo).map((r) => r.creditMemo)
+  return openItemOf(order, paymentsOf(order), credits)
+}
 
 const events = [
   { _id: 'e1', at: new Date(Date.UTC(2026, 8, 22, 14, 2)).toISOString(), direction: 'out', kind: 'order.confirmed', event: 'be-observer.sales_order_status_update', value: { erpNumber: '0000001001', incrementId: '00000301' }, delivered: true, attempts: 1 },
@@ -241,6 +271,7 @@ const events = [
   { _id: 'e5', at: new Date(Date.UTC(2026, 8, 22, 12, 5)).toISOString(), direction: 'in', event: 'observer.company_save_commit_after', summary: 'Customer C000103 blocked', value: { companyId: '9', blocked: true } },
   { _id: 'e6', at: new Date(Date.UTC(2026, 8, 22, 11, 45)).toISOString(), direction: 'out', kind: 'order.shipped', event: 'be-observer.sales_order_shipment_create', value: { erpNumber: '0000001002', items: [{ qty: 3 }, { qty: 2 }], stockSourceCode: 'default' }, delivered: true, attempts: 1 },
   { _id: 'e7', at: new Date(Date.UTC(2026, 8, 22, 11, 30)).toISOString(), direction: 'out', kind: 'return.received', event: 'be-observer.rma_status_update', value: { erpNumber: '0000001002', returnNumber: '6000000002', items: [{ qty: 1 }] }, delivered: true, attempts: 1 },
+  { _id: 'e9', at: new Date(Date.UTC(2026, 8, 22, 11, 20)).toISOString(), direction: 'out', kind: 'payment.posted', event: 'be-observer.sales_order_payment_create', value: { erpNumber: '0000001009', paymentNumber: '7000000002', invoiceNumber: '9000000003', amount: orders[9].invoice.total, currency: 'USD', partnerId: 'C000102', reference: 'Check 1042' }, delivered: true, attempts: 1 },
   { _id: 'e8', at: new Date(Date.UTC(2026, 8, 22, 11, 15)).toISOString(), direction: 'out', kind: 'creditmemo.created', event: 'be-observer.sales_order_creditmemo_create', value: { erpNumber: '0000001002', creditMemoNumber: '9500000001', returnNumber: '6000000001' }, delivered: true, attempts: 1 }
 ]
 
@@ -311,7 +342,7 @@ function describeStructure () {
 
 /* Home's work list, as lib/work counts it: from the same abilities the documents read. */
 function workList () {
-  const counts = { toConfirm: 0, onHold: 0, toShip: 0, toInvoice: 0, toPost: 0, returnsToReceive: 0, returnsToCredit: 0, blockedCustomers: 0, eventsFailed: 0, eventsPending: 0 }
+  const counts = { toConfirm: 0, onHold: 0, toShip: 0, toInvoice: 0, invoicesToCollect: 0, toPost: 0, returnsToReceive: 0, returnsToCredit: 0, blockedCustomers: 0, eventsFailed: 0, eventsPending: 0 }
   let amount = 0
   const recent = []
   for (const o of orders) {
@@ -320,6 +351,7 @@ function workList () {
     if (can.release) counts.onHold += 1
     if (can.ship) counts.toShip += 1
     if (can.invoice) counts.toInvoice += 1
+    if (o.invoice && canPayInvoice({ ...o.invoice, ...openItem(o) })) counts.invoicesToCollect += 1
     counts.toPost += o.shipments.filter((s) => s.status !== 'posted').length
     if (o.header !== 'canceled' && !o.invoice) amount += o.lines.reduce((sum, l) => sum + l.qty * l.price, 0)
     const last = o.history.reduce((at, h) => (h.at > at ? h.at : at), o.createdAt)
@@ -348,7 +380,7 @@ const health = {
   appearance: settings.appearance,
   counts: { products: products.length, businessPartners: partners.length, salesOrders: orders.length, pricingConditions: conditions.length, contracts: contracts.length, priceGroups: priceGroups.length },
   // The next document numbers, nothing reserved (lib/counters peek), and the company code's currency.
-  numbering: { salesOrder: '0000001009', shipment: '8000000007', invoice: '9000000003', contract: '4000000004' },
+  numbering: { salesOrder: '0000001010', shipment: '8000000008', invoice: '9000000004', contract: '4000000004', creditMemo: '9500000003', returnOrder: '6000000004', payment: '7000000003' },
   currency: 'USD',
   eventsPending: events.filter((e) => e.direction === 'out' && !e.delivered && !e.failed).length,
   lastImportAt: settings.lastImportAt
@@ -496,9 +528,10 @@ function describe (order) {
     credit: order.creditStatus ? { status: order.creditStatus, reason: order.creditReason, decidedAt: order.creditDecidedAt } : null,
     can,
     shipments: order.shipments.map((s) => ({ ...s, lines: s.lines.map(named) })),
-    invoice: order.invoice ? { ...order.invoice, lines: order.invoice.lines.map(named) } : null,
+    invoice: order.invoice ? { ...order.invoice, lines: order.invoice.lines.map(named), ...openItem(order) } : null,
     creditMemos: creditMemosOf(order),
     returnOrders: returnOrders.filter((r) => r.orderNumber === order.number),
+    payments: paymentsOf(order),
     warehouses: [...warehouses.values()],
     net,
     tax: cents(total - net),
@@ -539,6 +572,7 @@ function describeInvoice (order, inv) {
   const p = partnerOf(order.partnerId)
   return {
     ...inv,
+    ...openItem(order),
     orderNumber: order.number,
     commerceIncrementId: order.commerceIncrementId,
     currency: order.currency,
@@ -595,13 +629,23 @@ function describePartner (partner) {
       currency: o.currency,
       net: cents((o.lines || []).reduce((sum, l) => sum + l.qty * l.price, 0))
     }))
-  const exposure = cents(own.filter((o) => OPEN.has(o.status) && o.creditStatus !== 'held').reduce((sum, o) => sum + o.net, 0))
+  // Open orders plus open items (lib/partners exposures, openItemsOf).
+  const openOrders = cents(own.filter((o) => OPEN.has(o.status) && o.creditStatus !== 'held').reduce((sum, o) => sum + o.net, 0))
+  const openItems = orders
+    .filter((o) => o.partnerId === partner.id && o.invoice && o.invoice.number)
+    .map((o) => ({ o, item: openItem(o) }))
+    .filter(({ item }) => item.openAmount > 0)
+    .map(({ o, item }) => ({ invoiceNumber: o.invoice.number, orderNumber: o.number, createdAt: o.invoice.createdAt, dueDate: describeInvoice(o, o.invoice).dueDate, total: o.invoice.total, openAmount: item.openAmount, paymentStatus: item.paymentStatus, currency: o.currency }))
+    .sort((a, b) => (a.invoiceNumber < b.invoiceNumber ? -1 : 1))
+  const openItemsAmount = cents(openItems.reduce((sum, i) => sum + i.openAmount, 0))
+  const exposure = cents(openOrders + openItemsAmount)
   const held = own.filter((o) => o.creditStatus === 'held' && o.status !== 'canceled').length
   const limit = Number(partner.creditLimit) || 0
   return {
     ...partner,
     salesOrgNames,
-    credit: !partner.isDefault ? { limit, exposure, available: cents(limit - exposure), held } : null,
+    credit: !partner.isDefault ? { limit, exposure, openOrders, openItems: openItemsAmount, available: cents(limit - exposure), held } : null,
+    openItems,
     orders: own,
     conditions: conditions.filter((c) => c.partnerId === partner.id),
     // Its own price lists, then its price group's (lib/partners describePartner).
@@ -874,7 +918,8 @@ export const fakeApi = {
       createdAt: o.invoice.createdAt,
       status: o.invoice.status,
       currency: o.currency,
-      total: o.invoice.total
+      total: o.invoice.total,
+      ...openItem(o)
     })).sort((a, b) => (a.number < b.number ? 1 : -1)))
   },
   invoice: async (number) => {
@@ -937,6 +982,29 @@ export const fakeApi = {
     r.history.push({ status: 'credited', at: r.creditMemo.createdAt, creditMemo: r.creditMemo.number })
     return copy(r)
   },
+  /* An incoming payment, mirrored from lib/payments postPayment, refusals word for word. */
+  postPayment: async (invoiceNumber, body = {}) => {
+    await wait()
+    const o = orders.find((x) => x.invoice && x.invoice.number === invoiceNumber) || fail(`Invoice ${invoiceNumber} was not found.`)
+    const amount = typeof body.amount === 'number' || typeof body.amount === 'string' ? cents(Number(body.amount)) : NaN
+    if (!(amount > 0)) fail('A payment needs an amount: a number more than 0.')
+    const item = openItem(o)
+    if (item.openAmount === 0) fail(`Invoice ${invoiceNumber} ${item.paymentStatus === 'credited' ? 'was credited' : 'is paid'}; nothing is open on it.`)
+    const figure = (v) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
+    if (amount > item.openAmount) fail(`Invoice ${invoiceNumber} has ${figure(item.openAmount)} open; a payment of ${figure(amount)} is more than that.`)
+    const reference = body.reference === undefined || body.reference === null ? null : (String(body.reference).trim() || null)
+    const payment = { number: String(nextPayment++), createdAt: new Date().toISOString(), partnerId: o.partnerId, orderNumber: o.number, invoiceNumber, amount, currency: o.currency || 'USD', reference }
+    payments.push(payment)
+    return copy(payment)
+  },
+  payments: async () => {
+    await wait()
+    return copy([...payments].sort((a, b) => (a.number < b.number ? 1 : -1)).map((p) => ({ ...p, partnerName: (partnerOf(p.partnerId) || {}).name || null })))
+  },
+  payment: async (number) => {
+    await wait()
+    return copy(payments.find((p) => p.number === number) || fail(`Payment ${number} was not found.`))
+  },
   creditMemos: async () => {
     await wait()
     return copy(allCreditMemos().map(({ lines, ...head }) => {
@@ -969,6 +1037,7 @@ export const fakeApi = {
     const ownFirst = (own, related) => Math.max(score(own), Math.min(1, score(related)))
     for (const r of returnOrders) hits.push({ rank: ownFirst([r.number, r.commerceReturnIncrementId], [r.orderNumber]), kind: 'return', number: r.number, title: `Return Order ${r.number}`, subtitle: `for sales order ${r.orderNumber}` })
     for (const m of allCreditMemos()) hits.push({ rank: ownFirst([m.number], [m.orderNumber, m.invoiceNumber, m.returnNumber]), kind: 'creditMemo', number: m.number, title: `Credit Memo ${m.number}`, subtitle: `for sales order ${m.orderNumber}` })
+    for (const p of payments) hits.push({ rank: ownFirst([p.number, p.reference], [p.invoiceNumber, p.orderNumber]), kind: 'payment', number: p.number, title: `Payment ${p.number}`, subtitle: `for invoice ${p.invoiceNumber}` })
     for (const p of products) hits.push({ rank: score([p.sku, p.name]), kind: 'product', number: p.sku, title: p.name, subtitle: p.sku })
     for (const p of partners) hits.push({ rank: score([p.id, p.name]), kind: 'customer', number: p.id, title: p.name, subtitle: p.id })
     return { items: hits.filter((h) => h.rank > 0).sort((a, b) => b.rank - a.rank || a.title.localeCompare(b.title)).slice(0, 12).map(({ rank, ...h }) => h) }

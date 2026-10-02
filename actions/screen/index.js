@@ -14,6 +14,7 @@ const handlers = {
   invoices: require('../invoices'),
   returns: require('../returns'),
   'credit-memos': require('../credit-memos'),
+  payments: require('../payments'),
   events: require('../events'),
   search: require('../search')
 }
@@ -21,4 +22,5 @@ const handlers = {
 // Written by scripts/build-screen.js before every build (the pre-app-build hook).
 const assets = require('./assets.generated')
 
+exports.handlers = handlers
 exports.main = (params) => serveScreen(params, { assets, handlers })

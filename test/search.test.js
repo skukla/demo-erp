@@ -48,3 +48,16 @@ test('the search action answers the list for ?q=', async () => {
   assert.equal(res.statusCode, 200)
   assert.equal(res.body.items[0].title, 'Northwind Trading')
 })
+
+test('a payment is found by its own number first, and by its invoice and sales order', async () => {
+  const { postShipment, createInvoice } = require('../lib/fulfilment')
+  const { postPayment } = require('../lib/payments')
+  await postShipment(cols, '0000001000', '8000000001')
+  const order = await createInvoice(cols, '0000001000')
+  await postPayment(cols, order.invoice.number, { amount: 9 })
+  const [hit] = await search(cols, '7000000001')
+  assert.deepEqual(hit, { kind: 'payment', number: '7000000001', title: 'Payment 7000000001', subtitle: `for invoice ${order.invoice.number}` })
+  const byInvoice = await search(cols, order.invoice.number)
+  assert.equal(byInvoice[0].kind, 'invoice', 'the invoice outranks the payment that names it')
+  assert.ok(byInvoice.some((h) => h.kind === 'payment'))
+})

@@ -18,7 +18,7 @@ beforeEach(async () => {
   await ensureDefaultPartner(cols, 'Demo')
 })
 
-test('credit exposure is the net of orders not yet invoiced and not cancelled; available is what is left', async () => {
+test('credit exposure is the net of orders not yet invoiced and not canceled, plus the unpaid invoices (v14); available is what is left', async () => {
   const open = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 2, price: 100 }], total: 216 })
   await setStatus(cols, open.number, 'confirmed')
   const done = await createOrder(cols, { commerceOrderId: '2', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 300 }] })
@@ -29,15 +29,16 @@ test('credit exposure is the net of orders not yet invoiced and not cancelled; a
 
   const doc = await describePartner(cols, await getPartner(cols, 'C1'))
 
-  // Net, not what Commerce charged: exposure is what the customer owes for goods.
-  assert.deepEqual(doc.credit, { limit: 1000, exposure: 200, available: 800, held: 0 })
+  // An open order counts at its net; the invoiced one is an open item until it is paid
+  // (contract version 14), at its invoice total (300: no tax was charged on it).
+  assert.deepEqual(doc.credit, { limit: 1000, exposure: 500, openOrders: 200, openItems: 300, available: 500, held: 0 })
 })
 
 test('an order that would take exposure past the limit is held and not yet counted; released, it counts and available reads below zero', async () => {
   const over = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 3, price: 400 }] })
-  assert.deepEqual((await describePartner(cols, await getPartner(cols, 'C1'))).credit, { limit: 1000, exposure: 0, available: 1000, held: 1 })
+  assert.deepEqual((await describePartner(cols, await getPartner(cols, 'C1'))).credit, { limit: 1000, exposure: 0, openOrders: 0, openItems: 0, available: 1000, held: 1 })
   await require('../lib/fulfilment').releaseCredit(cols, over.number)
-  assert.deepEqual((await describePartner(cols, await getPartner(cols, 'C1'))).credit, { limit: 1000, exposure: 1200, available: -200, held: 0 })
+  assert.deepEqual((await describePartner(cols, await getPartner(cols, 'C1'))).credit, { limit: 1000, exposure: 1200, openOrders: 1200, openItems: 0, available: -200, held: 0 })
 })
 
 test('a customer with no Commerce company has no credit — the card is absent, not zero', async () => {

@@ -7,7 +7,8 @@
  * Credit is the card an ERP eye looks for first, and it is the one that is NOT there for
  * the walk-in account: a customer with no Commerce company has no credit relationship,
  * so the ERP answers no credit and the card is left out rather than showing a zero.
- * Exposure is worked out by the ERP on read (lib/partners describePartner), never kept.
+ * Exposure is worked out by the ERP on read (lib/partners describePartner), never kept: its
+ * open orders plus its open items, the invoices not yet paid (contract version 14).
  *
  * Blocking is a verb on the page header — Block customer / Unblock — the way the order
  * document's actions are. The list keeps its switch for quick edits while preparing a
@@ -22,6 +23,7 @@ import Card from './Card'
 import Field from './Field'
 import DocumentPage from './DocumentPage'
 import EditableNumber from './EditableNumber'
+import OpenItemsCard from './OpenItemsCard'
 import { useLoad } from './useLoad'
 import { toastFailed, toastSaved } from './toast'
 import { statusLight, statusText } from './OrderHeader'
@@ -83,6 +85,9 @@ function CreditCard ({ customer, onLimit }) {
           />
         </Field>
         <Field label='Credit exposure'>{money(credit.exposure)}</Field>
+        {/* What the exposure is made of: the two lists below add up to it. */}
+        <Field label='Open orders'>{money(credit.openOrders)}</Field>
+        <Field label='Open items'>{money(credit.openItems)}</Field>
         <Field label='Available credit'>
           <Text UNSAFE_style={over ? { fontWeight: 600 } : undefined}>{money(credit.available)}</Text>
         </Field>
@@ -122,41 +127,39 @@ function CreditCard ({ customer, onLimit }) {
         </View>
       )}
       {/* Which exposure is the truth here (bidirectional review, gap G3): the ERP's, from its
-          open orders. Commerce keeps a balance of its own for payment on account; the two
-          are different numbers and this card does not compare them. */}
-      <Text UNSAFE_className='erp-subtle'>Exposure is the net value of this customer's open orders.</Text>
-      {/* View, not a margin on Text: Spectrum's Text takes no layout props. */}
+          open orders and open items. Commerce keeps a balance of its own for payment on
+          account; the two are different numbers and this card does not compare them.
+          View, not a margin on Text: Spectrum's Text takes no layout props. */}
       <View marginTop='size-250'>
         <Text UNSAFE_className='erp-subtle'>
-          Exposure is the net amount of this customer's sales orders not yet invoiced.
+          Exposure is the net amount of this customer's sales orders not yet invoiced, plus what is open on its invoices.
         </Text>
       </View>
     </Card>
   )
 }
 
-/* The orders exposure is made of: not yet invoiced, not canceled, not on credit hold
-   (lib/partners describePartner uses the same rule). */
-const OPEN_ITEMS = new Set(['created', 'confirmed', 'shipped'])
-const isOpenItem = (o) => OPEN_ITEMS.has(o.status) && o.creditStatus !== 'held'
+/* The orders exposure counts: not yet invoiced, not canceled, not on credit hold
+   (lib/partners exposures uses the same rule). */
+const OPEN_ORDERS = new Set(['created', 'confirmed', 'shipped'])
+const isOpenOrder = (o) => OPEN_ORDERS.has(o.status) && o.creditStatus !== 'held'
 
 const SHOW = [
-  { key: 'open', label: 'Open items' },
+  { key: 'open', label: 'Open orders' },
   { key: 'all', label: 'History' }
 ]
 
 /**
- * Open items first — the uninvoiced orders the exposure figure is made of, so the figure
- * has a list under it that adds up to it (the ERP function of that name) — and the whole
- * history behind a switch.
+ * Open orders first — the uninvoiced orders that are one part of the exposure figure; the
+ * open items card below is the other — and the whole history behind a switch.
  */
 function OrdersCard ({ orders, onOpen, hasCredit }) {
   const [show, setShow] = useState(hasCredit ? 'open' : 'all')
-  const shown = show === 'open' ? orders.filter(isOpenItem) : orders
-  const openNet = orders.filter(isOpenItem).reduce((sum, o) => sum + (o.net || 0), 0)
+  const shown = show === 'open' ? orders.filter(isOpenOrder) : orders
+  const openNet = orders.filter(isOpenOrder).reduce((sum, o) => sum + (o.net || 0), 0)
   return (
     <Card
-      title={show === 'open' ? 'Open items' : 'Sales Orders'}
+      title={show === 'open' ? 'Open orders' : 'Sales Orders'}
       actions={hasCredit && (
         <Picker aria-label='Show' selectedKey={show} onSelectionChange={(k) => setShow(String(k))} items={SHOW} isQuiet>
           {(x) => <Item key={x.key}>{x.label}</Item>}
@@ -164,10 +167,10 @@ function OrdersCard ({ orders, onOpen, hasCredit }) {
       )}
     >
       {show === 'open' && shown.length > 0 && (
-        <Text UNSAFE_className='erp-subtle'>{`${shown.length} open ${shown.length === 1 ? 'item' : 'items'} · ${money(openNet, shown[0].currency)} — the exposure above is this list.`}</Text>
+        <Text UNSAFE_className='erp-subtle'>{`${shown.length} open ${shown.length === 1 ? 'order' : 'orders'} · ${money(openNet, shown[0].currency)} — ordered, not yet invoiced.`}</Text>
       )}
       {shown.length === 0
-        ? <Text>{show === 'open' ? 'No open items: nothing this customer has ordered is still uninvoiced.' : 'No sales orders for this customer.'}</Text>
+        ? <Text>{show === 'open' ? 'No open orders: nothing this customer has ordered is still uninvoiced.' : 'No sales orders for this customer.'}</Text>
         : (
           <TableView
             aria-label="This customer's sales orders" density='compact' overflowMode='wrap'
@@ -378,6 +381,7 @@ export default function CustomerDetail ({ api, id, backLabel = 'Customers', onBa
             <CreditCard customer={customer} onLimit={(creditLimit) => patch({ creditLimit }, 'Credit limit saved')} />
           )}
           <OrdersCard orders={customer.orders || []} onOpen={(number) => onOpen('order', number)}  hasCredit={Boolean(customer.credit)} />
+          {customer.credit && <OpenItemsCard items={customer.openItems || []} onOpen={(number) => onOpen('invoice', number)} />}
           <PriceListsCard
             contracts={customer.contracts || []}
             groupNames={groupNames}

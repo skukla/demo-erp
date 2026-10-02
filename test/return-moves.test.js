@@ -26,3 +26,13 @@ test('an invoice offers its credit memo until it is credited', () => {
   assert.equal(canCreditInvoice({ number: '9000000001', status: 'credited', creditMemo: '9500000001' }), false)
   assert.equal(canCreditInvoice(null), false)
 })
+
+test('an invoice offers Post payment while something is open on it (contract version 14)', () => {
+  const { canPayInvoice } = require('../lib/return-moves')
+  assert.equal(canPayInvoice({ number: '9000000001', openAmount: 42.42, paymentStatus: 'open' }), true)
+  assert.equal(canPayInvoice({ number: '9000000001', openAmount: 2.42, paymentStatus: 'partly paid' }), true)
+  assert.equal(canPayInvoice({ number: '9000000001', openAmount: 0, paymentStatus: 'paid' }), false)
+  assert.equal(canPayInvoice({ number: '9000000001', openAmount: 0, paymentStatus: 'credited' }), false)
+  assert.equal(canPayInvoice({ number: null, legacy: true }), false)
+  assert.equal(canPayInvoice(null), false)
+})

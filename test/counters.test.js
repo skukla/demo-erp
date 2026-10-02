@@ -16,9 +16,9 @@ let cols
 beforeEach(() => { cols = memoryCollections() })
 
 test('each document type starts in its own range, and peeking reserves nothing', async () => {
-  assert.deepEqual(STARTS, { salesOrder: 1000, shipment: 8000000001, invoice: 9000000001, contract: 4000000001, creditMemo: 9500000001, returnOrder: 6000000001 })
+  assert.deepEqual(STARTS, { salesOrder: 1000, shipment: 8000000001, invoice: 9000000001, contract: 4000000001, creditMemo: 9500000001, returnOrder: 6000000001, payment: 7000000001 })
   const fresh = await peek(cols)
-  assert.deepEqual(fresh, { salesOrder: '0000001000', shipment: '8000000001', invoice: '9000000001', contract: '4000000001', creditMemo: '9500000001', returnOrder: '6000000001' })
+  assert.deepEqual(fresh, { salesOrder: '0000001000', shipment: '8000000001', invoice: '9000000001', contract: '4000000001', creditMemo: '9500000001', returnOrder: '6000000001', payment: '7000000001' })
   // Peeking twice answers the same numbers: nothing was taken.
   assert.deepEqual(await peek(cols), fresh)
   assert.equal(formatDocumentNumber(await next(cols, 'salesOrder', STARTS.salesOrder)), '0000001000')
@@ -32,9 +32,9 @@ test('the real documents draw from those ranges, and the next numbers survive a 
   await createShipment(cols, order.number, { lines: [{ item: 10, qty: 2 }] })
   await postShipment(cols, order.number, '8000000001')
   await createInvoice(cols, order.number)
-  assert.deepEqual(await peek(cols), { salesOrder: '0000001001', shipment: '8000000002', invoice: '9000000002', contract: '4000000001', creditMemo: '9500000001', returnOrder: '6000000001' })
+  assert.deepEqual(await peek(cols), { salesOrder: '0000001001', shipment: '8000000002', invoice: '9000000002', contract: '4000000001', creditMemo: '9500000001', returnOrder: '6000000001', payment: '7000000001' })
   await wipe(cols)
-  assert.deepEqual(await peek(cols), { salesOrder: '0000001001', shipment: '8000000002', invoice: '9000000002', contract: '4000000001', creditMemo: '9500000001', returnOrder: '6000000001' })
+  assert.deepEqual(await peek(cols), { salesOrder: '0000001001', shipment: '8000000002', invoice: '9000000002', contract: '4000000001', creditMemo: '9500000001', returnOrder: '6000000001', payment: '7000000001' })
 })
 
 test('a counter the database hands back as a 64-bit Long still counts up by one', async () => {

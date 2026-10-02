@@ -20,6 +20,7 @@ const { createOrder } = require('../lib/orders')
 const { confirmOrder, createShipment, postShipment, createInvoice } = require('../lib/fulfilment')
 const { upsertCondition } = require('../lib/conditions')
 const { getSettings, updateSettings, SETTINGS_ID } = require('../lib/settings')
+const { postPayment } = require('../lib/payments')
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'record-shapes.json')
 const UPDATE = process.env.UPDATE_RECORD_SHAPES === '1'
@@ -37,7 +38,8 @@ async function makeRecords () {
   await confirmOrder(cols, order.number)
   const withShipment = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 3 }], warehouse: 'default' })
   await postShipment(cols, order.number, withShipment.shipments[0].number)
-  await createInvoice(cols, order.number)
+  const invoiced = await createInvoice(cols, order.number)
+  await postPayment(cols, invoiced.invoice.number, { amount: 10, reference: 'Check 1' })
   await upsertCondition(cols, { kind: 'contractPrice', partnerId: 'C1', sku: 'A1', price: 9, validFrom: '2026-01-01', validTo: '2026-12-31', minQty: 2 })
   await upsertCondition(cols, { kind: 'contractDiscount', partnerId: 'C1', percent: 5 })
   await upsertCondition(cols, { kind: 'maxDiscount', percent: 20 })
@@ -50,6 +52,7 @@ async function makeRecords () {
   const product = await cols.products.findOne({ _id: 'A1' })
   const conditions = await cols.pricingConditions.find({}).toArray()
   const settings = await cols.settings.findOne({ _id: SETTINGS_ID })
+  const payment = await cols.payments.findOne({ _id: '7000000001' })
   const kind = (k) => conditions.find((c) => c.kind === k)
   return {
     partner: keys(partner),
@@ -67,7 +70,8 @@ async function makeRecords () {
     contractDiscount: keys(kind('contractDiscount')),
     maxDiscount: keys(kind('maxDiscount')),
     settings: keys(settings),
-    appearance: keys(settings.appearance)
+    appearance: keys(settings.appearance),
+    payment: keys(payment)
   }
 }
 

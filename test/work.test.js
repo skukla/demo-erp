@@ -79,3 +79,23 @@ test('every cue the screen draws has a count, and every rail count names cues th
   for (const cue of CUES) assert.equal(typeof counts[cue.key], 'number', cue.key)
   for (const keys of Object.values(RAIL_COUNTS)) for (const key of keys) assert.ok(CUES.some((c) => c.key === key), key)
 })
+
+test('"Invoices to collect" counts the invoices with something open, the ones Post payment is offered on', async () => {
+  const { postPayment } = require('../lib/payments')
+  const invoiced = async (id) => {
+    const placed = await confirmOrder(cols, (await order(id)).number)
+    const shipped = await createShipment(cols, placed.number, { lines: [{ item: 10, qty: 2 }] })
+    await postShipment(cols, placed.number, shipped.shipments[0].number)
+    return createInvoice(cols, placed.number)
+  }
+  await invoiced('1')                                                        // open
+  const partly = await invoiced('2')
+  await postPayment(cols, partly.invoice.number, { amount: 5 })              // partly paid
+  const paid = await invoiced('3')
+  await postPayment(cols, paid.invoice.number, { amount: 20 })               // paid: no cue
+  const { counts } = await workList(cols)
+  assert.equal(counts.invoicesToCollect, 2)
+  const cue = CUES.find((c) => c.key === 'invoicesToCollect')
+  assert.deepEqual(cue, { key: 'invoicesToCollect', label: 'Invoices to collect', list: 'invoices', filter: 'toCollect' })
+  assert.deepEqual(RAIL_COUNTS.invoices, ['invoicesToCollect'])
+})

@@ -51,3 +51,16 @@ test('return orders are named in the screen\'s words, and a wipe removes them', 
   const { WIPED } = require('../lib/admin')
   assert.ok(WIPED.includes('returnOrders'))
 })
+
+test('payments are named in the screen\'s words, and a wipe removes them: a Reset starts with nothing paid', async () => {
+  const { wipeSummary } = await load()
+  assert.equal(wipeSummary({ payments: 1 }), 'Wiped 1 payment. The order numbering and the settings stay.')
+  assert.equal(wipeSummary({ payments: 3 }), 'Wiped 3 payments. The order numbering and the settings stay.')
+  const { WIPED, wipe } = require('../lib/admin')
+  assert.ok(WIPED.includes('payments'))
+  const { memoryCollections } = require('./helpers/memory-db')
+  const cols = memoryCollections()
+  await cols.payments.replaceOne({ _id: '7000000001' }, { _id: '7000000001', number: '7000000001', amount: 1 }, { upsert: true })
+  assert.equal((await wipe(cols)).payments, 1)
+  assert.equal(await cols.payments.countDocuments({}), 0)
+})

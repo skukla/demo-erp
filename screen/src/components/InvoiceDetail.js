@@ -2,10 +2,14 @@
  * One invoice's document: the whole order, billed once. Bill-to is the sold-to, as
  * ship-to is on the order — SAP's simplest case, and the honest one here.
  *
- * Its one move is Post credit memo: the whole invoice, once (contract version 13). The
+ * It is an open item until it is paid (contract version 14): the page shows what is still
+ * open and offers Post payment while anything is, the amount editable for a partial
+ * payment; its payments are listed among its related documents.
+ *
+ * Its other move is Post credit memo: the whole invoice, once (contract version 13). The
  * ERP refuses it in words when a return order is open on the invoice or has credited
  * part of it, and the page shows that refusal as it stands. Credited, the invoice offers
- * nothing and names the credit memo that credited it.
+ * no credit and names the credit memo that credited it.
  */
 import React from 'react'
 import { Grid, StatusLight, TableView, TableHeader, Column, TableBody, Row, Cell, Text, View } from '@adobe/react-spectrum'
@@ -14,14 +18,45 @@ import Card from './Card'
 import Field from './Field'
 import Totals from './Totals'
 import PostCreditMemo from './PostCreditMemo'
+import PostPayment from './PostPayment'
+import { Box } from './RelatedDocuments'
 import { useLoad } from './useLoad'
 import { useDocumentAction } from './useDocumentAction'
-import { canCreditInvoice } from '../../../lib/return-moves'
+import { paymentStatusText, paymentStatusLight } from './paymentFormat'
+import { canCreditInvoice, canPayInvoice } from '../../../lib/return-moves'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
 
+/** The invoice's related documents: its sales order and the payments against it (a credit memo is named in the header). */
+function InvoiceDocuments ({ invoice, payments, onOpen }) {
+  return (
+    <Card title='Related Documents'>
+      <div className='erp-doc-flow'>
+        <Box kind='Sales order' number={invoice.orderNumber} when={invoice.commerceIncrementId ? `Ref ${invoice.commerceIncrementId}` : ''} status='Invoiced' variant='info' onOpen={() => onOpen('order', invoice.orderNumber)} />
+        {payments.map((p) => (
+          <Box
+            key={p.number}
+            kind='Payment'
+            number={p.number}
+            when={formatDate(p.createdAt)}
+            note={money(p.amount, p.currency)}
+            status='Posted'
+            variant='positive'
+            onOpen={() => onOpen('payment', p.number)}
+          />
+        ))}
+      </div>
+      {payments.length === 0 && <Text>No payment yet.</Text>}
+    </Card>
+  )
+}
+
 export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', onBack, onOpen, onChanged }) {
-  const { rows, error, reload } = useLoad(async () => [await api.invoice(number)], [api, number])
+  const { rows, error, reload } = useLoad(async () => {
+    const found = await api.invoice(number)
+    // The invoice names its payments by number (contract version 14); each is read for its date and amount.
+    return [{ ...found, paymentDocuments: await Promise.all((found.payments || []).map((n) => api.payment(n))) }]
+  }, [api, number])
   const invoice = rows && rows[0]
   const credited = invoice && invoice.status === 'credited'
   const { act, busy, error: actionError } = useDocumentAction(reload, onChanged)
@@ -33,8 +68,15 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
       subtitle={invoice ? `Sales order ${invoice.orderNumber}` : undefined}
       error={actionError || error}
       loading={!invoice}
-      actions={canCreditInvoice(invoice) && (
-        <PostCreditMemo what='this invoice in full' isDisabled={busy} onPost={() => act(() => api.creditInvoice(invoice.orderNumber), 'Credit memo posted')} />
+      actions={invoice && (canPayInvoice(invoice) || canCreditInvoice(invoice)) && (
+        <>
+          {canPayInvoice(invoice) && (
+            <PostPayment openAmount={invoice.openAmount} currency={invoice.currency} isDisabled={busy} onPost={(body) => act(() => api.postPayment(invoice.number, body), 'Payment posted')} />
+          )}
+          {canCreditInvoice(invoice) && (
+            <PostCreditMemo what='this invoice in full' isDisabled={busy} onPost={() => act(() => api.creditInvoice(invoice.orderNumber), 'Credit memo posted')} />
+          )}
+        </>
       )}
     >
       {invoice && (
@@ -43,9 +85,12 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
             <Grid columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }} gap='size-250'>
               <Field label='Document type'>Invoice</Field>
               <Field label='Billing date'>{formatDate(invoice.createdAt)}</Field>
-              <Field label='Status'>
-                <StatusLight variant={credited ? 'notice' : 'positive'} marginStart='size-0'>{credited ? 'Credited' : 'Open'}</StatusLight>
+              <Field label='Payment status'>
+                <StatusLight variant={paymentStatusLight(invoice)} marginStart='size-0'>{paymentStatusText(invoice)}</StatusLight>
               </Field>
+              {/* What is still owed on it: the total, less payments and credits (lib/open-items). */}
+              <Field label='Open amount'>{invoice.openAmount === undefined ? '—' : money(invoice.openAmount, invoice.currency)}</Field>
+              <Field label='Paid'>{money(invoice.paidAmount || 0, invoice.currency)}</Field>
               <Field label='Sales order'>
                 <button type='button' className='erp-link' onClick={() => onOpen('order', invoice.orderNumber)}>{invoice.orderNumber}</button>
               </Field>
@@ -114,6 +159,7 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
             </TableView>
             <Totals net={invoice.net} tax={invoice.tax} total={invoice.total} currency={invoice.currency} />
           </Card>
+          <InvoiceDocuments invoice={invoice} payments={invoice.paymentDocuments} onOpen={onOpen} />
         </>
       )}
     </DocumentPage>

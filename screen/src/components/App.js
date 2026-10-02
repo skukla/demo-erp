@@ -31,6 +31,7 @@ import Shipments from './Shipments'
 import Invoices from './Invoices'
 import Returns from './Returns'
 import CreditMemos from './CreditMemos'
+import Payments from './Payments'
 import Pricing from './Pricing'
 import Contracts from './Contracts'
 import PriceGroups from './PriceGroups'
@@ -39,8 +40,8 @@ import Events from './Events'
 
 /* The menu, as an ERP arranges one: a home, then areas under the part of the business
    they belong to. Sales runs in document order — order, shipment, invoice, then what
-   comes back (the return order) and what is credited (the credit memo) — which is the
-   order the demo walks them in. */
+   comes back (the return order), what is credited (the credit memo) and what is paid (the
+   incoming payment) — which is the order the demo walks them in. */
 const AREAS = [
   { group: null, items: [{ key: 'home', label: 'Home', Component: Home }] },
   {
@@ -50,7 +51,8 @@ const AREAS = [
       { key: 'shipments', label: 'Shipments', Component: Shipments },
       { key: 'invoices', label: 'Invoices', Component: Invoices },
       { key: 'returns', label: 'Returns', Component: Returns },
-      { key: 'creditMemos', label: 'Credit Memos', Component: CreditMemos }
+      { key: 'creditMemos', label: 'Credit Memos', Component: CreditMemos },
+      { key: 'payments', label: 'Payments', Component: Payments }
     ]
   },
   {

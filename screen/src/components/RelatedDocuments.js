@@ -3,7 +3,7 @@
  * order; Business Central heads the same idea Related documents.
  *
  * Each box is a number, a date and a status, and each opens that document: the order's
- * shipments, its invoice, then its return orders and credit memos. Before
+ * shipments, its invoice and the payments against it, then its return orders and credit memos. Before
  * anything follows, the strip says so — which is itself an ERP thing to see.
  */
 import React from 'react'
@@ -12,6 +12,7 @@ import Card from './Card'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
 import { returnStatusText, returnStatusLight } from './returnFormat'
+import { paymentStatusText, paymentStatusLight } from './paymentFormat'
 
 /** One document in a flow: exported so a return order can draw its own flow from the same boxes. */
 export function Box ({ kind, number, when, status, variant, onOpen, note }) {
@@ -42,6 +43,7 @@ export default function RelatedDocuments ({ order, onOpen }) {
   const invoice = order.invoice
   const returnOrders = order.returnOrders || []
   const creditMemos = order.creditMemos || []
+  const payments = order.payments || []
   if (shipments.length === 0 && !invoice) {
     return (
       <Card title='Related Documents'>
@@ -72,11 +74,24 @@ export default function RelatedDocuments ({ order, onOpen }) {
               kind='Invoice'
               number={invoice.number}
               when={formatDate(invoice.createdAt)}
-              status={invoice.status === 'credited' ? 'Credited' : 'Open'}
-              variant='positive'
+              status={paymentStatusText(invoice)}
+              variant={paymentStatusLight(invoice)}
               onOpen={onOpen && (() => onOpen('invoice', invoice.number))}
             />
             ))}
+        {/* The payments against the invoice (contract version 14). */}
+        {payments.map((p) => (
+          <Box
+            key={p.number}
+            kind='Payment'
+            number={p.number}
+            when={formatDate(p.createdAt)}
+            note={money(p.amount, p.currency)}
+            status='Posted'
+            variant='positive'
+            onOpen={onOpen && (() => onOpen('payment', p.number))}
+          />
+        ))}
         {/* After the invoice, what came back and what was credited (contract version 13). */}
         {returnOrders.map((r) => (
           <Box
