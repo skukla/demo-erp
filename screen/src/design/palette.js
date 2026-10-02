@@ -10,7 +10,7 @@
  * The catalog is lib/appearance.js, the one the actions validate against. The hex lives
  * there rather than here so a palette cannot exist on one side and not the other.
  */
-import { PALETTES, TOKENS, LOGOS, NAV_POSITIONS, THEMES, DEFAULT_APPEARANCE } from '../../../lib/appearance.js'
+import { PALETTES, TOKENS, LOGOS, NAV_POSITIONS, THEMES, DEFAULT_APPEARANCE, normalizeAppearance } from '../../../lib/appearance.js'
 
 /**
  * The eight custom properties for a palette.
@@ -42,5 +42,6 @@ export function applyPalette (id) {
 }
 
 /* The screen's one door to the catalog: everything on this side imports the lists from
-   here, so there is a single place to look when asking what the actions will accept. */
-export { PALETTES, TOKENS, LOGOS, NAV_POSITIONS, THEMES, DEFAULT_APPEARANCE }
+   here, so there is a single place to look when asking what the actions will accept —
+   and, through normalizeAppearance, what they will store. */
+export { PALETTES, TOKENS, LOGOS, NAV_POSITIONS, THEMES, DEFAULT_APPEARANCE, normalizeAppearance }

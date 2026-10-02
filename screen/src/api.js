@@ -26,14 +26,16 @@ export function makeApi (screenKey, base = screenBase()) {
   }
   return {
     health: () => call('health'),
-    settings: () => call('settings'),
-    saveSettings: (patch) => call('settings', { method: 'PATCH', body: patch }),
+    // The ERP's setup (Settings): its four sections, and its own sales organizations.
+    setup: () => call('settings', { path: '/setup' }),
+    saveSetup: (patch) => call('settings', { method: 'PATCH', path: '/setup', body: patch }),
+    addSalesOrganization: (org) => call('settings', { method: 'POST', path: '/sales-organizations', body: org }),
+    updateSalesOrganization: (code, patch) => call('settings', { method: 'PATCH', path: `/sales-organizations/${encodeURIComponent(code)}`, body: patch }),
     // A warehouse is the ERP's own name for a Commerce inventory source; its name is stored
     // with the settings, but the SC manages warehouses on their own Master Data screen.
     renameWarehouse: (code, name) => call('settings', { method: 'PATCH', body: { warehouses: { [code]: { name } } } }),
-    wipe: () => call('admin', { method: 'POST', path: '/wipe' }),
-    startMaintenance: (minutes) => call('settings', { method: 'POST', path: '/maintenance', body: { minutes } }),
-    endMaintenance: () => call('settings', { method: 'DELETE', path: '/maintenance' }),
+    // How the screen looks, from the user menu: `{ theme?, palette? }` (lib/appearance.js).
+    saveAppearance: (appearance) => call('settings', { method: 'PATCH', body: { appearance } }),
     products: () => call('products'),
     product: (sku) => call('products', { path: `/${encodeURIComponent(sku)}` }),
     patchProduct: (sku, patch) => call('products', { method: 'PATCH', path: `/${encodeURIComponent(sku)}`, body: patch }),

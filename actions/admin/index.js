@@ -17,6 +17,7 @@ const { importPartners, ensureDefaultPartner } = require('../../lib/partners')
 const { seedPricing } = require('../../lib/seed-pricing')
 const { stamp } = require('../../lib/settings')
 const { journalImport } = require('../../lib/inbound')
+const { seedSalesOrganizations } = require('../../lib/sales-organizations')
 
 async function handler ({ cols, method, segments, body }) {
   if (method !== 'POST') return
@@ -35,8 +36,12 @@ async function handler ({ cols, method, segments, body }) {
     // each customer's group, and the group's price lists. Sent last by the fill, so the products
     // and partners it references are already in.
     const seed = body.seed ? await seedPricing(cols, body.seed) : undefined
-    // Commerce's websites and their sales organisations, replaced on every fill.
-    if (body.structure && Array.isArray(body.structure.websites)) await stamp(cols, { structureMirror: { websites: body.structure.websites } })
+    // Commerce's websites and their sales organizations, replaced on every fill. The first
+    // fill also seeds the ERP's own sales organizations; after that they are the ERP's.
+    if (body.structure && Array.isArray(body.structure.websites)) {
+      await stamp(cols, { structureMirror: { websites: body.structure.websites } })
+      await seedSalesOrganizations(cols, body.structure.websites)
+    }
     if (Array.isArray(body.products)) await stamp(cols, { lastImportAt: new Date().toISOString() })
     // A write a Commerce event brought is journaled, so the Events log shows it arrived. The
     // setup seed is not a Commerce event, so a seed-only import journals nothing.

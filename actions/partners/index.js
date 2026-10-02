@@ -9,7 +9,7 @@
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound } = require('../../lib/errors')
-const { listPartners, getPartner, patchPartner, describePartner, withCredit, exposureOf } = require('../../lib/partners')
+const { listPartners, getPartner, patchPartner, describePartner, withCredit, creditStanding } = require('../../lib/partners')
 const { assessCredit } = require('../../lib/credit')
 
 async function handler ({ cols, method, segments, body, params }) {
@@ -26,8 +26,7 @@ async function handler ({ cols, method, segments, body, params }) {
   if (method === 'POST' && id && segments[1] === 'credit-check') {
     const partner = await getPartner(cols, id)
     if (!partner) throw notFound(`Customer ${id}`)
-    const exposure = await exposureOf(cols, id)
-    return ok(assessCredit({ partner, exposure, net: body && body.net, currency: (body && body.currency) || 'USD' }))
+    return ok(assessCredit({ partner, ...await creditStanding(cols, partner), net: body && body.net, currency: (body && body.currency) || 'USD' }))
   }
   if ((method === 'PATCH' || method === 'POST') && id) {
     const partner = await patchPartner(cols, id, body, params)

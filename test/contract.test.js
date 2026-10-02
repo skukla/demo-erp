@@ -229,8 +229,8 @@ test('from version 13: return orders and credit memos, their routes, shapes and 
   assert.deepEqual(Object.keys(memo.lines[0]).sort(), [...contract.creditMemo.line].sort())
 })
 
-test('the contract is at version 14: open items and incoming payments, their routes, shapes and one event', async () => {
-  assert.equal(contract.contractVersion, 14)
+test('from version 14: open items and incoming payments, their routes, shapes and one event', async () => {
+  assert.ok(contract.contractVersion >= 14)
   assert.deepEqual(contract.routes.invoices, ['GET', 'GET /:number', 'POST /:number/payments'])
   assert.deepEqual(contract.routes.payments, ['GET', 'GET /:number'])
   assert.equal(contract.events['be-observer.sales_order_payment_create'].raisedBy, 'payment.posted')
@@ -256,4 +256,27 @@ test('the contract is at version 14: open items and incoming payments, their rou
     assert.ok(contract.payments.paymentStatuses.includes(described.paymentStatus))
   }
   assert.equal(invoice.paymentStatus, 'partly paid')
+})
+
+test('the contract is at version 15: the ERP\'s setup, its routes and shapes as the code answers them, and a return line\'s reason code', async () => {
+  assert.equal(contract.contractVersion, 15)
+  for (const route of ['GET', 'PATCH', 'GET /setup', 'PATCH /setup', 'POST /sales-organizations', 'PATCH /sales-organizations/:code', 'POST /maintenance', 'DELETE /maintenance']) {
+    assert.ok(contract.routes.settings.includes(route), route)
+  }
+  const { CREDIT_WARNINGS } = require('../lib/credit')
+  assert.deepEqual(contract.settings.creditWarnings, CREDIT_WARNINGS)
+  assert.match(contract.settings.note, /version 15/)
+  // The setup as the code answers it.
+  const { invoke } = require('./helpers/memory-db')
+  const setup = (await invoke(require('../actions/settings'), cols, { path: '/setup' })).body
+  assert.deepEqual(Object.keys(setup).sort(), [...contract.settings.setup].sort())
+  assert.deepEqual(Object.keys(setup.company).sort(), [...contract.settings.company].sort())
+  assert.deepEqual(Object.keys(setup.sales).sort(), [...contract.settings.sales].sort())
+  assert.deepEqual(Object.keys(setup.sales.returnReasons[0]).sort(), [...contract.settings.returnReason].sort())
+  assert.deepEqual(Object.keys(setup.numberSeries[0]).sort(), [...contract.settings.numberSeriesRow].sort())
+  assert.deepEqual(setup.numberSeries.map((s) => s.type), contract.settings.numberSeriesTypes)
+  const added = (await invoke(require('../actions/settings'), cols, { method: 'POST', path: '/sales-organizations', body: { code: '1000', name: 'Home', currency: 'USD' } })).body
+  assert.deepEqual(Object.keys(added.salesOrganizations[0]).sort(), [...contract.settings.salesOrganization].sort())
+  // A return line carries the reason code it was coded with.
+  assert.ok(contract.returns.responseLine.includes('reasonCode'))
 })

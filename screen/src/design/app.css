@@ -664,8 +664,7 @@ body,
   color: var(--ink-2);
 }
 
-.erp-swatch-row,
-.erp-mark-row {
+.erp-swatch-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -686,131 +685,6 @@ body,
   border-color: var(--ink);
 }
 
-.erp-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  color: var(--ink-2);
-  cursor: pointer;
-  background: var(--surface-card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-}
-
-.erp-mark:hover {
-  border-color: var(--line-strong);
-}
-
-.erp-mark[aria-pressed="true"] {
-  color: var(--accent-ink);
-  background: var(--accent-tint);
-  border-color: var(--accent-edge);
-}
-
-/* ---- The look, at a smaller size ------------------------------------------------
- * What the SC is choosing, shown as the thing itself: the shell bar over a sketch of
- * the page under it. It takes its colours from the page's own custom properties rather
- * than from the values being edited, because App has already applied them — so if this
- * strip ever looked wrong, the screen around it would be wrong in the same way.
- *
- * The nav sketch is the part the radio buttons cannot say: side rail and top band are a
- * shape before they are a word. */
-.erp-look {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-surface);
-  max-width: 420px;
-}
-
-.erp-look-bar {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-  padding: 0 var(--space-3);
-  height: 38px;
-  background: var(--shell);
-  color: var(--shell-ink);
-}
-
-.erp-look-name {
-  font-size: var(--type-body-size);
-  font-weight: var(--type-section-weight);
-}
-
-.erp-look-body {
-  display: flex;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  height: 78px;
-  background: var(--surface-canvas);
-}
-
-.erp-look-rail {
-  flex-direction: row;
-}
-
-.erp-look-top {
-  flex-direction: column;
-}
-
-.erp-look-nav {
-  display: flex;
-  gap: var(--space-1);
-  padding: var(--space-2);
-  background: var(--surface-rail);
-  border-radius: var(--radius-control);
-}
-
-/* Side rail: a column down the left. Top band: a row across the width. */
-.erp-look-rail .erp-look-nav {
-  flex: 0 0 68px;
-  flex-direction: column;
-}
-
-.erp-look-top .erp-look-nav {
-  flex: 0 0 auto;
-  flex-direction: row;
-}
-
-.erp-look-nav i {
-  height: 6px;
-  background: var(--accent);
-  border-radius: var(--radius-badge);
-  opacity: 0.55;
-}
-
-.erp-look-rail .erp-look-nav i {
-  width: 100%;
-}
-
-.erp-look-top .erp-look-nav i {
-  width: 34px;
-}
-
-.erp-look-canvas {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-2);
-  background: var(--surface-card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-}
-
-.erp-look-canvas i {
-  height: 6px;
-  background: var(--line);
-  border-radius: var(--radius-badge);
-}
-
-.erp-look-canvas i:first-child {
-  width: 45%;
-  background: var(--line-strong);
-}
-
 /* A labelled control: the label, then the control, with nothing relying on the label to
    space itself. */
 .erp-setting {
@@ -825,8 +699,8 @@ body,
  * screen earned.
  *
  * `auto-fit` with a minimum rather than a media query, because the number that matters
- * here is how narrow a COLUMN may get before the theme cards inside it start wrapping
- * badly — not how wide the window is. The rail takes its own width out of that, so a
+ * here is how narrow a COLUMN may get before the setup forms and tables inside it start
+ * wrapping badly — not how wide the window is. The rail takes its own width out of that, so a
  * window-width breakpoint would have to guess at it; this measures the real thing and
  * drops to one column by itself. */
 .erp-settings-columns {
@@ -976,6 +850,15 @@ body,
 /* No width rules on Spectrum's inner parts: the ComboBox's own width prop sizes them, and
    a `[class*="spectrum-Field"]` selector also matched its FieldButton, which then
    stretched over the input and took every click (measured 2026-09-24). */
+
+/* ---- User menu -------------------------------------------------------------------
+ * The round button at the end of the shell bar: Fiori's user menu, with a generic person
+ * where Fiori shows a photo or initials, because the ERP has no sign-in to know who is
+ * looking. Two classes, so the circle beats Spectrum's own button radius. */
+.erp-shellbar .erp-user-menu {
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
 
 /* A document number inside a journal sentence, openable from the row. */
 .erp-journal-link {

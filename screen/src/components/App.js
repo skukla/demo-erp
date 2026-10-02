@@ -23,6 +23,7 @@ import { applyPalette, DEFAULT_APPEARANCE } from '../design/palette'
 import Logo from './Logo'
 import Home from './Home'
 import ShellSearch from './ShellSearch'
+import UserMenu from './UserMenu'
 import Products from './Products'
 import Warehouses from './Warehouses'
 import Partners from './Partners'
@@ -110,10 +111,10 @@ export default function App ({ screenKey, api: given }) {
   // also carries the area's query — a work filter, a document to open (pageRoute.js).
   const [route, setRoute] = useState(() => routeOf(window.location.hash))
   const { page, query } = route
-  /* What Settings is showing the SC before they save it. Null the rest of the time, so
-     the saved appearance is the truth everywhere except while somebody is choosing.
-     Settings clears it when it unmounts, which is what makes leaving without saving put
-     the ERP back the way it was. */
+  /* What the Appearance panel (user menu) is showing before it is saved. Null the rest of
+     the time, so the saved appearance is the truth everywhere except while somebody is
+     choosing. The panel clears it when it closes, which is what makes closing without
+     saving put the screen back the way it was. */
   const [preview, setPreview] = useState(null)
   // Bumped on every rail click and carried in the active page's key, so choosing an
   // area re-mounts it and it reads its records again — including when the area chosen
@@ -177,10 +178,11 @@ export default function App ({ screenKey, api: given }) {
   }, [refreshHealth])
 
   const active = PAGES.find((p) => p.key === page) || PAGES[0]
-  /* The look, from the ERP unless somebody is trying one on. Before health arrives this
-     is the default, which is why the first paint is the default palette rather than an
-     unstyled one. */
-  const look = preview || (health && health.appearance) || DEFAULT_APPEARANCE
+  /* The look, from the ERP (PATCH settings { appearance }) unless somebody is trying one on
+     in the user menu. Before health arrives this is the default, which is why the first
+     paint is the default palette rather than an unstyled one. */
+  const saved = (health && health.appearance) || DEFAULT_APPEARANCE
+  const look = preview || saved
   const shape = look.nav
   const name = health ? health.displayName : FALLBACK_NAME
   // Writing the eight custom properties onto <html>, where they beat tokens.css.
@@ -194,6 +196,7 @@ export default function App ({ screenKey, api: given }) {
           <Logo logo={look.logo} name={name} />
           <span className='erp-shellbar-name'>{name}</span>
           {ready && <ShellSearch api={api} onOpen={openPage} />}
+          {ready && <UserMenu api={api} saved={saved} onPreview={setPreview} onChanged={refreshHealth} />}
         </header>
         {shape === 'top' && (
           <nav className='erp-topnav' aria-label='Areas'>
@@ -296,7 +299,6 @@ export default function App ({ screenKey, api: given }) {
               reloading={reloading}
               onChanged={refreshHealth}
               onNavigate={openPage}
-              onPreview={setPreview}
             />
           )}
           </div>

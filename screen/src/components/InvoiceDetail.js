@@ -26,6 +26,7 @@ import { paymentStatusText, paymentStatusLight } from './paymentFormat'
 import { canCreditInvoice, canPayInvoice } from '../../../lib/return-moves'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
+import { addressLines } from './setupFormat'
 
 /** The invoice's related documents: its sales order and the payments against it (a credit memo is named in the header). */
 function InvoiceDocuments ({ invoice, payments, onOpen }) {
@@ -120,8 +121,8 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
               </View>
             )}
           </Card>
-          {/* Who is invoicing: the company code and the sales organisation the order came
-              through (a real invoice carries the seller; the structure mirror supplies it). */}
+          {/* Who is invoicing: the company as Settings holds it (code, name, address, tax ID)
+              and the sales organization the order came through. */}
           {invoice.seller && (
             <Card title='Seller'>
               <Grid columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }} gap='size-250'>
@@ -129,6 +130,7 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
                 <Field label='Sales organization'>{invoice.seller.salesOrg ? `${invoice.seller.salesOrg}${invoice.seller.salesOrgName ? ` · ${invoice.seller.salesOrgName}` : ''}` : '—'}</Field>
                 <Field label='Country'>{invoice.seller.countryId || '—'}</Field>
                 <Field label='VAT number'>{invoice.seller.vatNumber || '—'}</Field>
+                <Field label='Address'>{addressLines(invoice.seller.address).join(', ') || '—'}</Field>
               </Grid>
             </Card>
           )}

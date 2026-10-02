@@ -152,10 +152,13 @@
   "settings": [
     "_id",
     "appearance",
+    "company",
     "displayName",
     "lastImportAt",
     "lastWipeAt",
     "maintenanceUntil",
+    "sales",
+    "salesOrganizations",
     "structureMirror",
     "timeZone",
     "warehouses"

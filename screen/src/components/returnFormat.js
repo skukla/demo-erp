@@ -8,3 +8,6 @@ const LIGHTS = { open: 'notice', received: 'info', credited: 'positive' }
 
 export const returnStatusText = (r) => WORDS[r.status] || r.status
 export const returnStatusLight = (r) => LIGHTS[r.status] || 'neutral'
+
+/** A return line's reason with the ERP's code before it, "WRONGSIZE · Wrong size" (contract version 15). */
+export const returnReasonText = (line) => (line.reasonCode ? `${line.reasonCode} · ${line.reason}` : line.reason)

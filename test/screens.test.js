@@ -77,14 +77,17 @@ after(async () => {
   }
 })
 
-/** A page with a pinned locale and clock, collecting everything the console complains about. */
-async function open (hash) {
+/**
+ * A page with a pinned locale and clock, collecting everything the console complains about.
+ * `search` is the preview's own query (`?maintenance` opens it inside a maintenance window).
+ */
+async function open (hash, search = '') {
   const context = await browser.newContext({ viewport: VIEWPORT, locale: 'en-US', timezoneId: 'UTC' })
   const page = await context.newPage()
   const problems = []
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console.error: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
-  await page.goto(`${preview.url}#${hash}`)
+  await page.goto(`${preview.url}${search}#${hash}`)
   // Park the pointer on empty canvas: a header cell under the mouse grows its resizer.
   await page.mouse.move(VIEWPORT.width - 8, VIEWPORT.height - 8)
   await settled(page)
@@ -420,16 +423,178 @@ test('the title line stays while a long list scrolls under it', async () => {
   }
 })
 
-test('settings starts a maintenance window, the banner names its end, and ending it takes the banner away', async () => {
+/* Settings is the ERP's setup (AB-59): four sections, and none of the demo's own controls
+   (on the ERP's card in Demo Builder) or the SC's appearance (in the user menu, below). */
+test('settings is a setup page: four sections, and no wipe, maintenance or appearance', async () => {
   const { page, context, problems } = await open('settings')
   try {
-    assert.equal(await page.locator('.erp-maintenance-banner').count(), 0)
-    await page.getByRole('button', { name: 'Start maintenance' }).click()
+    const titles = await page.locator('.erp-card-header h3').allTextContents()
+    assert.deepEqual(titles, ['Company', 'Sales & Receivables', 'Number Series', 'Sales Organizations'])
+    const text = await page.locator('.erp-content').textContent()
+    for (const gone of ['Wipe all records', 'Start maintenance', 'Appearance', 'Records', 'Last import']) assert.ok(!text.includes(gone), `${gone} is not on the ERP's screen`)
+    assert.deepEqual(problems, [], 'settings console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a section edits in place: Edit, change, Save; Cancel puts it back; the seller follows', async () => {
+  const { page, context, problems } = await open('settings')
+  try {
+    await page.getByRole('button', { name: 'Edit company' }).click()
+    await page.getByRole('textbox', { name: 'Name' }).fill('Contoso Holdings')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByText('Contoso Holdings').waitFor({ timeout: 5000 })
+    await page.getByRole('button', { name: 'Edit company' }).click()
+    await page.getByRole('textbox', { name: 'Name' }).fill('Never kept')
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    assert.ok((await page.locator('.erp-content').textContent()).includes('Contoso Holdings'))
+    assert.deepEqual(problems, [], 'company edit console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a refusal is shown in the ERP\'s words: a section keeps what was typed, a number series never goes back', async () => {
+  const { page, context, problems } = await open('settings')
+  try {
+    await page.getByRole('button', { name: 'Edit company' }).click()
+    await page.getByRole('textbox', { name: 'Currency' }).fill('dollars')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByText('A currency is a three-letter code, such as USD.').waitFor({ timeout: 5000 })
+    assert.equal(await page.getByRole('textbox', { name: 'Currency' }).inputValue(), 'dollars')
+    await page.getByRole('button', { name: 'Edit next sales orders number' }).click()
+    const field = page.getByRole('textbox', { name: 'Next sales orders number' })
+    await field.fill('0000000500')
+    await field.press('Enter')
+    await page.getByText('A number series never goes back: the next sales order number is 0000001010. Enter 0000001010 or higher.', { exact: false }).waitFor({ timeout: 5000 })
+    assert.deepEqual(problems, [], 'refusal console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('sales organizations: add one, and a code already there is refused in the dialog', async () => {
+  const { page, context, problems } = await open('settings')
+  try {
+    const card = page.locator('.erp-card', { hasText: 'Sales Organizations' })
+    await card.getByRole('button', { name: 'Add' }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('textbox', { name: 'Code' }).fill('2000')
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Again')
+    await dialog.getByRole('textbox', { name: 'Currency' }).fill('EUR')
+    await dialog.getByRole('button', { name: 'Add' }).click()
+    await dialog.getByText('Sales organization 2000 exists already.').waitFor({ timeout: 5000 })
+    await dialog.getByRole('textbox', { name: 'Code' }).fill('3000')
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Online UK')
+    await dialog.getByRole('button', { name: 'Add' }).click()
+    await dialog.waitFor({ state: 'detached', timeout: 5000 })
+    await card.getByRole('rowheader', { name: '3000' }).or(card.getByRole('gridcell', { name: '3000' })).first().waitFor({ timeout: 5000 })
+    assert.deepEqual(problems, [], 'sales organizations console')
+  } finally {
+    await context.close()
+  }
+})
+
+/* How the screen looks is the SC's preference, not the ERP's setup: it lives behind a user
+   menu at the end of the shell bar, where Fiori (user menu > Settings > Appearance) and
+   Business Central (My Settings) keep it. The ERP has no sign-in, so the button names nobody.
+   The hex comes from lib/appearance.js, the catalog the screen paints from. */
+const { PALETTES } = require('../lib/appearance')
+const accentOf = (page) => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim())
+/** The accent once it reads `want` (a repaint lands a frame or two after the click), or what it reads after 5 s. */
+async function accentBecomes (page, want) {
+  await page.waitForFunction((hex) => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() === hex, want, { timeout: 5000 }).catch(() => {})
+  return accentOf(page)
+}
+const ACCENT = Object.fromEntries(Object.entries(PALETTES).map(([id, p]) => [id, p.tokens['--accent']]))
+
+async function openAppearance (page) {
+  await page.locator('.erp-shellbar').getByRole('button', { name: 'User menu' }).click()
+  await page.getByRole('menuitem', { name: 'Appearance' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.waitFor({ timeout: 5000 })
+  return dialog
+}
+
+test('the shell bar ends in a user menu that names nobody and offers Appearance', async () => {
+  const { page, context, problems } = await open('home')
+  try {
+    const button = page.locator('.erp-shellbar').getByRole('button', { name: 'User menu' })
+    assert.equal((await button.textContent()).trim(), '', 'no name and no initials')
+    await button.click()
+    await page.getByRole('menu').waitFor({ timeout: 5000 })
+    assert.deepEqual(await page.getByRole('menuitem').allTextContents(), ['Appearance'])
+    assert.deepEqual(problems, [], 'user menu console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a pick repaints the screen before Save; Cancel, or Escape, puts the saved look back', async () => {
+  const { page, context, problems } = await open('home')
+  try {
+    assert.equal(await accentBecomes(page, ACCENT.teal), ACCENT.teal)
+    const dialog = await openAppearance(page)
+    await dialog.getByRole('button', { name: 'Plum', exact: true }).click()
+    assert.equal(await accentBecomes(page, ACCENT.plum), ACCENT.plum, 'the colour shows before Save')
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await dialog.waitFor({ state: 'detached', timeout: 5000 })
+    assert.equal(await accentBecomes(page, ACCENT.teal), ACCENT.teal, 'Cancel restores')
+
+    const again = await openAppearance(page)
+    await again.locator('.erp-theme-card', { hasText: 'Meridian' }).click()
+    assert.equal(await accentBecomes(page, ACCENT.indigo), ACCENT.indigo)
+    await page.locator('.erp-topnav').waitFor({ timeout: 5000 })
+    await page.keyboard.press('Escape')
+    await again.waitFor({ state: 'detached', timeout: 5000 })
+    assert.equal(await accentBecomes(page, ACCENT.teal), ACCENT.teal, 'closing restores')
+    await page.locator('.erp-rail').waitFor({ timeout: 5000 })
+    assert.deepEqual(problems, [], 'appearance preview console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('Save keeps a theme and the colour picked after it: the ERP stores it and health brings it back', async () => {
+  const { page, context, problems } = await open('home')
+  try {
+    const dialog = await openAppearance(page)
+    await dialog.locator('.erp-theme-card', { hasText: 'Meridian' }).click()
+    await dialog.getByRole('button', { name: 'Plum', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Save' }).click()
+    await dialog.waitFor({ state: 'detached', timeout: 5000 })
+    // The panel is gone, so the look is health's again: plum on Meridian's top band.
+    assert.equal(await accentBecomes(page, ACCENT.plum), ACCENT.plum)
+    await page.locator('.erp-topnav').waitFor({ timeout: 5000 })
+    const reopened = await openAppearance(page)
+    assert.equal(await reopened.getByRole('button', { name: 'Plum', exact: true }).getAttribute('aria-pressed'), 'true')
+    assert.deepEqual(problems, [], 'appearance save console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a save refusal shows in the panel in the ERP\'s words, and the panel stays open', async () => {
+  const { page, context } = await open('home', '?refuse-appearance')
+  try {
+    const dialog = await openAppearance(page)
+    await dialog.getByRole('button', { name: 'Bronze', exact: true }).click()
+    await dialog.getByRole('button', { name: 'Save' }).click()
+    await dialog.getByText('The ERP did not keep the appearance. Try again in a moment.').waitFor({ timeout: 5000 })
+    assert.equal(await dialog.isVisible(), true)
+    assert.equal(await accentBecomes(page, ACCENT.bronze), ACCENT.bronze, 'what was picked is still showing')
+  } finally {
+    await context.close()
+  }
+})
+
+test('in a maintenance window the banner names its end, on any page', async () => {
+  const { page, context, problems } = await open('home', '?maintenance')
+  try {
     const banner = page.locator('.erp-maintenance-banner')
     await banner.waitFor({ timeout: 5000 })
     assert.match(await banner.textContent(), /is in maintenance until \d\d:\d\d UTC\./)
-    await page.getByRole('button', { name: 'End maintenance' }).click()
-    await banner.waitFor({ state: 'detached', timeout: 5000 })
     assert.deepEqual(problems, [], 'maintenance console')
   } finally {
     await context.close()

@@ -18,7 +18,7 @@ import { Box } from './RelatedDocuments'
 import PostCreditMemo from './PostCreditMemo'
 import { useLoad } from './useLoad'
 import { useDocumentAction } from './useDocumentAction'
-import { returnStatusText, returnStatusLight } from './returnFormat'
+import { returnStatusText, returnStatusLight, returnReasonText } from './returnFormat'
 import { returnMoves } from '../../../lib/return-moves'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
@@ -109,7 +109,7 @@ export default function ReturnDetail ({ api, number, backLabel = 'Returns', onBa
                     <Cell>{orderLineOf(order, line.item).name || line.sku}</Cell>
                     <Cell>{line.qty}</Cell>
                     <Cell>{orderLineOf(order, line.item).unit || 'EA'}</Cell>
-                    <Cell>{line.reason}</Cell>
+                    <Cell>{returnReasonText(line)}</Cell>
                   </Row>
                 )}
               </TableBody>

@@ -9,11 +9,14 @@
  * lib/orders and lib/fulfilment by hand: those modules are the action's CommonJS and
  * this runs in a browser. If a field grows there, it grows here.
  */
-import { DEFAULT_APPEARANCE, normalizeAppearance } from '../lib/appearance.js'
+import { DEFAULT_APPEARANCE } from '../lib/appearance.js'
 import { describeEvent } from '../lib/journal.js'
 import { maintenanceOf } from '../lib/maintenance.js'
 import { returnMoves, canPayInvoice } from '../lib/return-moves.js'
 import { openItemOf } from '../lib/open-items.js'
+import { describeSetup, updateSetup } from '../lib/setup.js'
+import { addSalesOrganization, updateSalesOrganization } from '../lib/sales-organizations.js'
+import { updateSettings } from '../lib/settings.js'
 
 const NAMES = [
   ['Wide-leg trouser', 89], ['Cotton poplin shirt', 34.2], ['Canvas tote', 12],
@@ -225,7 +228,7 @@ function seedReturn (order, number, commerceReturnId, lines, moments) {
     orderNumber: order.number,
     partnerId: order.partnerId,
     status: 'open',
-    lines: lines.map((l) => ({ item: l.item, sku: lineOf(l.item).sku, qty: l.qty, price: lineOf(l.item).price, reason: l.reason, commerceItemId: lineOf(l.item).commerceItemId })),
+    lines: lines.map((l) => ({ item: l.item, sku: lineOf(l.item).sku, qty: l.qty, price: lineOf(l.item).price, reason: l.reason, reasonCode: l.reasonCode, commerceItemId: lineOf(l.item).commerceItemId })),
     creditMemo: null,
     history: [{ status: 'open', at: moments.open }],
     createdAt: moments.open,
@@ -244,9 +247,9 @@ function seedReturn (order, number, commerceReturnId, lines, moments) {
   return r
 }
 const returnOrders = [
-  seedReturn(orders[2], '6000000001', '7', [{ item: 10, qty: 1, reason: 'Wrong size' }], { open: day(14), received: day(15), credited: day(16), memo: '9500000001' }),
-  seedReturn(orders[2], '6000000002', '8', [{ item: 20, qty: 1, reason: 'Customer return' }], { open: day(17), received: day(18) }),
-  seedReturn(orders[2], '6000000003', '9', [{ item: 10, qty: 1, reason: 'Damaged' }], { open: day(19) })
+  seedReturn(orders[2], '6000000001', '7', [{ item: 10, qty: 1, reason: 'Wrong size', reasonCode: 'WRONGSIZE' }], { open: day(14), received: day(15), credited: day(16), memo: '9500000001' }),
+  seedReturn(orders[2], '6000000002', '8', [{ item: 20, qty: 1, reason: 'Customer return', reasonCode: 'RETURN' }], { open: day(17), received: day(18) }),
+  seedReturn(orders[2], '6000000003', '9', [{ item: 10, qty: 1, reason: 'Damaged', reasonCode: 'DAMAGED' }], { open: day(19) })
 ]
 
 let nextShipment = 8000000008
@@ -303,7 +306,23 @@ const settings = {
   warehouses: { default: { name: 'Plant 1000 · Seattle DC' }, east: { name: 'East DC' } },
   structureMirror,
   lastImportAt: new Date(Date.UTC(2026, 8, 22, 13, 58)).toISOString(),
-  lastWipeAt: null
+  lastWipeAt: null,
+  // The ERP's setup (lib/setup.js): what Settings shows and edits.
+  company: { code: '1000', name: 'Northwind Trading Co.', address: { street: ['1 Harbor Way'], city: 'Seattle', region: 'WA', postcode: '98101', countryId: 'US' }, taxId: 'US 91-1234567', currency: 'USD' },
+  sales: {
+    defaultPaymentTerms: 'NET30',
+    creditWarnings: 'creditLimit',
+    returnReasons: [
+      { code: 'RETURN', description: 'Customer return' }, { code: 'DAMAGED', description: 'Damaged' },
+      { code: 'DEFECTIVE', description: 'Defective' }, { code: 'WRONGITEM', description: 'Wrong item' },
+      { code: 'WRONGSIZE', description: 'Wrong size' }, { code: 'WRONGCOLOR', description: 'Wrong color' }
+    ],
+    defaultReturnReason: 'RETURN'
+  },
+  salesOrganizations: [
+    { code: '1000', name: 'Online US', currency: 'USD', websiteCode: 'base' },
+    { code: '2000', name: 'Online EU', currency: 'EUR', websiteCode: 'eu' }
+  ]
 }
 
 /* The selling structure, derived as lib/structure.js derives it. */
@@ -311,14 +330,10 @@ function describeStructure () {
   const home = structureMirror.websites.find((w) => w.salesOrg === '1000') || structureMirror.websites[0]
   const orgs = new Map()
   const org = (code) => {
-    if (!orgs.has(code)) orgs.set(code, { code, name: null, websiteCode: null, customers: 0, orders: 0 })
+    if (!orgs.has(code)) orgs.set(code, { code, name: null, currency: null, websiteCode: null, customers: 0, orders: 0 })
     return orgs.get(code)
   }
-  for (const site of structureMirror.websites) {
-    const entry = org(site.salesOrg)
-    entry.name = entry.name || site.salesOrgName || site.name
-    entry.websiteCode = entry.websiteCode || site.code
-  }
+  for (const own of settings.salesOrganizations) Object.assign(org(own.code), { name: own.name, currency: own.currency, websiteCode: own.websiteCode })
   for (const p of partners) for (const code of p.salesOrgs) if (code !== '*') org(code).customers += 1
   for (const o of orders) org(o.salesOrg || '1000').orders += 1
   const houses = new Map()
@@ -333,7 +348,7 @@ function describeStructure () {
     houses.get(code).name = value.name
   }
   return {
-    companyCode: { code: '1000', name: settings.displayName, currency: home.storeInfo.currency, countryId: home.storeInfo.countryId, vatNumber: null, address: null },
+    companyCode: { code: settings.company.code, name: settings.company.name, currency: settings.company.currency, countryId: settings.company.address.countryId || home.storeInfo.countryId, vatNumber: settings.company.taxId, address: settings.company.address },
     salesOrgs: [...orgs.values()].sort((a, b) => a.code.localeCompare(b.code)),
     warehouses: [...houses.values()].map((h) => ({ ...h, name: h.name || h.commerceName })).sort((a, b) => a.code.localeCompare(b.code)),
     unmapped: []
@@ -374,16 +389,45 @@ function workList () {
   }
 }
 
+/* `?maintenance` in the preview's address opens it inside a 30-minute window, so the banner
+   can be looked at: a window is started from Demo Builder's ERP card, not from this screen. */
+const PREVIEW_WINDOW_MS = 30 * 60 * 1000
+if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('maintenance')) {
+  settings.maintenanceUntil = new Date(Date.now() + PREVIEW_WINDOW_MS).toISOString()
+}
+
+/* `?refuse-appearance` makes saving the appearance fail, so the panel's refusal can be looked
+   at: the real ERP stores any look it is sent, and only an ERP that is not answering refuses. */
+const refuseAppearance = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('refuse-appearance')
+const APPEARANCE_REFUSAL = 'The ERP did not keep the appearance. Try again in a moment.'
+
 const health = {
   displayName: settings.displayName,
-  maintenance: null,
-  appearance: settings.appearance,
+  maintenance: maintenanceOf(settings),
   counts: { products: products.length, businessPartners: partners.length, salesOrders: orders.length, pricingConditions: conditions.length, contracts: contracts.length, priceGroups: priceGroups.length },
   // The next document numbers, nothing reserved (lib/counters peek), and the company code's currency.
   numbering: { salesOrder: '0000001010', shipment: '8000000008', invoice: '9000000004', contract: '4000000004', creditMemo: '9500000003', returnOrder: '6000000004', payment: '7000000003' },
   currency: 'USD',
   eventsPending: events.filter((e) => e.direction === 'out' && !e.delivered && !e.failed).length,
   lastImportAt: settings.lastImportAt
+}
+
+/* The two collections the ERP's setup reads and writes, over the records above: the settings
+   record is `settings`, and each counter's value is one below health's next number. */
+const counterValues = Object.fromEntries(Object.entries(health.numbering).map(([type, next]) => [type, Number(next) - 1]))
+const setupCols = {
+  settings: {
+    findOne: async () => ({ _id: 'erp', ...settings }),
+    replaceOne: async (_filter, { _id: _key, ...doc }) => { Object.assign(settings, doc); return { matchedCount: 1 } }
+  },
+  counters: {
+    findOne: async ({ _id }) => (counterValues[_id] === undefined ? null : { _id, value: counterValues[_id] }),
+    replaceOne: async ({ _id }, doc) => {
+      counterValues[_id] = doc.value
+      health.numbering[_id] = String(doc.value + 1).padStart(10, '0')
+      return { matchedCount: 1 }
+    }
+  }
 }
 
 /* Real actions answer over the network. Without a delay here the preview would never
@@ -586,7 +630,9 @@ function describeInvoice (order, inv) {
     })(),
     seller: (() => {
       const through = structureMirror.websites.find((w) => w.salesOrg === order.salesOrg) || structureMirror.websites[0]
-      return { companyCode: '1000', name: settings.displayName, salesOrg: order.salesOrg, salesOrgName: order.salesOrgName, currency: through.storeInfo.currency, countryId: through.storeInfo.countryId, vatNumber: null, address: null }
+      const org = settings.salesOrganizations.find((o) => o.code === order.salesOrg)
+      const c = settings.company
+      return { companyCode: c.code, name: c.name, salesOrg: order.salesOrg, salesOrgName: (org && org.name) || order.salesOrgName, currency: (org && org.currency) || c.currency, countryId: c.address.countryId || through.storeInfo.countryId, vatNumber: c.taxId, address: c.address }
     })(),
     lines: inv.lines.map(named)
   }
@@ -643,7 +689,7 @@ function describePartner (partner) {
   const limit = Number(partner.creditLimit) || 0
   return {
     ...partner,
-    salesOrgNames,
+    salesOrgNames: Object.fromEntries(settings.salesOrganizations.map((o) => [o.code, o.name])),
     credit: !partner.isDefault ? { limit, exposure, openOrders, openItems: openItemsAmount, available: cents(limit - exposure), held } : null,
     openItems,
     orders: own,
@@ -679,37 +725,32 @@ function openOrdersOf (p) {
 /** Everything screen/src/api.js offers, answered from the records above. */
 export const fakeApi = {
   // The work list is counted on each read, as the ERP counts it, so a move made in the preview shows on Home.
-  health: async () => { await wait(); return copy({ ...health, work: workList(), structure: describeStructure() }) },
-  settings: async () => { await wait(); return copy(settings) },
-  /* The one settings write the preview allows, because it is the one thing the preview
-     exists to show. An appearance is not a record — it is how the screen looks, and a
-     harness for looking at the screen that could not change its look would be missing
-     the point. */
-  saveSettings: async (patch) => {
+  // The appearance is read on each call too: the user menu changes it (saveAppearance).
+  health: async () => { await wait(); return copy({ ...health, appearance: settings.appearance, currency: settings.company.currency, work: workList(), structure: describeStructure() }) },
+  // The setup, answered by the ERP's own lib/setup.js over stand-in collections (setupCols).
+  setup: async () => { await wait(); return copy(await describeSetup(setupCols)) },
+  saveSetup: async (patch) => { await wait(); return copy(await updateSetup(setupCols, patch)) },
+  addSalesOrganization: async (org) => {
     await wait()
-    if (patch && patch.warehouses) {
-      for (const [code, value] of Object.entries(patch.warehouses)) settings.warehouses[code] = { name: value.name }
-      return copy(settings)
-    }
-    if (!patch || !patch.appearance) return refuse()
-    settings.appearance = normalizeAppearance(patch.appearance, settings.appearance)
-    health.appearance = settings.appearance
+    await addSalesOrganization(setupCols, org)
+    return copy(await describeSetup(setupCols))
+  },
+  updateSalesOrganization: async (code, patch) => {
+    await wait()
+    await updateSalesOrganization(setupCols, code, patch)
+    return copy(await describeSetup(setupCols))
+  },
+  // Stored by the ERP's own lib/settings.js, so the look health brings back is the one it keeps.
+  saveAppearance: async (appearance) => {
+    await wait()
+    if (refuseAppearance) throw new Error(APPEARANCE_REFUSAL)
+    return copy(await updateSettings(setupCols, { appearance }))
+  },
+  renameWarehouse: async (code, name) => {
+    await wait()
+    settings.warehouses[code] = { name }
     return copy(settings)
   },
-  /* A maintenance window is a setting too, and the banner it raises is part of the look. */
-  startMaintenance: async (minutes = 30) => {
-    await wait()
-    settings.maintenanceUntil = new Date(Date.now() + minutes * 60 * 1000).toISOString()
-    health.maintenance = maintenanceOf(settings)
-    return copy({ maintenance: health.maintenance })
-  },
-  endMaintenance: async () => {
-    await wait()
-    settings.maintenanceUntil = null
-    health.maintenance = null
-    return { maintenance: null }
-  },
-  wipe: refuse,
   products: async () => { await wait(); return copy(products.map(withAvailability)) },
   product: async (sku) => {
     const product = products.find((p) => p.sku === sku)

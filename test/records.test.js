@@ -115,6 +115,17 @@ test('wipe clears records, keeps settings and counters, stamps the time', async 
   assert.ok(settings.lastWipeAt)
 })
 
+test('wipe removes return orders and payments: a Reset starts with nothing returned or paid, and keeps the setup', async () => {
+  const { WIPED } = require('../lib/admin')
+  assert.ok(WIPED.includes('returnOrders'))
+  assert.ok(WIPED.includes('payments'))
+  await cols.payments.replaceOne({ _id: '7000000001' }, { _id: '7000000001', number: '7000000001', amount: 1 }, { upsert: true })
+  await stamp(cols, { salesOrganizations: [{ code: '1000', name: 'Home', currency: 'USD', websiteCode: null }] })
+  assert.equal((await wipe(cols)).payments, 1)
+  assert.equal(await cols.payments.countDocuments({}), 0)
+  assert.equal((await getSettings(cols)).salesOrganizations.length, 1, 'settings survive a wipe, the setup with them')
+})
+
 test('wipe keeps the last import time', async () => {
   await importProducts(cols, [{ sku: 'A1' }])
   await stamp(cols, { lastImportAt: '2026-09-17T18:33:23.836Z' })

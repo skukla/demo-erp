@@ -104,8 +104,8 @@ test('the structure is derived on read: company code, sales organisations with c
   const structure = await describeStructure(cols)
   assert.deepEqual(structure.companyCode, { code: '1000', name: 'Northwind ERP', currency: 'USD', countryId: 'US', vatNumber: null, address: null })
   assert.deepEqual(structure.salesOrgs, [
-    { code: '1000', name: 'Main Website', websiteCode: 'base', customers: 1, orders: 1 },
-    { code: '2000', name: 'Online EU', websiteCode: 'eu', customers: 1, orders: 1 }
+    { code: '1000', name: 'Main Website', currency: 'USD', websiteCode: 'base', customers: 1, orders: 1 },
+    { code: '2000', name: 'Online EU', currency: 'EUR', websiteCode: 'eu', customers: 1, orders: 1 }
   ])
   assert.deepEqual(structure.warehouses, [
     { code: 'default', name: 'Default Source', commerceName: 'Default Source', products: 1, stock: 5 },

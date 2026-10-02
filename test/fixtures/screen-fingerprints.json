@@ -24,8 +24,8 @@
     "hash": "73fb4c197cd83fad7c0b1c46f06f2020c81a2a797356673969736b992bce278b"
   },
   "invoices:document": {
-    "elements": 169,
-    "hash": "b74dc11bfaef5504393d7a8df4fa22ed965dee01e713cce8948936857aa80d9c"
+    "elements": 172,
+    "hash": "707606e09699fb7653114df3a9363d5f9f185a7d47c2a4eb86a45a0e624e1269"
   },
   "products": {
     "elements": 695,
@@ -52,8 +52,8 @@
     "hash": "c322358168acdd02cf5049a464ff938b013a051678de94849420fb502cf016b3"
   },
   "settings": {
-    "elements": 184,
-    "hash": "4658b2041582b789f11c8aacf40c6ad9bb9e9b420fccae029747e006303d7afd"
+    "elements": 320,
+    "hash": "01ab814b42e74aa2c7fd636971509e28a952a2b3ac01df22c22b03949f1d45a3"
   },
   "contracts": {
     "elements": 176,

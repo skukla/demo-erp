@@ -69,8 +69,8 @@ test('a return order is created from a Commerce return: 201, numbered from 60000
   assert.deepEqual(r.history.map((h) => h.status), ['open'])
   // Each line names the sales order line it returns, its price there, and why.
   assert.deepEqual(r.lines, [
-    { item: 10, sku: 'A1', qty: 2, price: 10, reason: 'Damaged', commerceItemId: 1 },
-    { item: 20, sku: 'B2', qty: 1, price: 5, reason: 'Customer return', commerceItemId: 2 }
+    { item: 10, sku: 'A1', qty: 2, price: 10, reason: 'Damaged', reasonCode: 'DAMAGED', commerceItemId: 1 },
+    { item: 20, sku: 'B2', qty: 1, price: 5, reason: 'Customer return', reasonCode: 'RETURN', commerceItemId: 2 }
   ])
 })
 
