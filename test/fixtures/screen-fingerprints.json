@@ -8,8 +8,8 @@
     "hash": "8e1e7317153e120207d7b63e9f370813f48efc53faaacaf4cdcd32310652dc60"
   },
   "orders:document": {
-    "elements": 203,
-    "hash": "72e311463760feb24babd12f443c9b7836d77571ea614477aac48224964d9f65"
+    "elements": 248,
+    "hash": "53f4ca367e6c3718adf9d1ebe385b1825cd3f3e3caeae931ec538099cdde7c67"
   },
   "shipments": {
     "elements": 312,
@@ -76,8 +76,8 @@
     "hash": "b0904ce6647d4ea1bee2fff4222193d958bb52f3d1bd2ee1a0b73bcdee776e00"
   },
   "returns:document": {
-    "elements": 106,
-    "hash": "35ddb422336e3570c806551f86e81644b73bb238b86db222fd2ff1b4a60adbd0"
+    "elements": 124,
+    "hash": "36e1402593295be8d432b3a7b45e6b1ebb77f9f0c9f191699042910183630330"
   },
   "creditMemos": {
     "elements": 191,

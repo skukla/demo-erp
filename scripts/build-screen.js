@@ -26,6 +26,11 @@ async function build () {
     loader: { '.js': 'jsx' },
     jsx: 'automatic',
     define: { 'process.env.NODE_ENV': '"production"' },
+    // Characters as themselves, not as \uXXXX escapes: the action serves both files as
+    // `charset=utf-8` (lib/screen.js), and escaping every non-English string in Spectrum's
+    // own translations cost about 30,000 bytes of the budget below (measured 2026-10-02,
+    // when the screen was 1,840 bytes under it).
+    charset: 'utf8',
     logLevel: 'warning'
   })
   const files = Object.fromEntries(result.outputFiles.map((f) => [path.extname(f.path).slice(1), f.text]))

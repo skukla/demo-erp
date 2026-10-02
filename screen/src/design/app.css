@@ -430,6 +430,164 @@ body,
   color: var(--ink-2);
 }
 
+/* ---- Process flow --------------------------------------------------------------
+ * The strip at the top of a document (components/ProcessFlow.js): its stages left to
+ * right, a round marker for each joined by a line, and underneath one sentence naming the
+ * next move. A band with the card's own surface and edge, so it reads as part of the
+ * document rather than as chrome.
+ *
+ * A stage's state is its marker: done is the accent, filled, with a check; where the
+ * document stands is an accent ring with the accent's tint around it — the same tint and
+ * edge that mark the current item on the rail; not yet reached is hollow. A credit hold
+ * and a canceled end wear the negative status colours the "On credit hold" badge wears.
+ * Every colour is a token, so the strip follows the palette.
+ */
+.erp-flow {
+  margin-top: var(--space-5);
+  overflow: hidden;
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-surface);
+}
+
+/* One row, always: more stages than the window holds scroll sideways inside the band. */
+.erp-flow-stages {
+  display: flex;
+  padding: var(--space-3);
+  margin: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.erp-flow-stage {
+  position: relative;
+  display: flex;
+  /* Never narrower than its own words (a date or an amount does not break), and no
+     wider than reads as one strip when the stages are few. */
+  flex: 1 0 calc(var(--space-6) * 4);
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  max-width: calc(var(--space-6) * 7);
+  padding: 0 var(--space-3);
+  text-align: center;
+}
+
+/* The line joining the markers, drawn by each stage in two halves — from its own edge to
+   its marker, and on to its other edge — so the halves of two neighbours meet whatever
+   width each stage's words give it. Accent between two stages that are both done. */
+.erp-flow-stage + .erp-flow-stage::before,
+.erp-flow-stage:not(:last-child)::after {
+  position: absolute;
+  top: calc(var(--space-5) / 2 - 1px);
+  height: 2px;
+  content: "";
+  background: var(--line);
+}
+
+.erp-flow-stage + .erp-flow-stage::before {
+  right: 50%;
+  left: 0;
+}
+
+.erp-flow-stage:not(:last-child)::after {
+  right: 0;
+  left: 50%;
+}
+
+.erp-flow-done + .erp-flow-done::before,
+.erp-flow-done:has(+ .erp-flow-done)::after {
+  background: var(--accent);
+}
+
+.erp-flow-marker {
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: var(--space-5);
+  height: var(--space-5);
+  margin-bottom: var(--space-1);
+  color: var(--line-strong);
+  background: var(--surface-card);
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+}
+
+.erp-flow-done .erp-flow-marker {
+  color: var(--surface-card);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.erp-flow-current .erp-flow-marker {
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 var(--space-1) var(--accent-tint);
+}
+
+.erp-flow-attention .erp-flow-marker,
+.erp-flow-stopped .erp-flow-marker {
+  color: var(--bad-ink);
+  background: var(--bad-tint);
+  border-color: var(--bad-ink);
+}
+
+.erp-flow-attention .erp-flow-marker {
+  box-shadow: 0 0 0 var(--space-1) var(--bad-tint);
+}
+
+/* A stage not yet reached is quiet; one reached is ink; where the document stands is strong. */
+.erp-flow-label {
+  font-size: var(--type-body-size);
+  color: var(--ink-2);
+}
+
+.erp-flow-done .erp-flow-label,
+.erp-flow-stopped .erp-flow-label {
+  color: var(--ink);
+}
+
+.erp-flow-current .erp-flow-label,
+.erp-flow-attention .erp-flow-label {
+  font-weight: var(--type-section-weight);
+  color: var(--ink);
+}
+
+/* A stage that became a document opens it from its name, in the accent once the order has
+   reached it; a stage still ahead keeps its quiet colour and underlines under the pointer. */
+.erp-flow-stage button.erp-flow-label {
+  text-align: center;
+}
+
+.erp-flow-done button.erp-flow-label,
+.erp-flow-current button.erp-flow-label {
+  color: var(--accent);
+}
+
+.erp-flow-detail {
+  font-size: var(--type-label-size);
+  color: var(--ink-2);
+}
+
+.erp-flow-attention .erp-flow-detail {
+  color: var(--bad-ink);
+}
+
+.erp-flow-fact {
+  white-space: pre;
+}
+
+.erp-flow-next {
+  padding: var(--space-2) var(--space-5);
+  margin: 0;
+  font-size: var(--type-body-size);
+  color: var(--ink);
+  background: var(--surface-head);
+  border-block-start: 1px solid var(--line);
+}
+
 /* A list of sentences with no bullets: the price test's "did not apply" lines. */
 .erp-plain-list {
   margin: var(--space-1) 0 0;

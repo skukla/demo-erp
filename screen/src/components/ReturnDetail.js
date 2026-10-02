@@ -16,6 +16,8 @@ import Field from './Field'
 import Timeline, { returnMomentsOf } from './Timeline'
 import { Box } from './RelatedDocuments'
 import PostCreditMemo from './PostCreditMemo'
+import ProcessFlow from './ProcessFlow'
+import { returnFlowOf } from './orderFlow'
 import { useLoad } from './useLoad'
 import { useDocumentAction } from './useDocumentAction'
 import { returnStatusText, returnStatusLight, returnReasonText } from './returnFormat'
@@ -71,6 +73,7 @@ export default function ReturnDetail ({ api, number, backLabel = 'Returns', onBa
     >
       {loaded && (
         <>
+          <ProcessFlow flow={returnFlowOf(returnOrder)} onOpen={onOpen} />
           <Card>
             <Grid columns={{ base: ['1fr'], M: ['1fr', '1fr', '1fr'] }} gap='size-250'>
               <Field label='Document type'>Return order</Field>

@@ -919,3 +919,94 @@ test('the journal names a posted payment', async () => {
     await context.close()
   }
 })
+
+/* ---- The process flow strip (screen/src/components/ProcessFlow.js, orderFlow.js) ---- */
+
+test('a sales order opens with its process flow: one stage is current, the next move is named, a done stage opens its document', async () => {
+  const { page, context, problems } = await open('orders?open=0000001003')
+  try {
+    await headed(page, /^Sales Order 0000001003$/, /^Sales Orders$/)
+    const flow = page.locator('.erp-flow')
+    assert.equal(await flow.count(), 1)
+    assert.deepEqual(await flow.locator('ol > li .erp-flow-label').allTextContents(), ['Received', 'Confirmed', 'Delivery created', 'Goods issued', 'Invoiced', 'Paid'])
+    const current = flow.locator('[aria-current="step"]')
+    assert.equal(await current.count(), 1)
+    assert.match(await current.textContent(), /Goods issued.*4 of 6 shipped/)
+    assert.equal((await flow.locator('.erp-flow-next').textContent()).trim(), 'Next: post shipment 8000000004 (goods issue)')
+    // The strip sits between the title line and the header fields.
+    const [title, strip, header] = await Promise.all(['.erp-page-header', '.erp-flow', '.erp-card'].map((s) => page.locator(s).first().boundingBox()))
+    assert.ok(title.y < strip.y && strip.y < header.y, 'title line, then the strip, then the header card')
+    await flow.getByRole('button', { name: /Delivery created/ }).click()
+    await settled(page)
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Shipment 8000000003$/)
+    assert.deepEqual(problems, [], 'order flow console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('an order on credit hold stands at its credit check; releasing it moves the strip on', async () => {
+  const { page, context, problems } = await open('orders?open=0000001007')
+  try {
+    await headed(page, /^Sales Order 0000001007$/, /^Sales Orders$/)
+    const flow = page.locator('.erp-flow')
+    const current = flow.locator('[aria-current="step"]')
+    assert.equal(await current.count(), 1)
+    assert.match(await current.textContent(), /Credit check.*On hold/)
+    assert.match(await current.getAttribute('class'), /erp-flow-attention/)
+    assert.equal((await flow.locator('.erp-flow-next').textContent()).trim(), 'On credit hold: release or reject')
+    await page.getByRole('button', { name: 'Release' }).click()
+    await flow.getByText('Next: confirm the order').waitFor({ timeout: 5000 })
+    assert.match(await flow.locator('[aria-current="step"]').textContent(), /Confirmed/)
+    assert.match(await flow.textContent(), /Credit check.*Released/)
+    assert.deepEqual(problems, [], 'held order flow console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a canceled order ends at Canceled, with no stage current and nothing more to do', async () => {
+  const { page, context, problems } = await open('orders?open=0000001004')
+  try {
+    await headed(page, /^Sales Order 0000001004$/, /^Sales Orders$/)
+    const flow = page.locator('.erp-flow')
+    assert.deepEqual(await flow.locator('ol > li .erp-flow-label').allTextContents(), ['Received', 'Canceled'])
+    assert.equal(await flow.locator('[aria-current="step"]').count(), 0)
+    assert.equal((await flow.locator('.erp-flow-next').textContent()).trim(), 'Nothing more to do')
+    assert.deepEqual(problems, [], 'canceled order flow console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('a return order has its own strip: created, goods received, credited', async () => {
+  const { page, context, problems } = await open('returns?open=6000000002')
+  try {
+    await headed(page, /^Return Order 6000000002$/, /^Returns$/)
+    const flow = page.locator('.erp-flow')
+    assert.deepEqual(await flow.locator('ol > li .erp-flow-label').allTextContents(), ['Return created', 'Goods received', 'Credited'])
+    assert.match(await flow.locator('[aria-current="step"]').textContent(), /Credited/)
+    assert.equal((await flow.locator('.erp-flow-next').textContent()).trim(), 'Next: post the credit memo')
+    assert.deepEqual(problems, [], 'return flow console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('on a narrow window the strip stays one row and scrolls inside its band, not the page', async () => {
+  const { page, context } = await open('orders?open=0000001002')
+  try {
+    await headed(page, /^Sales Order 0000001002$/, /^Sales Orders$/)
+    await page.setViewportSize({ width: 900, height: 900 })
+    await page.waitForTimeout(300)
+    const measured = await page.evaluate(() => {
+      const strip = document.querySelector('.erp-flow ol')
+      const content = document.querySelector('.erp-content')
+      const tops = [...strip.children].map((li) => Math.round(li.getBoundingClientRect().top))
+      return { stages: strip.children.length, rows: new Set(tops).size, stripScrolls: strip.scrollWidth > strip.clientWidth, pageOverflows: content.scrollWidth > content.clientWidth }
+    })
+    assert.deepEqual(measured, { stages: 8, rows: 1, stripScrolls: true, pageOverflows: false })
+  } finally {
+    await context.close()
+  }
+})

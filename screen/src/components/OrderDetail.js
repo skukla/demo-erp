@@ -2,6 +2,8 @@
  * One sales order's document. The list holds a row; this holds the order the way an ERP
  * holds it — a header of labelled fields, numbered lines, the money, and what the order
  * became: its shipments and its invoice, each a document that opens.
+ * Above the header, the process flow strip says where the order stands and what comes next
+ * (ProcessFlow.js, orderFlow.js).
  *
  * The actions live here rather than on the list. An ERP acts on an order from the
  * order's own document: you look at what you are about to change before you change it.
@@ -18,6 +20,8 @@ import OrderLines from './OrderLines'
 import RelatedDocuments from './RelatedDocuments'
 import CreateShipment from './CreateShipment'
 import Timeline from './Timeline'
+import ProcessFlow from './ProcessFlow'
+import { flowOf } from './orderFlow'
 import { useLoad } from './useLoad'
 import { useDocumentAction } from './useDocumentAction'
 
@@ -95,6 +99,7 @@ export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', 
     >
       {order && (
         <>
+          <ProcessFlow flow={flowOf(order)} onOpen={onOpen} />
           <OrderHeader order={order} onOpen={onOpen} />
           <OrderLines order={order} busy={busy} onOpen={onOpen} onCloseLine={(item, reason) => act(() => api.closeLine(number, item, reason), `Item ${item} closed`)} />
           <RelatedDocuments order={order} onOpen={onOpen} />
