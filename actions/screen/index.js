@@ -12,6 +12,8 @@ const handlers = {
   orders: require('../orders'),
   shipments: require('../shipments'),
   invoices: require('../invoices'),
+  returns: require('../returns'),
+  'credit-memos': require('../credit-memos'),
   events: require('../events'),
   search: require('../search')
 }

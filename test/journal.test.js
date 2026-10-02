@@ -63,3 +63,20 @@ test('a price list change names the customer and how many list prices are now in
   assert.equal(describeEvent(out('contract.changed', { partnerId: 'C000102', lines: [] })).text, 'Price list prices of customer C000102: none in force')
   assert.equal(describeEvent({ direction: 'out', event: 'be-observer.company_contract_update', value: { partnerId: 'C1', lines: [] } }).name, 'Customer prices changed')
 })
+
+test('a credit memo and a received return name their documents and link the order (contract version 13)', () => {
+  assert.deepEqual(describeEvent(out('creditmemo.created', { erpNumber: '0000001003', creditMemoNumber: '9500000001', returnNumber: null })), {
+    name: 'Credit memo created', text: 'Credit memo 9500000001 for sales order 0000001003', links: [{ kind: 'order', number: '0000001003' }]
+  })
+  assert.equal(describeEvent(out('creditmemo.created', { erpNumber: '0000001003', creditMemoNumber: '9500000002', returnNumber: '6000000001' })).text, 'Credit memo 9500000002 for sales order 0000001003 (return order 6000000001)')
+  assert.deepEqual(describeEvent(out('return.received', { erpNumber: '0000001003', returnNumber: '6000000001', items: [{ qty: 2 }, { qty: 1 }] })), {
+    name: 'Return received', text: 'Return order 6000000001 received: 3 back for sales order 0000001003', links: [{ kind: 'order', number: '0000001003' }]
+  })
+  // The wire names alone, for an entry journaled without its kind.
+  assert.equal(describeEvent({ direction: 'out', event: 'be-observer.rma_status_update', value: {} }).name, 'Return received')
+})
+
+test('a return from Commerce reads as one in the journal', () => {
+  const d = describeEvent({ direction: 'in', event: 'observer.rma_save_commit_after', summary: 'Commerce return 000000007 received as return order 6000000001', value: { number: '0000001003' } })
+  assert.equal(d.name, 'Return request received')
+})

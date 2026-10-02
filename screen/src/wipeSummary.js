@@ -18,6 +18,7 @@ const LABELS = {
   contracts: ['price list', 'price lists'],
   priceGroups: ['price group', 'price groups'],
   salesOrders: ['sales order', 'sales orders'],
+  returnOrders: ['return order', 'return orders'],
   events: ['event', 'events']
 }
 

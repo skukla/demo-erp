@@ -1,0 +1,221 @@
+/*
+ * Return orders (contract version 13): made from a Commerce return for this ERP's lines of one
+ * of its sales orders, idempotent on the Commerce return id; the goods come back (stock up at
+ * the warehouse the order shipped from, return.received raised), then the received lines are
+ * credited (a credit memo naming the return, creditmemo.created raised). Open, received, credited.
+ */
+const { test, beforeEach } = require('node:test')
+const assert = require('node:assert/strict')
+const contract = require('../contract/erp-contract.json')
+const { memoryCollections, invoke } = require('./helpers/memory-db')
+const { createOrder, getOrder, describeOrder } = require('../lib/orders')
+const { confirmOrder, createShipment, postShipment, createInvoice } = require('../lib/fulfilment')
+const { importProducts, getProduct } = require('../lib/products')
+const { importPartners } = require('../lib/partners')
+const { pending, recent } = require('../lib/events')
+const { peek } = require('../lib/counters')
+const returns = require('../actions/returns')
+const orders = require('../actions/orders')
+const creditMemos = require('../actions/credit-memos')
+
+let cols
+let order
+beforeEach(async () => {
+  cols = memoryCollections()
+  await importProducts(cols, [
+    { sku: 'A1', name: 'Trouser', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 50 }, { code: 'east', name: 'East DC', quantity: 20 }] },
+    { sku: 'B2', name: 'Shirt', listPrice: 5, warehouses: [{ code: 'default', name: 'Default Source', quantity: 9 }] }
+  ])
+  await importPartners(cols, [{ id: 'C1', name: 'Acme' }])
+  // Net 40; Commerce charged 43.20, so the invoice carries 3.20 tax. A1 ships from east.
+  const created = await createOrder(cols, { commerceOrderId: '42', commerceIncrementId: '000000042', partnerId: 'C1', total: 43.2, lines: [{ sku: 'A1', qty: 3, price: 10, commerceItemId: 1 }, { sku: 'B2', qty: 2, price: 5, commerceItemId: 2 }] })
+  await confirmOrder(cols, created.number)
+  await createShipment(cols, created.number, { lines: [{ item: 10, qty: 3 }], warehouse: 'east' })
+  await postShipment(cols, created.number, '8000000001')
+  await createShipment(cols, created.number, { lines: [{ item: 20, qty: 2 }], warehouse: 'default' })
+  await postShipment(cols, created.number, '8000000002')
+  order = await createInvoice(cols, created.number)
+})
+
+const request = (over = {}) => ({
+  commerceReturnId: 7,
+  commerceReturnIncrementId: '000000007',
+  orderNumber: order.number,
+  lines: [{ commerceItemId: 1, qty: 2, reason: 'Damaged' }, { commerceItemId: 2, qty: 1 }],
+  ...over
+})
+const post = (body) => invoke(returns, cols, { method: 'POST', body })
+const move = (number, verb) => invoke(returns, cols, { method: 'POST', path: `${number}/${verb}` })
+const refusal = async (body) => {
+  const res = await post(body)
+  assert.equal(res.statusCode, 400, JSON.stringify(res.body))
+  return res.body.errorMessage
+}
+
+test('a return order is created from a Commerce return: 201, numbered from 6000000001, open, in the contract shape', async () => {
+  const res = await post(request())
+  assert.equal(res.statusCode, 201)
+  const r = res.body
+  assert.deepEqual(Object.keys(r).sort(), [...contract.returns.response].sort())
+  assert.deepEqual(Object.keys(r.lines[0]).sort(), [...contract.returns.responseLine].sort())
+  assert.equal(r.number, '6000000001')
+  assert.equal(r.commerceReturnId, '7')
+  assert.equal(r.commerceReturnIncrementId, '000000007')
+  assert.equal(r.orderNumber, order.number)
+  assert.equal(r.partnerId, 'C1')
+  assert.equal(r.status, 'open')
+  assert.equal(r.creditMemo, null)
+  assert.equal(r.receivedAt, null)
+  assert.deepEqual(r.history.map((h) => h.status), ['open'])
+  // Each line names the sales order line it returns, its price there, and why.
+  assert.deepEqual(r.lines, [
+    { item: 10, sku: 'A1', qty: 2, price: 10, reason: 'Damaged', commerceItemId: 1 },
+    { item: 20, sku: 'B2', qty: 1, price: 5, reason: 'Customer return', commerceItemId: 2 }
+  ])
+})
+
+test('the same Commerce return sent twice answers the return order it made, 200, and numbers nothing', async () => {
+  await post(request())
+  const again = await post(request())
+  assert.equal(again.statusCode, 200)
+  assert.equal(again.body.number, '6000000001')
+  assert.equal((await peek(cols)).returnOrder, '6000000002')
+  assert.equal((await invoke(returns, cols)).body.items.length, 1)
+})
+
+test('a return that names its Commerce event is journaled as received, the first time only', async () => {
+  const origin = { event: 'observer.rma_save_commit_after', eventId: 'e-1' }
+  await post(request({ origin }))
+  await post(request({ origin }))
+  const inbound = (await recent(cols)).filter((e) => e.direction === 'in')
+  assert.equal(inbound.length, 1)
+  assert.equal(inbound[0].summary, `Commerce return 000000007 received as return order 6000000001 for sales order ${order.number}`)
+})
+
+test('a return is refused in words when it does not fit the sales order', async () => {
+  assert.equal(await refusal(request({ commerceReturnId: undefined })), 'A return needs its commerceReturnId.')
+  assert.equal(await refusal(request({ commerceReturnId: 'abc' })), "commerceReturnId must be Commerce's return id, a whole number.")
+  assert.equal(await refusal(request({ orderNumber: '0000009999' })), 'Sales order 0000009999 is not in this ERP.')
+  assert.equal(await refusal(request({ lines: [] })), 'A return needs at least one line.')
+  assert.equal(await refusal(request({ lines: [{ commerceItemId: 99, qty: 1 }] })), `Commerce order item 99 is not on sales order ${order.number}.`)
+  assert.equal(await refusal(request({ lines: [{ commerceItemId: 1, qty: 0 }] })), 'Commerce order item 1: the quantity must be a whole number of 1 or more.')
+  assert.equal(await refusal(request({ lines: [{ commerceItemId: 1, qty: 1.5 }] })), 'Commerce order item 1: the quantity must be a whole number of 1 or more.')
+  assert.equal(await refusal(request({ lines: [{ commerceItemId: 1, qty: 4 }] })), 'Commerce order item 1: 3 EA can be returned of 3 invoiced.')
+  assert.equal(await refusal(request({ lines: [{ commerceItemId: 1, qty: 1, reason: '  ' }] })), 'Commerce order item 1: the reason must be words.')
+  // Nothing refused was numbered.
+  assert.equal((await peek(cols)).returnOrder, '6000000001')
+})
+
+test('what earlier returns took cannot be returned again', async () => {
+  await post(request())
+  assert.equal(await refusal(request({ commerceReturnId: 8, lines: [{ commerceItemId: 1, qty: 2 }] })), 'Commerce order item 1: 1 EA can be returned of 3 invoiced.')
+  assert.equal((await post(request({ commerceReturnId: 8, lines: [{ commerceItemId: 1, qty: 1 }] }))).statusCode, 201)
+})
+
+test('an order with no invoice, or an invoice credited in full, has nothing to return', async () => {
+  const open = await createOrder(cols, { commerceOrderId: '43', lines: [{ sku: 'A1', qty: 1, price: 10, commerceItemId: 5 }] })
+  assert.equal(await refusal(request({ orderNumber: open.number, lines: [{ commerceItemId: 5, qty: 1 }] })), `Sales order ${open.number} has no invoice; nothing on it can be returned.`)
+  await invoke(orders, cols, { method: 'POST', path: `${order.number}/credit-memo` })
+  assert.equal(await refusal(request()), 'Invoice 9000000001 was credited by credit memo 9500000001.')
+})
+
+test('receiving a return puts the goods back where the order shipped them from and raises return.received', async () => {
+  await post(request())
+  const res = await move('6000000001', 'receive')
+  assert.equal(res.statusCode, 200)
+  assert.equal(res.body.status, 'received')
+  assert.ok(res.body.receivedAt)
+  assert.deepEqual(res.body.history.map((h) => h.status), ['open', 'received'])
+  // A1 shipped from east (20 → 22), B2 from default (9 → 10); the stock event says so.
+  const stockOf = async (sku) => Object.fromEntries((await getProduct(cols, sku)).warehouses.map((w) => [w.code, w.quantity]))
+  assert.deepEqual(await stockOf('A1'), { default: 50, east: 22 })
+  assert.deepEqual(await stockOf('B2'), { default: 10 })
+  const events = await pending(cols)
+  const stock = events.filter((e) => e.kind === 'product.stock').flatMap((e) => e.value)
+  assert.deepEqual(stock, [{ sku: 'A1', source: 'east', quantity: 22, outOfStock: false }, { sku: 'B2', source: 'default', quantity: 10, outOfStock: false }])
+  const received = events.find((e) => e.kind === 'return.received')
+  assert.equal(received.event, 'be-observer.rma_status_update')
+  assert.deepEqual(received.value, {
+    commerceReturnId: 7,
+    returnNumber: '6000000001',
+    id: 42,
+    orderId: 42,
+    incrementId: '000000042',
+    erpNumber: order.number,
+    status: 'received',
+    items: [{ orderItemId: 1, qty: 2, sku: 'A1' }, { orderItemId: 2, qty: 1, sku: 'B2' }]
+  })
+  const again = await move('6000000001', 'receive')
+  assert.equal(again.statusCode, 400)
+  assert.match(again.body.errorMessage, /^Return order 6000000001 was received on /)
+})
+
+test('a received return is credited by a credit memo of its lines, which names the return and raises creditmemo.created', async () => {
+  await post(request())
+  const early = await move('6000000001', 'credit-memo')
+  assert.equal(early.statusCode, 400)
+  assert.equal(early.body.errorMessage, 'Receive return order 6000000001 before crediting it.')
+  await move('6000000001', 'receive')
+  const res = await move('6000000001', 'credit-memo')
+  assert.equal(res.statusCode, 201)
+  assert.equal(res.body.status, 'credited')
+  const memo = res.body.creditMemo
+  assert.deepEqual(Object.keys(memo).sort(), [...contract.creditMemo.response].sort())
+  assert.equal(memo.number, '9500000001')
+  assert.equal(memo.returnNumber, '6000000001')
+  assert.equal(memo.invoiceNumber, '9000000001')
+  assert.deepEqual(memo.lines, [
+    { item: 10, sku: 'A1', qty: 2, price: 10, amount: 20, commerceItemId: 1 },
+    { item: 20, sku: 'B2', qty: 1, price: 5, amount: 5, commerceItemId: 2 }
+  ])
+  // Net 25 of the invoice's 40, so 25/40 of its 3.20 tax.
+  assert.deepEqual([memo.net, memo.tax, memo.total], [25, 2, 27])
+  const event = (await pending(cols)).find((e) => e.kind === 'creditmemo.created')
+  assert.deepEqual(event.value, {
+    id: 42,
+    orderId: 42,
+    incrementId: '000000042',
+    erpNumber: order.number,
+    creditMemoNumber: '9500000001',
+    returnNumber: '6000000001',
+    commerceReturnId: 7,
+    items: [{ orderItemId: 1, qty: 2, sku: 'A1' }, { orderItemId: 2, qty: 1, sku: 'B2' }],
+    total: 27,
+    notifyCustomer: false
+  })
+  const again = await move('6000000001', 'credit-memo')
+  assert.equal(again.body.errorMessage, 'Return order 6000000001 was credited by credit memo 9500000001.')
+})
+
+test("a return's credit memo is listed with the others, shown on its order, and stops a whole-invoice credit", async () => {
+  await post(request())
+  await move('6000000001', 'receive')
+  await move('6000000001', 'credit-memo')
+  const list = (await invoke(creditMemos, cols)).body.items
+  assert.deepEqual(list.map((m) => [m.number, m.returnNumber, m.partnerName]), [['9500000001', '6000000001', 'Acme']])
+  assert.equal((await invoke(creditMemos, cols, { path: '9500000001' })).body.returnNumber, '6000000001')
+  const doc = await describeOrder(cols, await getOrder(cols, order.number))
+  assert.deepEqual(doc.creditMemos.map((m) => m.number), ['9500000001'])
+  // The invoice is still open in part: it reads invoiced, and the rest is credited by return.
+  assert.equal(doc.invoice.status, 'open')
+  const whole = await invoke(orders, cols, { method: 'POST', path: `${order.number}/credit-memo` })
+  assert.equal(whole.body.errorMessage, 'Return order 6000000001 credited part of this invoice (credit memo 9500000001); credit the rest by return.')
+})
+
+test('an open return stops a whole-invoice credit, which would leave it never creditable', async () => {
+  await post(request())
+  const whole = await invoke(orders, cols, { method: 'POST', path: `${order.number}/credit-memo` })
+  assert.equal(whole.statusCode, 400)
+  assert.equal(whole.body.errorMessage, 'Return order 6000000001 is still open on this invoice; receive and credit it, or credit by return.')
+})
+
+test('returns are listed newest first and opened by number; an unknown one is a 404', async () => {
+  await post(request())
+  await post(request({ commerceReturnId: 8, lines: [{ commerceItemId: 2, qty: 1 }] }))
+  const list = await invoke(returns, cols)
+  assert.deepEqual(list.body.items.map((r) => r.number), ['6000000002', '6000000001'])
+  const one = await invoke(returns, cols, { path: '6000000002' })
+  assert.equal(one.body.commerceReturnId, '8')
+  assert.equal((await invoke(returns, cols, { path: '6000000099' })).statusCode, 404)
+  assert.equal((await move('6000000099', 'receive')).statusCode, 404)
+})

@@ -44,3 +44,10 @@ test('price lists and price groups are named in the screen\'s words', async () =
   assert.equal(wipeSummary({ contracts: 1 }), 'Wiped 1 price list. The order numbering and the settings stay.')
   assert.equal(wipeSummary({ contracts: 2, priceGroups: 1 }), 'Wiped 2 price lists and 1 price group. The order numbering and the settings stay.')
 })
+
+test('return orders are named in the screen\'s words, and a wipe removes them', async () => {
+  const { wipeSummary } = await load()
+  assert.equal(wipeSummary({ returnOrders: 2 }), 'Wiped 2 return orders. The order numbering and the settings stay.')
+  const { WIPED } = require('../lib/admin')
+  assert.ok(WIPED.includes('returnOrders'))
+})

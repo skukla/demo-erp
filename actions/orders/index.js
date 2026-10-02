@@ -12,6 +12,7 @@
  * POST orders/:number/shipments/:shipment/post  post it: the goods leave, the shipment event goes out
  * POST orders/:number/lines/:item/close         { reason } give up on what is still open on a line
  * POST orders/:number/invoice                   invoice the whole order, once every line is shipped or closed (201)
+ * POST orders/:number/credit-memo               credit the whole invoice, once (201; lib/credit-memos)
  * POST orders/:number/credit/release            let a held order proceed
  * POST orders/:number/credit/reject             cancel a held order, reason "Credit rejected"
  * POST orders/:number/credit/hold               { reason?, origin }  an order put On Hold in Commerce is held here too
@@ -30,6 +31,7 @@ const { ok } = require('../../lib/http')
 const { notFound, badRequest } = require('../../lib/errors')
 const { createOrder, listOrders, getOrder, describeOrder, shippingStatus, billingStatus, overallStatus } = require('../../lib/orders')
 const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus, releaseCredit, rejectCredit, receiveShipment, holdFromCommerce } = require('../../lib/fulfilment')
+const { creditInvoice } = require('../../lib/credit-memos')
 const { listPartners } = require('../../lib/partners')
 const { journalOrder } = require('../../lib/inbound')
 
@@ -58,6 +60,7 @@ async function move (cols, number, segments, body, params) {
   if (verb === 'confirm') return confirmOrder(cols, number, params)
   if (verb === 'cancel') return cancelOrder(cols, number, body.reason, params, origin)
   if (verb === 'invoice') return createInvoice(cols, number, params)
+  if (verb === 'credit-memo') return creditInvoice(cols, number, params)
   if (verb === 'commerce-shipment') return receiveShipment(cols, number, body, params)
   if (verb === 'commerce-invoice') return createInvoice(cols, number, params, { ...origin, commerceInvoiceId: body.commerceInvoiceId })
   if (verb === 'shipments' && !id) return createShipment(cols, number, body, params)
@@ -76,7 +79,7 @@ async function move (cols, number, segments, body, params) {
 }
 
 /** The moves that make a document answer 201. */
-const CREATES = new Set(['shipments', 'invoice', 'commerce-shipment', 'commerce-invoice'])
+const CREATES = new Set(['shipments', 'invoice', 'commerce-shipment', 'commerce-invoice', 'credit-memo'])
 
 async function handler ({ cols, method, segments, body, params }) {
   const number = segments[0] || null

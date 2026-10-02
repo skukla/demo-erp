@@ -244,6 +244,40 @@ application:
               require-adobe-auth: true
               include-ims-credentials: true
               final: true
+          returns:
+            function: actions/returns/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+              ERP_ID: $ERP_ID
+              EVENTS_WEBHOOK_URL: $EVENTS_WEBHOOK_URL
+              EVENTS_AUTH_CLIENT_ID: $EVENTS_AUTH_CLIENT_ID
+              EVENTS_AUTH_CLIENT_SECRET: $EVENTS_AUTH_CLIENT_SECRET
+              EVENTS_AUTH_ORG_ID: $EVENTS_AUTH_ORG_ID
+              EVENTS_AUTH_SCOPES: $EVENTS_AUTH_SCOPES
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
+          credit-memos:
+            function: actions/credit-memos/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            inputs:
+              LOG_LEVEL: info
+              ERP_DISPLAY_NAME: $ERP_DISPLAY_NAME
+              ERP_ID: $ERP_ID
+              EVENTS_WEBHOOK_URL: $EVENTS_WEBHOOK_URL
+              EVENTS_AUTH_CLIENT_ID: $EVENTS_AUTH_CLIENT_ID
+              EVENTS_AUTH_CLIENT_SECRET: $EVENTS_AUTH_CLIENT_SECRET
+              EVENTS_AUTH_ORG_ID: $EVENTS_AUTH_ORG_ID
+              EVENTS_AUTH_SCOPES: $EVENTS_AUTH_SCOPES
+            annotations:
+              require-adobe-auth: true
+              include-ims-credentials: true
+              final: true
           # The screen and its data calls. No Adobe sign-in: the key Demo Builder puts in
           # the link it opens is this action's access control (lib/screen.js).
           screen:

@@ -16,6 +16,7 @@ const { importPartners, patchPartner } = require('../lib/partners')
 const { createOrder, setStatus } = require('../lib/orders')
 const { releaseCredit } = require('../lib/fulfilment')
 const { createContract, activateContract } = require('../lib/contracts')
+const { createReturn, receiveReturn, creditReturn } = require('../lib/returns')
 
 let cols
 beforeEach(() => { cols = memoryCollections() })
@@ -34,6 +35,10 @@ test('the payload of each raised event carries exactly the contract keys', async
   await setStatus(cols, order.number, 'confirmed')
   await setStatus(cols, order.number, 'shipped')
   await setStatus(cols, order.number, 'invoiced')
+  // Version 13: the invoiced line comes back (return.received) and is credited (creditmemo.created).
+  const { returnOrder } = await createReturn(cols, { commerceReturnId: 5, orderNumber: order.number, lines: [{ commerceItemId: 3, qty: 1 }] })
+  await receiveReturn(cols, returnOrder.number)
+  await creditReturn(cols, returnOrder.number)
   // After the order flow: a blocked customer's new orders are held, and a hold stops Confirm.
   await patchPartner(cols, 'C1', { creditLimit: 5, blocking: 'all' })
   const cancelled = await createOrder(cols, { commerceOrderId: '10', lines: [] })
@@ -170,8 +175,8 @@ test('from version 9: prices in force are what the ERP would charge, pricing con
   assert.equal(priced.contractNumber, null)
 })
 
-test('the contract is at version 12: a published line may name its sales organization (AB-46); availability and credit-check are routes with their shapes (v11)', () => {
-  assert.equal(contract.contractVersion, 12)
+test('from version 12: a published line may name its sales organization (AB-46); availability and credit-check are routes with their shapes (v11)', () => {
+  assert.ok(contract.contractVersion >= 12)
   assert.ok(contract.contracts.priceLine.includes('salesOrg'))
   assert.ok(contract.contracts.discountLine.includes('salesOrg'))
   assert.match(contract.contracts.lineNote, /version 12: salesOrg/)
@@ -192,4 +197,31 @@ test('since version 10: canceled, order.canceled and Canceled in Commerce, in Am
   assert.ok(STATUSES.includes('canceled'))
   assert.match(contract.order.spellingNote, /refused/)
   assert.doesNotMatch(JSON.stringify(contract).replace(/\(was [^)]*\)/g, ''), /[Cc]ancelled/)
+})
+
+test('the contract is at version 13: return orders and credit memos, their routes, shapes and two events', async () => {
+  assert.equal(contract.contractVersion, 13)
+  assert.ok(contract.routes.orders.includes('POST /:number/credit-memo'))
+  assert.deepEqual(contract.routes.returns, ['GET', 'GET /:number', 'POST', 'POST /:number/receive', 'POST /:number/credit-memo'])
+  assert.deepEqual(contract.routes['credit-memos'], ['GET', 'GET /:number'])
+  assert.deepEqual(contract.returns.statuses, ['open', 'received', 'credited'])
+  assert.equal(contract.events['be-observer.sales_order_creditmemo_create'].raisedBy, 'creditmemo.created')
+  assert.equal(contract.events['be-observer.rma_status_update'].raisedBy, 'return.received')
+  // The documents as the code produces them.
+  const { invoke } = require('./helpers/memory-db')
+  await importProducts(cols, [{ sku: 'A1', name: 'A', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
+  const order = await createOrder(cols, { commerceOrderId: '9', lines: [{ sku: 'A1', qty: 2, price: 10, commerceItemId: 3 }] })
+  for (const status of ['confirmed', 'shipped', 'invoiced']) await setStatus(cols, order.number, status)
+  const made = await invoke(require('../actions/returns'), cols, { method: 'POST', body: { commerceReturnId: 5, orderNumber: order.number, lines: [{ commerceItemId: 3, qty: 1 }] } })
+  assert.deepEqual(Object.keys(made.body).sort(), [...contract.returns.response].sort())
+  assert.deepEqual(Object.keys(made.body.lines[0]).sort(), [...contract.returns.responseLine].sort())
+  assert.ok(contract.returns.statuses.includes(made.body.status))
+  // The whole-invoice credit memo, in its contract shape: on an order with no open return,
+  // since an open return refuses a whole credit.
+  const other = await createOrder(cols, { commerceOrderId: '10', lines: [{ sku: 'A1', qty: 1, price: 10, commerceItemId: 4 }] })
+  for (const status of ['confirmed', 'shipped', 'invoiced']) await setStatus(cols, other.number, status)
+  const credited = await invoke(require('../actions/orders'), cols, { method: 'POST', path: `${other.number}/credit-memo` })
+  const [memo] = credited.body.creditMemos
+  assert.deepEqual(Object.keys(memo).sort(), [...contract.creditMemo.response].sort())
+  assert.deepEqual(Object.keys(memo.lines[0]).sort(), [...contract.creditMemo.line].sort())
 })
