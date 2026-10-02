@@ -13,10 +13,10 @@ import User from '@spectrum-icons/workflow/User'
 import AppearancePanel from './AppearancePanel'
 
 /**
- * @param {object} props `api`; `saved` — the ERP's look now; `onPreview(look|null)` shows a
+ * @param {object} props `api`; `name` — the ERP's name; `saved` — the ERP's look now; `onPreview(look|null)` shows a
  *   look before it is saved; `onChanged` reads health again
  */
-export default function UserMenu ({ api, saved, onPreview, onChanged }) {
+export default function UserMenu ({ api, name, saved, onPreview, onChanged }) {
   // The open panel's key from the menu, or null.
   const [open, setOpen] = useState(null)
   return (
@@ -32,7 +32,7 @@ export default function UserMenu ({ api, saved, onPreview, onChanged }) {
       {/* Escape dismisses as Cancel does: the panel unmounts and its preview goes with it. */}
       <DialogContainer onDismiss={() => setOpen(null)}>
         {open === 'appearance' && (
-          <AppearancePanel api={api} saved={saved} onPreview={onPreview} onChanged={onChanged} close={() => setOpen(null)} />
+          <AppearancePanel api={api} name={name} saved={saved} onPreview={onPreview} onChanged={onChanged} close={() => setOpen(null)} />
         )}
       </DialogContainer>
     </>

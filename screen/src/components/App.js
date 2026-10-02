@@ -196,7 +196,7 @@ export default function App ({ screenKey, api: given }) {
           <Logo logo={look.logo} name={name} />
           <span className='erp-shellbar-name'>{name}</span>
           {ready && <ShellSearch api={api} onOpen={openPage} />}
-          {ready && <UserMenu api={api} saved={saved} onPreview={setPreview} onChanged={refreshHealth} />}
+          {ready && <UserMenu api={api} name={name} saved={saved} onPreview={setPreview} onChanged={refreshHealth} />}
         </header>
         {shape === 'top' && (
           <nav className='erp-topnav' aria-label='Areas'>

@@ -19,10 +19,10 @@ test('nothing picked shows the saved look and sends nothing new', async () => {
 })
 
 test('a theme brings its colour, mark and menu; a colour picked after it wins', async () => {
-  const { lookOf, withTheme, withColor } = await load()
+  const { lookOf, withTheme, withPart } = await load()
   const meridian = withTheme('meridian')
   assert.deepEqual(lookOf(meridian, DEFAULT_APPEARANCE), MERIDIAN)
-  assert.deepEqual(lookOf(withColor(meridian, 'plum'), DEFAULT_APPEARANCE), { ...MERIDIAN, palette: 'plum' })
+  assert.deepEqual(lookOf(withPart(meridian, 'palette', 'plum'), DEFAULT_APPEARANCE), { ...MERIDIAN, palette: 'plum' })
 })
 
 test('a theme picked after a colour sets the theme\'s colour', async () => {
@@ -31,14 +31,27 @@ test('a theme picked after a colour sets the theme\'s colour', async () => {
   assert.equal(lookOf(choice, DEFAULT_APPEARANCE).palette, THEMES.granite.palette)
 })
 
+test('a mark or a menu picked after a theme wins, and keeps the theme\'s other parts', async () => {
+  const { lookOf, withTheme, withPart } = await load()
+  const meridian = withTheme('meridian')
+  assert.deepEqual(lookOf(withPart(meridian, 'logo', 'layers'), DEFAULT_APPEARANCE), { ...MERIDIAN, logo: 'layers' })
+  assert.deepEqual(lookOf(withPart(meridian, 'nav', 'rail'), DEFAULT_APPEARANCE), { ...MERIDIAN, nav: 'rail' })
+})
+
+test('a theme picked after a mark drops the mark: the theme brings its own', async () => {
+  const { lookOf, withTheme, withPart, NOTHING_PICKED } = await load()
+  withPart(NOTHING_PICKED, 'logo', 'layers')
+  assert.equal(lookOf(withTheme('meridian'), DEFAULT_APPEARANCE).logo, THEMES.meridian.logo)
+})
+
 test('a colour alone keeps the saved mark and menu', async () => {
-  const { lookOf, withColor, NOTHING_PICKED } = await load()
-  assert.deepEqual(lookOf(withColor(NOTHING_PICKED, 'bronze'), MERIDIAN), { ...MERIDIAN, palette: 'bronze' })
+  const { lookOf, withPart, NOTHING_PICKED } = await load()
+  assert.deepEqual(lookOf(withPart(NOTHING_PICKED, 'palette', 'bronze'), MERIDIAN), { ...MERIDIAN, palette: 'bronze' })
 })
 
 test('what the panel shows is what the ERP stores from the same choice', async () => {
-  const { lookOf, withTheme, withColor } = await load()
-  const choice = withColor(withTheme('foundry'), 'teal')
+  const { lookOf, withTheme, withPart } = await load()
+  const choice = withPart(withPart(withTheme('foundry'), 'palette', 'teal'), 'logo', 'orbit')
   assert.deepEqual(lookOf(choice, MERIDIAN), normalizeAppearance(choice, MERIDIAN))
 })
 

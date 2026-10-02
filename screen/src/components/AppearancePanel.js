@@ -1,5 +1,5 @@
 /*
- * Appearance, from the user menu: a theme in one click, or a colour on its own.
+ * Appearance, from the user menu: a theme in one click, or a colour, mark or menu on its own.
  *
  * Everything is shown live: `onPreview` hands the pending look up to App, which colours the
  * whole page from it. Closing the panel without saving unmounts this, the preview is
@@ -11,9 +11,9 @@
  * longer describes the screen.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, ButtonGroup, Content, Dialog, Divider, Flex, Heading, InlineAlert, Text } from '@adobe/react-spectrum'
-import { PALETTES, THEMES } from '../design/palette'
-import { NOTHING_PICKED, lookOf, withColor, withTheme } from './appearanceChoice'
+import { Button, ButtonGroup, Content, Dialog, Divider, Flex, Heading, InlineAlert, Radio, RadioGroup, Text } from '@adobe/react-spectrum'
+import { LOGOS, PALETTES, THEMES } from '../design/palette'
+import { NOTHING_PICKED, lookOf, withPart, withTheme } from './appearanceChoice'
 import Logo from './Logo'
 import { toastSaved } from './toast'
 
@@ -46,10 +46,11 @@ function ThemeCard ({ id, theme, chosen, onChoose }) {
 }
 
 /**
- * @param {object} props `api`; `saved` — the ERP's look now; `onPreview(look|null)`;
+ * @param {object} props `api`; `name` — the ERP's name, which the monogram mark draws;
+ *   `saved` — the ERP's look now; `onPreview(look|null)`;
  *   `onChanged` — reads health again after a save; `close`
  */
-export default function AppearancePanel ({ api, saved, onPreview, onChanged, close }) {
+export default function AppearancePanel ({ api, name, saved, onPreview, onChanged, close }) {
   const [choice, setChoice] = useState(NOTHING_PICKED)
   const [refusal, setRefusal] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -77,7 +78,8 @@ export default function AppearancePanel ({ api, saved, onPreview, onChanged, clo
   }
 
   return (
-    <Dialog>
+    // Wide enough for the four theme cards in one row, with room to read each.
+    <Dialog width={840}>
       <Heading>Appearance</Heading>
       <Divider />
       <Content>
@@ -108,12 +110,40 @@ export default function AppearancePanel ({ api, saved, onPreview, onChanged, clo
                   aria-pressed={look.palette === id}
                   aria-label={label}
                   title={label}
-                  onClick={() => pick(withColor(choice, id))}
+                  onClick={() => pick(withPart(choice, 'palette', id))}
                   style={{ background: tokens['--accent'] }}
                 />
               ))}
             </div>
           </div>
+          <div className='erp-setting'>
+            <p className='erp-field-label'>Logo</p>
+            <div className='erp-mark-row'>
+              {LOGOS.map((id) => (
+                <button
+                  key={id}
+                  type='button'
+                  className='erp-mark'
+                  aria-pressed={look.logo === id}
+                  aria-label={id}
+                  title={id}
+                  onClick={() => pick(withPart(choice, 'logo', id))}
+                >
+                  {/* The monogram draws the ERP's own initial, so what is offered here is
+                      what will actually appear on the shell bar. */}
+                  <Logo logo={id} name={name} size={24} />
+                </button>
+              ))}
+            </div>
+          </div>
+          <RadioGroup
+            label='Navigation'
+            orientation='horizontal'
+            value={look.nav}
+            onChange={(nav) => pick(withPart(choice, 'nav', nav))}
+          >
+            {Object.entries(NAV_LABELS).map(([id, label]) => <Radio key={id} value={id}>{label}</Radio>)}
+          </RadioGroup>
         </Flex>
       </Content>
       <ButtonGroup>

@@ -556,6 +556,27 @@ test('a pick repaints the screen before Save; Cancel, or Escape, puts the saved 
   }
 })
 
+test('the panel offers the mark and the menu too, and shows the four themes in one row', async () => {
+  const { page, context, problems } = await open('home')
+  try {
+    const dialog = await openAppearance(page)
+    const tops = await dialog.locator('.erp-theme-card').evaluateAll((cards) => cards.map((c) => c.getBoundingClientRect().top))
+    assert.equal(tops.length, 4)
+    assert.equal(new Set(tops).size, 1, 'one row')
+    await dialog.getByRole('radio', { name: 'Top band' }).click()
+    await page.locator('.erp-topnav').waitFor({ timeout: 5000 })
+    const orbit = dialog.getByRole('button', { name: 'orbit', exact: true })
+    await orbit.click()
+    assert.equal(await orbit.getAttribute('aria-pressed'), 'true')
+    await dialog.getByRole('button', { name: 'Cancel' }).click()
+    await dialog.waitFor({ state: 'detached', timeout: 5000 })
+    await page.locator('.erp-rail').waitFor({ timeout: 5000 })
+    assert.deepEqual(problems, [], 'appearance mark and menu console')
+  } finally {
+    await context.close()
+  }
+})
+
 test('Save keeps a theme and the colour picked after it: the ERP stores it and health brings it back', async () => {
   const { page, context, problems } = await open('home')
   try {

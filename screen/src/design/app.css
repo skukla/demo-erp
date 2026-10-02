@@ -603,9 +603,10 @@ body,
   color: var(--ink-2);
 }
 
+/* The four themes in one row, each card a quarter of the panel. */
 .erp-theme-cards {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-3);
 }
 
@@ -613,7 +614,6 @@ body,
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  width: 150px;
   padding: var(--space-3);
   font: inherit;
   text-align: left;
@@ -664,7 +664,8 @@ body,
   color: var(--ink-2);
 }
 
-.erp-swatch-row {
+.erp-swatch-row,
+.erp-mark-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -683,6 +684,31 @@ body,
 
 .erp-swatch[aria-pressed="true"] {
   border-color: var(--ink);
+}
+
+/* A mark is drawn in the ERP's own colours once chosen, so the choice reads as the shell
+   bar will. */
+.erp-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: var(--surface-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+
+.erp-mark:hover {
+  border-color: var(--line-strong);
+}
+
+.erp-mark[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent-tint);
+  border-color: var(--accent-edge);
 }
 
 /* A labelled control: the label, then the control, with nothing relying on the label to
