@@ -1,12 +1,12 @@
 /*
  * POST admin/wipe                       remove every record (counters and settings stay)
  * POST admin/import { products, partners, stock, structure, projectName, origin? }   bulk upsert:
- *      Demo Builder fills the ERP through it, and the integration sends each Commerce change;
- *      `origin: { event }` names the Commerce event behind a change, and journals it; `stock`
+ *      Demo Builder fills the ERP through it, and the integration sends each change made in the
+ *      web shop; `origin: { system, document? }` names who sent it, and journals it; `stock`
  *      is quantities per warehouse for products the ERP already has
  *
  * "Last import" moves only with a products import (Demo Builder's fill). A partners-only
- * or stock-only import (one Commerce event) leaves it alone.
+ * or stock-only import (one change in the web shop) leaves it alone.
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
@@ -32,19 +32,19 @@ async function handler ({ cols, method, segments, body }) {
     // Stock alone moves quantities on products the ERP has; it is not an import of them.
     const stock = Array.isArray(body.stock) ? await importStock(cols, body.stock) : undefined
     await ensureDefaultPartner(cols, body.projectName)
-    // The one-time setup seed of pricing from Commerce's shared catalogs (AB-44): price groups,
+    // The one-time setup seed of pricing from the web shop's shared catalogs (AB-44): price groups,
     // each customer's group, and the group's price lists. Sent last by the fill, so the products
     // and partners it references are already in.
     const seed = body.seed ? await seedPricing(cols, body.seed) : undefined
-    // Commerce's websites and their sales organizations, replaced on every fill. The first
+    // The web shop's websites and their sales organizations, replaced on every fill. The first
     // fill also seeds the ERP's own sales organizations; after that they are the ERP's.
     if (body.structure && Array.isArray(body.structure.websites)) {
       await stamp(cols, { structureMirror: { websites: body.structure.websites } })
       await seedSalesOrganizations(cols, body.structure.websites)
     }
     if (Array.isArray(body.products)) await stamp(cols, { lastImportAt: new Date().toISOString() })
-    // A write a Commerce event brought is journaled, so the Events log shows it arrived. The
-    // setup seed is not a Commerce event, so a seed-only import journals nothing.
+    // A write a change in the web shop brought is journaled, so the Events log shows it arrived.
+    // The setup seed is not such a change, so a seed-only import journals nothing.
     if (mirror) await journalImport(cols, body, { products, partners, stock })
     return ok({ products, partners, ...(stock ? { stock } : {}), ...(seed ? { seed } : {}) })
   }

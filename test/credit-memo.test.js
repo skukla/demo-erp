@@ -24,7 +24,7 @@ beforeEach(async () => {
 })
 
 /* Net 40 (3 x 10 + 2 x 5); Commerce charged 43.20, so the ERP reports 3.20 tax. */
-const input = { commerceOrderId: '42', commerceIncrementId: '000000042', total: 43.2, lines: [{ sku: 'A1', qty: 3, price: 10, commerceItemId: 1 }, { sku: 'B2', qty: 2, price: 5, commerceItemId: 2 }] }
+const input = { purchaseOrderByCustomer: '000000042', total: 43.2, lines: [{ sku: 'A1', qty: 3, price: 10, customerLineReference: '1' }, { sku: 'B2', qty: 2, price: 5, customerLineReference: '2' }] }
 
 async function invoiced () {
   const order = await createOrder(cols, input)
@@ -60,30 +60,34 @@ test('crediting an invoiced order answers 201 with the order, its invoice credit
   assert.deepEqual([memo.net, memo.tax, memo.total], [40, 3.2, 43.2])
   assert.deepEqual(Object.keys(memo.lines[0]).sort(), [...contract.creditMemo.line].sort())
   assert.deepEqual(memo.lines, [
-    { item: 10, sku: 'A1', qty: 3, price: 10, amount: 30, commerceItemId: 1 },
-    { item: 20, sku: 'B2', qty: 2, price: 5, amount: 10, commerceItemId: 2 }
+    { item: 10, sku: 'A1', qty: 3, price: 10, amount: 30, customerLineReference: '1' },
+    { item: 20, sku: 'B2', qty: 2, price: 5, amount: 10, customerLineReference: '2' }
   ])
   // The stored invoice says so too, so billingStatus reads it from the record.
   assert.equal(billingStatus(await getOrder(cols, order.number)), 'credited')
 })
 
-test('the credit memo raises creditmemo.created naming the credited lines, no return, and the total', async () => {
+const isCreditMemo = (e) => e.type === 'BillingDocument.Created' && e.data.BillingDocumentType === 'CreditMemo'
+
+test('the credit memo raises BillingDocument.Created (credit memo) naming the credited lines, the invoice, no return, and the amounts', async () => {
   const order = await invoiced()
   await credit(order.number)
-  const event = (await pending(cols)).find((e) => e.kind === 'creditmemo.created')
-  assert.ok(event, 'creditmemo.created was raised')
-  assert.equal(event.event, 'be-observer.sales_order_creditmemo_create')
-  assert.deepEqual(event.value, {
-    id: 42,
-    orderId: 42,
-    incrementId: '000000042',
-    erpNumber: order.number,
-    creditMemoNumber: '9500000001',
-    returnNumber: null,
-    commerceReturnId: null,
-    items: [{ orderItemId: 1, qty: 3, sku: 'A1' }, { orderItemId: 2, qty: 2, sku: 'B2' }],
-    total: 43.2,
-    notifyCustomer: false
+  const event = (await pending(cols)).find(isCreditMemo)
+  assert.ok(event, 'the credit memo was raised')
+  assert.deepEqual(event.data, {
+    BillingDocument: '9500000001',
+    BillingDocumentType: 'CreditMemo',
+    SalesOrder: order.number,
+    PurchaseOrderByCustomer: '000000042',
+    SoldToParty: order.partnerId,
+    ReferenceBillingDocument: '9000000001',
+    CustomerReturn: null,
+    CustomerReturnReference: null,
+    TotalNetAmount: 40,
+    TaxAmount: 3.2,
+    TotalGrossAmount: 43.2,
+    TransactionCurrency: 'USD',
+    Items: [{ SalesOrderItem: 10, Material: 'A1', Quantity: 3, CustomerLineReference: '1' }, { SalesOrderItem: 20, Material: 'B2', Quantity: 2, CustomerLineReference: '2' }]
   })
 })
 
@@ -95,7 +99,7 @@ test('an invoice is credited once: a second credit is refused, naming the credit
   assert.equal(again.body.errorMessage, 'Invoice 9000000001 was credited by credit memo 9500000001.')
   // Nothing was numbered or raised the second time.
   assert.equal((await peek(cols)).creditMemo, '9500000002')
-  assert.equal((await pending(cols)).filter((e) => e.kind === 'creditmemo.created').length, 1)
+  assert.equal((await pending(cols)).filter(isCreditMemo).length, 1)
 })
 
 test('an order with no invoice has nothing to credit; an unknown order is a 404', async () => {
@@ -109,7 +113,7 @@ test('an order with no invoice has nothing to credit; an unknown order is a 404'
 test('credit-memos lists every credit memo newest first, and opens one by number', async () => {
   const first = await invoiced()
   await credit(first.number)
-  const second = await createOrder(cols, { ...input, commerceOrderId: '43', commerceIncrementId: '000000043' })
+  const second = await createOrder(cols, { ...input, purchaseOrderByCustomer: '000000043' })
   await setStatus(cols, second.number, 'confirmed')
   await setStatus(cols, second.number, 'shipped')
   await setStatus(cols, second.number, 'invoiced')

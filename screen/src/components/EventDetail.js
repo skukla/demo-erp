@@ -29,10 +29,13 @@ export default function EventDetail ({ entry, state, onBack }) {
         <ChevronLeft />
         <Text>Events</Text>
       </ActionButton>
-      <Heading level={2} marginTop={0}>{(entry.describe && entry.describe.name) || entry.event}</Heading>
+      <Heading level={2} marginTop={0}>{(entry.describe && entry.describe.name) || entry.type || entry.event}</Heading>
       {entry.describe && entry.describe.text && <Field label='What happened'>{entry.describe.text}</Field>}
-      {/* The wire name stays: it is what the integration's history and I/O Events show. */}
-      <Field label='Event'>{entry.event}</Field>
+      {/* The wire name stays: the event type an outbound entry was sent as (contract version 16),
+          or what the sender named; an entry from before version 16 keeps the name it had. */}
+      {incoming && entry.origin
+        ? <Field label='From'>{[entry.origin.system, entry.origin.document].filter(Boolean).join(': ')}</Field>
+        : <Field label='Event'>{entry.type || entry.event}</Field>}
       <Field label='Direction'>{incoming ? '← Inbound, from the web shop integration' : '→ Outbound, to the web shop integration'}</Field>
       {/* The exact time too: it is what Debug Tracing lists deliveries by. */}
       <Field label='When'>{formatStamp(entry.at)} ({entry.at})</Field>
@@ -45,7 +48,7 @@ export default function EventDetail ({ entry, state, onBack }) {
       <Field label='Journal entry'>{entry._id}</Field>
       <Text UNSAFE_className='erp-field-label'>Payload</Text>
       <View backgroundColor='gray-100' borderRadius='regular' padding='size-150' marginTop='size-50' overflow='auto'>
-        <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>{JSON.stringify(entry.value, null, 2)}</pre>
+        <pre style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap' }}>{JSON.stringify(entry.data ?? entry.value, null, 2)}</pre>
       </View>
     </>
   )

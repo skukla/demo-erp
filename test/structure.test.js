@@ -52,10 +52,10 @@ test('a partner stored with the old single field reads as its sales organisation
 
 test('an order carries the sales organisation the request names (1000 when none), the document prints it, and the customer is widened to it', async () => {
   await importPartners(cols, [{ id: 'C7', name: 'Acme', commerceCompanyId: '7', salesOrgs: ['1000'] }])
-  const eu = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C7', salesOrg: '2000', salesOrgName: 'Online EU', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
+  const eu = await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C7', salesOrg: '2000', salesOrgName: 'Online EU', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
   assert.equal(eu.salesOrg, '2000')
   assert.equal(eu.salesOrgName, 'Online EU')
-  const plain = await createOrder(cols, { commerceOrderId: '2', partnerId: 'C7', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
+  const plain = await createOrder(cols, { purchaseOrderByCustomer: '2', partnerId: 'C7', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
   assert.equal(plain.salesOrg, '1000')
   assert.equal(plain.salesOrgName, null)
   assert.deepEqual((await getPartner(cols, 'C7')).salesOrgs, ['1000', '2000'], 'the customer has now bought through 2000')
@@ -85,7 +85,7 @@ test('a condition scoped to one sales organisation applies only there, beats an 
   assert.equal(anywhere.lines[0].contractPrice, 75, 'a quote naming no sales organisation is not held back by a scope')
 })
 
-test('warehouses take the Commerce source name once, keep a name given on screen, and refuse an empty rename', async () => {
+test('warehouses take the imported name once, keep a name given on screen, and refuse an empty rename', async () => {
   const settings = await getSettings(cols)
   assert.deepEqual(settings.warehouses, { default: { name: 'Default Source' }, east: { name: 'East DC' } })
   await updateSettings(cols, { warehouses: { east: { name: 'Plant 1100 · Newark DC' } } })
@@ -98,8 +98,8 @@ test('warehouses take the Commerce source name once, keep a name given on screen
 
 test('the structure is derived on read: company code, sales organisations with counts, warehouses under ERP names, and the websites left on the default', async () => {
   await invoke(admin, cols, { method: 'POST', path: '/import', body: { partners: [{ id: 'C7', name: 'Acme', commerceCompanyId: '7', salesOrgs: ['2000'] }, { id: 'C8', name: 'Bare', commerceCompanyId: '8', salesOrgs: [] }], structure: STRUCTURE, projectName: 'Demo' } })
-  await createOrder(cols, { commerceOrderId: '1', partnerId: 'C7', salesOrg: '2000', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
-  await createOrder(cols, { commerceOrderId: '2', partnerId: 'C8', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C7', salesOrg: '2000', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '2', partnerId: 'C8', lines: [{ sku: 'A1', qty: 1, price: 100 }] })
   await updateSettings(cols, { warehouses: { east: { name: 'Plant 1100' } } }, 'Northwind ERP')
   const structure = await describeStructure(cols)
   assert.deepEqual(structure.companyCode, { code: '1000', name: 'Northwind ERP', currency: 'USD', countryId: 'US', vatNumber: null, address: null })
@@ -108,8 +108,8 @@ test('the structure is derived on read: company code, sales organisations with c
     { code: '2000', name: 'Online EU', currency: 'EUR', websiteCode: 'eu', customers: 1, orders: 1 }
   ])
   assert.deepEqual(structure.warehouses, [
-    { code: 'default', name: 'Default Source', commerceName: 'Default Source', products: 1, stock: 5 },
-    { code: 'east', name: 'Plant 1100', commerceName: 'East DC', products: 1, stock: 2 }
+    { code: 'default', name: 'Default Source', products: 1, stock: 5 },
+    { code: 'east', name: 'Plant 1100', products: 1, stock: 2 }
   ])
   assert.deepEqual(structure.unmapped, ['base'], 'base fell back to 1000 while eu named one')
   const res = await invoke(health, cols)
@@ -118,17 +118,17 @@ test('the structure is derived on read: company code, sales organisations with c
   assert.deepEqual(doc.salesOrgNames, { 1000: 'Main Website', 2000: 'Online EU' })
 })
 
-test('a warehouse renamed in Settings prints its ERP name on the shipment and in the order\'s ship-from choices, with the Commerce name beside; the invoice carries the seller', async () => {
+test('a warehouse renamed in Settings prints its ERP name on the shipment and in the order\'s ship-from choices, and only that name (version 16); the invoice carries the seller', async () => {
   const { confirmOrder, createShipment, postShipment, createInvoice, getShipment, getInvoice } = require('../lib/fulfilment')
   await invoke(admin, cols, { method: 'POST', path: '/import', body: { partners: [{ id: 'C7', name: 'Acme', commerceCompanyId: '7', salesOrgs: ['2000'] }], structure: STRUCTURE, projectName: 'Demo' } })
   await updateSettings(cols, { warehouses: { east: { name: 'Plant 1100 · Newark DC' } } }, 'Northwind ERP')
-  const order = await confirmOrder(cols, (await createOrder(cols, { commerceOrderId: '1', partnerId: 'C7', salesOrg: '2000', salesOrgName: 'Online EU', lines: [{ sku: 'A1', qty: 2, price: 100, commerceItemId: 1 }] })).number)
+  const order = await confirmOrder(cols, (await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C7', salesOrg: '2000', salesOrgName: 'Online EU', lines: [{ sku: 'A1', qty: 2, price: 100, customerLineReference: '1' }] })).number)
   const doc = await describeOrder(cols, order)
-  assert.deepEqual(doc.warehouses.find((w) => w.code === 'east'), { code: 'east', name: 'Plant 1100 · Newark DC', commerceName: 'East DC' })
+  assert.deepEqual(doc.warehouses.find((w) => w.code === 'east'), { code: 'east', name: 'Plant 1100 · Newark DC' })
   const withShipment = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 2 }], warehouse: 'east' })
   await postShipment(cols, order.number, withShipment.shipments[0].number)
   const shipment = await getShipment(cols, withShipment.shipments[0].number)
-  assert.deepEqual(shipment.warehouse, { code: 'east', name: 'Plant 1100 · Newark DC', commerceName: 'East DC' })
+  assert.deepEqual(shipment.warehouse, { code: 'east', name: 'Plant 1100 · Newark DC' })
   const invoiced = await createInvoice(cols, order.number)
   const invoice = await getInvoice(cols, invoiced.invoice.number)
   assert.deepEqual(invoice.seller, { companyCode: '1000', name: 'Northwind ERP', salesOrg: '2000', salesOrgName: 'Online EU', currency: 'EUR', countryId: 'DE', vatNumber: null, address: null })

@@ -22,7 +22,7 @@ beforeEach(async () => {
   await ensureDefaultPartner(cols, 'Demo')
 })
 
-const order = (id, qty, total) => createOrder(cols, { commerceOrderId: id, partnerId: 'C1', total, lines: [{ sku: 'A1', qty, price: 100, commerceItemId: 1 }] })
+const order = (id, qty, total) => createOrder(cols, { purchaseOrderByCustomer: id, partnerId: 'C1', total, lines: [{ sku: 'A1', qty, price: 100, customerLineReference: '1' }] })
 
 /** An order taken all the way to its invoice; its total carries 8% tax. */
 async function invoiced (id, qty) {

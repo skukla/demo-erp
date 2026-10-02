@@ -4,8 +4,8 @@
  *                                               order number); SAP filters PurchaseOrderByCustomer, Business
  *                                               Central externalDocumentNumber
  * GET  orders/:number                           one order as its document shows it (lib/orders describeOrder)
- * POST orders                                   create from a Commerce order (idempotent on commerceOrderId;
- *                                               `origin: { event }` journals it the first time)
+ * POST orders                                   create from a customer's order (idempotent on purchaseOrderByCustomer;
+ *                                               `origin: { system, document? }` journals it the first time)
  * POST orders/:number/confirm                   confirm it
  * POST orders/:number/cancel                    { reason } cancel it; the reason is one of CANCEL_REASONS
  * POST orders/:number/shipments                 { lines:[{item, qty}], warehouse? } create an open shipment (201)
@@ -15,13 +15,14 @@
  * POST orders/:number/credit-memo               credit the whole invoice, once (201; lib/credit-memos)
  * POST orders/:number/credit/release            let a held order proceed
  * POST orders/:number/credit/reject             cancel a held order, reason "Credit rejected"
- * POST orders/:number/credit/hold               { reason?, origin }  an order put On Hold in Commerce is held here too
+ * POST orders/:number/credit/hold               { reason?, origin }  an order put On Hold in the web shop is held here too
  *
- * A move that came from Commerce carries `origin: { event, eventId? }`: the ERP records it,
- * journals it as received, and raises no outbound event for it (Commerce already has it):
- * POST orders/:number/commerce-shipment         { commerceShipmentId, items:[{ orderItemId, qty }], sourceCode?, origin }
- * POST orders/:number/commerce-invoice          { commerceInvoiceId?, origin }
- * POST orders/:number/cancel                    { reason: "Canceled in Commerce", origin }
+ * A move made in another system (the web shop) carries `origin: { system, document?, eventId? }`:
+ * the ERP records it, journals it as received, and raises no outbound event for it (that
+ * system already has it):
+ * POST orders/:number/external-shipment         { externalReference, lines:[{ customerLineReference, qty }], warehouse?, origin }
+ * POST orders/:number/external-invoice          { externalReference?, origin }
+ * POST orders/:number/cancel                    { reason: "Canceled in the web shop", origin }
  * POST orders/:number/credit/release            { origin }
  * POST orders/:number/status                    { status, reason? } the whole-order move, for a caller that
  *                                               knows nothing of shipments; predates them and stays
@@ -29,8 +30,8 @@
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound, badRequest } = require('../../lib/errors')
-const { createOrder, listOrders, getOrder, describeOrder, shippingStatus, billingStatus, overallStatus } = require('../../lib/orders')
-const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus, releaseCredit, rejectCredit, receiveShipment, holdFromCommerce } = require('../../lib/fulfilment')
+const { createOrder, findByReference, listOrders, getOrder, describeOrder, shippingStatus, billingStatus, overallStatus } = require('../../lib/orders')
+const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus, releaseCredit, rejectCredit, receiveExternalShipment, holdExternal } = require('../../lib/fulfilment')
 const { creditInvoice } = require('../../lib/credit-memos')
 const { listPartners } = require('../../lib/partners')
 const { journalOrder } = require('../../lib/inbound')
@@ -50,7 +51,7 @@ async function listRows (cols) {
 
 /** The customer's reference an order carries: the buyer's own order number. */
 function referenceOf (order) {
-  return String(order.commerceIncrementId || order.commerceOrderId || '')
+  return String(order.purchaseOrderByCustomer || '')
 }
 
 /** The moves on one order, by the path segment after its number. Each answers the document. */
@@ -61,14 +62,14 @@ async function move (cols, number, segments, body, params) {
   if (verb === 'cancel') return cancelOrder(cols, number, body.reason, params, origin)
   if (verb === 'invoice') return createInvoice(cols, number, params)
   if (verb === 'credit-memo') return creditInvoice(cols, number, params)
-  if (verb === 'commerce-shipment') return receiveShipment(cols, number, body, params)
-  if (verb === 'commerce-invoice') return createInvoice(cols, number, params, { ...origin, commerceInvoiceId: body.commerceInvoiceId })
+  if (verb === 'external-shipment') return receiveExternalShipment(cols, number, body, params)
+  if (verb === 'external-invoice') return createInvoice(cols, number, params, { ...origin, externalReference: body.externalReference })
   if (verb === 'shipments' && !id) return createShipment(cols, number, body, params)
   if (verb === 'shipments' && id && action === 'post') return postShipment(cols, number, id, params)
   if (verb === 'lines' && id && action === 'close') return closeRemaining(cols, number, id, body.reason, params)
   if (verb === 'credit' && id === 'release') return releaseCredit(cols, number, params, origin)
   if (verb === 'credit' && id === 'reject') return rejectCredit(cols, number, params)
-  if (verb === 'credit' && id === 'hold') return holdFromCommerce(cols, number, params, { ...origin, reason: body.reason })
+  if (verb === 'credit' && id === 'hold') return holdExternal(cols, number, params, { ...origin, reason: body.reason })
   if (verb === 'status') {
     if (!body.status) throw badRequest('status is required')
     const order = await setStatus(cols, number, body.status, params, { reason: body.reason })
@@ -79,7 +80,7 @@ async function move (cols, number, segments, body, params) {
 }
 
 /** The moves that make a document answer 201. */
-const CREATES = new Set(['shipments', 'invoice', 'commerce-shipment', 'commerce-invoice', 'credit-memo'])
+const CREATES = new Set(['shipments', 'invoice', 'external-shipment', 'external-invoice', 'credit-memo'])
 
 async function handler ({ cols, method, segments, body, params }) {
   const number = segments[0] || null
@@ -94,7 +95,8 @@ async function handler ({ cols, method, segments, body, params }) {
     return ok(await describeOrder(cols, order))
   }
   if (method === 'POST' && !number) {
-    const existed = await cols.salesOrders.findOne({ commerceOrderId: String(body.commerceOrderId || '') })
+    const reference = body && body.purchaseOrderByCustomer !== undefined && body.purchaseOrderByCustomer !== null ? String(body.purchaseOrderByCustomer).trim() : ''
+    const existed = reference ? await findByReference(cols, reference) : null
     const order = await createOrder(cols, body, params)
     // Journaled the first time only: a redelivered event is the same order.
     if (!existed) await journalOrder(cols, body, order)

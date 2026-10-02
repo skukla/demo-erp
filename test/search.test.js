@@ -14,7 +14,7 @@ beforeEach(async () => {
   cols = memoryCollections()
   await importProducts(cols, [{ sku: 'P000001', name: 'Wide-leg trouser', listPrice: 89 }, { sku: 'P000002', name: 'Trouser press', listPrice: 40 }])
   await importPartners(cols, [{ id: 'C000101', name: 'Northwind Trading', commerceCompanyId: '4' }])
-  const order = await createOrder(cols, { commerceOrderId: '700', commerceIncrementId: '000000300', partnerId: 'C000101', lines: [{ sku: 'P000001', qty: 1, price: 89 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '000000300', partnerId: 'C000101', lines: [{ sku: 'P000001', qty: 1, price: 89 }] })
   await confirmOrder(cols, order.number)
   await createShipment(cols, order.number, { lines: [{ item: 10, qty: 1 }] })
 })

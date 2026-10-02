@@ -44,7 +44,7 @@ export default function ShipmentDetail ({ api, number, backLabel = 'Shipments', 
               <Field label='Sales order'>
                 <button type='button' className='erp-link' onClick={() => onOpen('order', shipment.orderNumber)}>{shipment.orderNumber}</button>
               </Field>
-              <Field label='Customer reference'>{shipment.commerceIncrementId || '—'}</Field>
+              <Field label='Customer reference'>{shipment.purchaseOrderByCustomer || '—'}</Field>
               <Field label='Ship-to'>{shipment.partner ? `${shipment.partner.id} · ${shipment.partner.name}` : 'Same as sold-to'}</Field>
               {/* The ERP's own name for the plant, the Commerce source code in brackets. */}
               <Field label='Ship-from'>{shipment.warehouse ? `${shipment.warehouse.name} (${shipment.warehouse.code})` : '—'}</Field>

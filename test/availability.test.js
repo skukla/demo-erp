@@ -27,7 +27,7 @@ beforeEach(async () => {
   ])
 })
 
-const order = (id, lines) => createOrder(cols, { commerceOrderId: id, commerceIncrementId: `0000${id}`, lines })
+const order = (id, lines) => createOrder(cols, { purchaseOrderByCustomer: `0000${id}`, lines })
 
 test('committed is the open quantity on orders that are neither cancelled nor invoiced', async () => {
   await order('1', [{ sku: 'A1', qty: 12, price: 10 }])

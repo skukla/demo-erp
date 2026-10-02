@@ -2,7 +2,7 @@
  * GET products                   every product with `committed` and `available` (lib/availability)
  * GET products/:sku              the product, plus its `openOrders` — each order holding it, with the customer named
  * PATCH products/:sku            { name?, listPrice?, warehouses?, salesStatus? }
- * DELETE products/:sku { origin? }   the product was deleted in Commerce; its variants stay as products of their own
+ * DELETE products/:sku { origin? }   the product was deleted in the web shop; its variants stay as products of their own
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')

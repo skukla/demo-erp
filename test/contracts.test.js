@@ -153,17 +153,18 @@ test('a wipe removes price lists and price groups; the numbering carries on', as
 })
 
 /*
- * contract.changed: raised for every customer whose prices in force change, carrying that
+ * PriceList.Changed: raised for every customer whose prices in force change, carrying that
  * customer's WHOLE current set (lib/contract-prices), so delivering it twice is harmless.
  */
-const { pending, EVENT_NAMES } = require('../lib/events')
+const { pending, EVENT_TYPES } = require('../lib/events')
 
-// Oldest first; nothing is delivered without action params, so every event is pending.
-const changes = async () => (await pending(cols)).filter((e) => e.kind === 'contract.changed').map((e) => e.value)
+// Oldest first; nothing is delivered without action params, so every event is pending. Each
+// read as { partnerId, lines }: the customer (data.Customer) and its set (data.Lines).
+const changes = async () => (await pending(cols)).filter((e) => e.type === 'PriceList.Changed').map((e) => ({ partnerId: e.data.Customer, lines: e.data.Lines }))
 const own = (number, extra) => ({ sku: 'A1', kind: 'price', price: 80, minQty: 1, contractNumber: number, appliesTo: 'customer', salesOrg: null, ...extra })
 
-test('contract.changed is delivered as be-observer.company_contract_update', () => {
-  assert.equal(EVENT_NAMES['contract.changed'], 'be-observer.company_contract_update')
+test('a change to a customer\'s prices in force is a PriceList.Changed', () => {
+  assert.ok(EVENT_TYPES.includes('PriceList.Changed'))
 })
 
 test('a draft changes no price, so creating or editing one raises nothing', async () => {

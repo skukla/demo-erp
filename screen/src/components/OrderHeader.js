@@ -59,9 +59,9 @@ export default function OrderHeader ({ order, onOpen }) {
       >
         <Field label='Document type'>Sales order</Field>
         <Field label='Order date'>{formatDate(order.createdAt)}</Field>
-      {/* The buyer's own reference for this order, which is what Commerce's increment
-          id is. Business Central heads the same field External Document No. */}
-        <Field label='Customer reference'>{order.commerceIncrementId || order.commerceOrderId || '—'}</Field>
+      {/* The buyer's own reference for this order (SAP's PurchaseOrderByCustomer). Business
+          Central heads the same field External Document No. */}
+        <Field label='Customer reference'>{order.purchaseOrderByCustomer || '—'}</Field>
 
         <Field label='Sold-to'>
           {partner

@@ -34,7 +34,7 @@ async function makeRecords () {
   await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 50 }] }])
   await importPartners(cols, [{ id: 'C1', name: 'Acme', creditLimit: 1000, blocked: false }])
   await ensureDefaultPartner(cols, 'Demo')
-  const order = await createOrder(cols, { commerceOrderId: '42', commerceIncrementId: '000000042', partnerId: 'C1', lines: [{ sku: 'A1', qty: 3, price: 10, commerceItemId: 1 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '000000042', partnerId: 'C1', lines: [{ sku: 'A1', qty: 3, price: 10, customerLineReference: '1' }] })
   await confirmOrder(cols, order.number)
   const withShipment = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 3 }], warehouse: 'default' })
   await postShipment(cols, order.number, withShipment.shipments[0].number)

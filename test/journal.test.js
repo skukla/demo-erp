@@ -1,13 +1,48 @@
 /* The journal in words: every kind of entry names the document it belongs to. */
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
-const { describeEvent, KIND_NAMES } = require('../lib/journal')
-const { EVENT_NAMES } = require('../lib/events')
+const { describeEvent, typeName } = require('../lib/journal')
+const { EVENT_TYPES } = require('../lib/events')
 
-const out = (kind, value) => ({ direction: 'out', kind, event: EVENT_NAMES[kind], value })
+/* An entry journaled before contract version 16: a kind and the payload it was sent with. */
+const out = (kind, value) => ({ direction: 'out', kind, value })
+/* An entry of version 16: a type and its data, in the ERP's words. */
+const v16 = (type, data) => ({ direction: 'out', type, data })
 
-test('every event kind the ERP publishes has a plain name', () => {
-  assert.deepEqual(Object.keys(KIND_NAMES).sort(), Object.keys(EVENT_NAMES).sort())
+test('every event type the ERP publishes has a plain name of its own', () => {
+  for (const type of EVENT_TYPES) assert.notEqual(typeName(type, { ChangedFields: [] }), type, type)
+})
+
+test('version 16: the journal names each event in the ERP\'s words (AB-26y)', () => {
+  const order = { SalesOrder: '0000001001', PurchaseOrderByCustomer: '000000301' }
+  assert.deepEqual(describeEvent(v16('SalesOrder.Changed', { ...order, OverallStatus: 'confirmed', PrevOverallStatus: 'created', CreditBlock: false, PrevCreditBlock: false })), {
+    name: 'Sales order changed', text: 'Sales order 0000001001 confirmed (customer reference 000000301)', links: [{ kind: 'order', number: '0000001001' }]
+  })
+  assert.equal(describeEvent(v16('SalesOrder.Changed', { ...order, OverallStatus: 'created', PrevOverallStatus: null, CreditBlock: true, PrevCreditBlock: false, Reason: 'Customer blocked for all business' })).text, 'Sales order 0000001001 put on credit hold: Customer blocked for all business')
+  assert.equal(describeEvent(v16('SalesOrder.Changed', { ...order, OverallStatus: 'created', PrevOverallStatus: 'created', CreditBlock: false, PrevCreditBlock: true })).text, 'Sales order 0000001001 released from credit hold')
+  const shipped = describeEvent(v16('OutboundDelivery.GoodsIssueStatusChanged', { ...order, OutboundDelivery: '8000000001', Plant: 'east', Items: [{ Quantity: 5 }, { Quantity: 2 }] }))
+  assert.equal(shipped.name, 'Goods issue posted')
+  assert.equal(shipped.text, 'Shipment 8000000001 of 7 for sales order 0000001001 from east')
+  assert.equal(describeEvent(v16('BillingDocument.Created', { ...order, BillingDocument: '9000000001', BillingDocumentType: 'Invoice' })).name, 'Billing document created (invoice)')
+  const memo = describeEvent(v16('BillingDocument.Created', { ...order, BillingDocument: '9500000001', BillingDocumentType: 'CreditMemo', CustomerReturn: '6000000001' }))
+  assert.equal(memo.name, 'Billing document created (credit memo)')
+  assert.equal(memo.text, 'Credit memo 9500000001 for sales order 0000001001 (return order 6000000001)')
+  assert.equal(describeEvent(v16('CustomerReturn.Changed', { ...order, CustomerReturn: '6000000001', Status: 'received', Items: [{ Quantity: 2 }, { Quantity: 1 }] })).text, 'Return order 6000000001 received: 3 back for sales order 0000001001')
+  assert.equal(describeEvent(v16('IncomingPayment.Posted', { ...order, Payment: '7000000001', BillingDocument: '9000000001', Amount: 50, Currency: 'USD' })).text, 'Payment 7000000001 of USD 50.00 against invoice 9000000001 for sales order 0000001001')
+  // AB-60: a name change is not a price change.
+  const product = describeEvent(v16('Product.Changed', { Product: 'A1', ProductName: 'Trouser (ERP)', ListPrice: 12, ChangedFields: ['ProductName', 'ListPrice'] }))
+  assert.deepEqual(product, { name: 'Product changed: name, list price', text: 'Product A1: name "Trouser (ERP)", list price 12', links: [{ kind: 'product', number: 'A1' }] })
+  assert.equal(describeEvent(v16('Product.Changed', { Product: 'A1', ProductName: 'Trouser', ChangedFields: ['ProductName'] })).name, 'Product changed: name')
+  assert.equal(describeEvent(v16('ProductStock.Changed', { Product: 'A1', Plant: 'east', Quantity: 7, PrevQuantity: 20 })).text, 'Stock of A1 in east: 20 to 7')
+  const customer = describeEvent(v16('Customer.Changed', { Customer: 'C7', CreditLimit: 250, BlockingLevel: 'all', ChangedFields: ['CreditLimit', 'BlockingLevel'] }))
+  assert.deepEqual(customer, { name: 'Customer changed: credit limit, blocking level', text: 'Customer C7: credit limit 250, blocking level all', links: [{ kind: 'customer', number: 'C7' }] })
+  assert.deepEqual(describeEvent(v16('PriceList.Changed', { Customer: 'C7', Lines: [{ sku: 'A1' }] })), { name: 'Price list changed', text: 'Price list prices of customer C7: 1 in force', links: [{ kind: 'customer', number: 'C7' }] })
+})
+
+test('an incoming entry of version 16 is named by the document its origin names', () => {
+  const d = describeEvent({ direction: 'in', origin: { system: 'Adobe Commerce', document: 'shipment 900' }, summary: 'Goods issue posted from Adobe Commerce', value: { number: '0000001001' } })
+  assert.equal(d.name, 'Shipment received')
+  assert.deepEqual(d.links, [{ kind: 'order', number: '0000001001' }])
 })
 
 test('a shipment names its quantity, its order and where it shipped from, and links the order', () => {

@@ -24,8 +24,8 @@ beforeEach(async () => {
 })
 
 /* Net 30 (3 x 10); Commerce charged 32.40, so the invoice total is 32.40. */
-async function invoiced (commerceOrderId = '42') {
-  const order = await createOrder(cols, { commerceOrderId, partnerId: 'C1', total: 32.4, lines: [{ sku: 'A1', qty: 3, price: 10, commerceItemId: 1 }] })
+async function invoiced (purchaseOrderByCustomer = '42') {
+  const order = await createOrder(cols, { purchaseOrderByCustomer, partnerId: 'C1', total: 32.4, lines: [{ sku: 'A1', qty: 3, price: 10, customerLineReference: '1' }] })
   for (const status of ['confirmed', 'shipped', 'invoiced']) await setStatus(cols, order.number, status)
   return getOrder(cols, order.number)
 }
@@ -52,7 +52,7 @@ test('an invoice credited in whole is credited, with nothing open', async () => 
 
 test("a return's credit memo lowers the open amount by its total", async () => {
   const order = await invoiced()
-  const { returnOrder } = await createReturn(cols, { commerceReturnId: 5, orderNumber: order.number, lines: [{ commerceItemId: 1, qty: 1 }] })
+  const { returnOrder } = await createReturn(cols, { customerReturnReference: '5', orderNumber: order.number, lines: [{ customerLineReference: '1', qty: 1 }] })
   await receiveReturn(cols, returnOrder.number)
   await creditReturn(cols, returnOrder.number)
   // One of three credited: net 10, tax 0.80 (the invoice's 2.40 in proportion), total 10.80.

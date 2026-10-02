@@ -19,13 +19,13 @@ beforeEach(async () => {
 })
 
 test('credit exposure is the net of orders not yet invoiced and not canceled, plus the unpaid invoices (v14); available is what is left', async () => {
-  const open = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 2, price: 100 }], total: 216 })
+  const open = await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 2, price: 100 }], total: 216 })
   await setStatus(cols, open.number, 'confirmed')
-  const done = await createOrder(cols, { commerceOrderId: '2', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 300 }] })
+  const done = await createOrder(cols, { purchaseOrderByCustomer: '2', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 300 }] })
   for (const status of ['confirmed', 'shipped', 'invoiced']) await setStatus(cols, done.number, status)
-  const gone = await createOrder(cols, { commerceOrderId: '3', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 500 }] })
+  const gone = await createOrder(cols, { purchaseOrderByCustomer: '3', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 500 }] })
   await setStatus(cols, gone.number, 'canceled', undefined, { reason: 'Customer request' })
-  await createOrder(cols, { commerceOrderId: '4', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 1, price: 50 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '4', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 1, price: 50 }] })
 
   const doc = await describePartner(cols, await getPartner(cols, 'C1'))
 
@@ -35,28 +35,28 @@ test('credit exposure is the net of orders not yet invoiced and not canceled, pl
 })
 
 test('an order that would take exposure past the limit is held and not yet counted; released, it counts and available reads below zero', async () => {
-  const over = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 3, price: 400 }] })
+  const over = await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 3, price: 400 }] })
   assert.deepEqual((await describePartner(cols, await getPartner(cols, 'C1'))).credit, { limit: 1000, exposure: 0, openOrders: 0, openItems: 0, available: 1000, held: 1 })
   await require('../lib/fulfilment').releaseCredit(cols, over.number)
   assert.deepEqual((await describePartner(cols, await getPartner(cols, 'C1'))).credit, { limit: 1000, exposure: 1200, openOrders: 1200, openItems: 0, available: -200, held: 0 })
 })
 
-test('a customer with no Commerce company has no credit — the card is absent, not zero', async () => {
-  await createOrder(cols, { commerceOrderId: '1', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 1, price: 50 }] })
+test('the walk-in customer has no credit — the card is absent, not zero', async () => {
+  await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 1, price: 50 }] })
   const doc = await describePartner(cols, await getPartner(cols, 'P000000'))
   assert.equal(doc.credit, null)
   assert.equal(doc.orders.length, 1)
 })
 
 test('the document lists this customer\'s orders newest first, each with its net amount', async () => {
-  await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 2, price: 10 }], total: 21.6 })
-  await createOrder(cols, { commerceOrderId: '2', partnerId: 'C1', lines: [{ sku: 'B2', qty: 1, price: 5 }] })
-  await createOrder(cols, { commerceOrderId: '3', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 1, price: 50 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 2, price: 10 }], total: 21.6 })
+  await createOrder(cols, { purchaseOrderByCustomer: '2', partnerId: 'C1', lines: [{ sku: 'B2', qty: 1, price: 5 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '3', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 1, price: 50 }] })
 
   const doc = await describePartner(cols, await getPartner(cols, 'C1'))
 
   assert.deepEqual(doc.orders.map((o) => [o.number, o.net, o.status]), [['0000001001', 5, 'created'], ['0000001000', 20, 'created']])
-  assert.deepEqual(Object.keys(doc.orders[0]).sort(), ['commerceIncrementId', 'commerceOrderId', 'createdAt', 'creditStatus', 'currency', 'net', 'number', 'status'])
+  assert.deepEqual(Object.keys(doc.orders[0]).sort(), ['createdAt', 'creditStatus', 'currency', 'net', 'number', 'purchaseOrderByCustomer', 'status'])
 })
 
 test('the document carries the pricing conditions agreed with this customer and no others', async () => {
@@ -71,7 +71,7 @@ test('the document carries the pricing conditions agreed with this customer and 
 })
 
 test('GET partners/:id answers the document, and 404s an unknown customer', async () => {
-  await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 40 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 1, price: 40 }] })
   const res = await invoke(partners, cols, { path: '/C1' })
   assert.equal(res.statusCode, 200)
   assert.equal(res.body.name, 'Acme')

@@ -19,7 +19,7 @@
  * POST   contracts/price-groups           { code, name } create or rename one (201)
  * DELETE contracts/price-groups/:code     remove one no customer and no price list uses
  *
- * A change that moves a customer's prices in force raises contract.changed (lib/contracts).
+ * A change that moves a customer's prices in force raises PriceList.Changed (lib/contracts).
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')

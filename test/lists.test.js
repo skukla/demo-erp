@@ -31,7 +31,7 @@ beforeEach(async () => {
 })
 
 async function shippedAndInvoiced (partnerId, id) {
-  const order = await createOrder(cols, { commerceOrderId: id, commerceIncrementId: `00${id}`, partnerId, lines: [{ sku: 'A1', qty: 3, price: 10 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: `00${id}`, partnerId, lines: [{ sku: 'A1', qty: 3, price: 10 }] })
   await confirmOrder(cols, order.number)
   const withShipment = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 3 }], warehouse: 'east' })
   await postShipment(cols, order.number, withShipment.shipments[0].number)
@@ -41,7 +41,7 @@ async function shippedAndInvoiced (partnerId, id) {
 
 test('a sales order row says how far it has shipped and been billed, and the overall word', async () => {
   const done = await shippedAndInvoiced('C1', '1')
-  const fresh = await createOrder(cols, { commerceOrderId: '2', partnerId: 'C1', lines: [{ sku: 'A1', qty: 4, price: 10 }] })
+  const fresh = await createOrder(cols, { purchaseOrderByCustomer: '2', partnerId: 'C1', lines: [{ sku: 'A1', qty: 4, price: 10 }] })
   await confirmOrder(cols, fresh.number)
   const half = await createShipment(cols, fresh.number, { lines: [{ item: 10, qty: 1 }] })
   await postShipment(cols, fresh.number, half.shipments[0].number)
@@ -71,9 +71,9 @@ test('a customer row carries the credit exposure and what is left, by the docume
   // C1: one invoiced order, unpaid (an open item of 30, contract version 14), and one open
   // order of 40 → exposure 70.
   await shippedAndInvoiced('C1', '4')
-  await createOrder(cols, { commerceOrderId: '5', partnerId: 'C1', lines: [{ sku: 'A1', qty: 4, price: 10 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '5', partnerId: 'C1', lines: [{ sku: 'A1', qty: 4, price: 10 }] })
   // C2: an order over its limit is created and HELD, and a held order is not yet owed for.
-  await createOrder(cols, { commerceOrderId: '6', partnerId: 'C2', lines: [{ sku: 'A1', qty: 60, price: 10 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '6', partnerId: 'C2', lines: [{ sku: 'A1', qty: 60, price: 10 }] })
   const rows = (await invoke(partners, cols, { method: 'GET' })).body.items
   const byId = Object.fromEntries(rows.map((r) => [r.id, r]))
   assert.deepEqual([byId.C1.exposure, byId.C1.available], [70, 930])

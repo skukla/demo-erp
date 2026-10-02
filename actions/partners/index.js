@@ -22,7 +22,7 @@ async function handler ({ cols, method, segments, body, params }) {
   }
   // Live credit check (AB-20): the ERP owns the limit, so checkout asks it as the order is
   // placed. Read-only — it reads the partner's current exposure and answers, creating nothing,
-  // so Commerce can refuse before committing (createOrder instead creates and holds, §6.1).
+  // so the web shop can refuse before committing (createOrder instead creates and holds, §6.1).
   if (method === 'POST' && id && segments[1] === 'credit-check') {
     const partner = await getPartner(cols, id)
     if (!partner) throw notFound(`Customer ${id}`)

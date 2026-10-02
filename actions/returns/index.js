@@ -1,12 +1,12 @@
 /*
  * GET  returns                        every return order, newest first, each naming its sold-to (`partnerName`)
  * GET  returns/:number                one return order
- * POST returns                        { commerceReturnId, commerceReturnIncrementId?, orderNumber,
- *                                     lines:[{ commerceItemId, qty, reason? }], origin? } make a return
- *                                     order from a Commerce return (idempotent on commerceReturnId:
+ * POST returns                        { customerReturnReference, orderNumber,
+ *                                     lines:[{ customerLineReference, qty, reason? }], origin? } make a return
+ *                                     order from a customer's return (idempotent on customerReturnReference:
  *                                     201 the first time, 200 with the same return after)
- * POST returns/:number/receive        the goods are back: stock up, return.received raised
- * POST returns/:number/credit-memo    credit the received lines (201): creditmemo.created raised
+ * POST returns/:number/receive        the goods are back: stock up, CustomerReturn.Changed raised
+ * POST returns/:number/credit-memo    credit the received lines (201): BillingDocument.Created raised
  *
  * The rules live in lib/returns; a refusal answers 400 in words.
  */

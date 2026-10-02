@@ -19,8 +19,8 @@ import { money } from '../money'
 import { statusLight, statusText, shippingBadge, billingBadge } from './OrderHeader'
 
 /* Business Central calls this the External Document No.; it is the customer's own
-   reference for the order, which is exactly what the Commerce increment id is. */
-const reference = (o) => o.commerceIncrementId || o.commerceOrderId || '—'
+   reference for the order (SAP's PurchaseOrderByCustomer). */
+const reference = (o) => o.purchaseOrderByCustomer || '—'
 
 /* Each sortable header carries a chevron, which eats about 24px of its width: a
    column sized to its title alone truncates the title. */

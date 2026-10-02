@@ -2,7 +2,7 @@
  * GET invoices           every invoice, newest number first, each naming its sales order and its sold-to (`partnerName`)
  * GET invoices/:number   one invoice as its document shows it, with what is still open on it
  * POST invoices/:number/payments { amount, reference? }   post an incoming payment against it (201,
- *                        contract version 14): more than 0 and at most the open amount; payment.posted raised
+ *                        contract version 14): more than 0 and at most the open amount; IncomingPayment.Posted raised
  *
  * An invoice is created on its order; a refusal answers 400 in words (lib/payments).
  */

@@ -51,7 +51,7 @@ beforeEach(async () => {
 
 test('POST partners/:id/credit-check reads the partner exposure live and answers the placement question', async () => {
   // An open order of 600 is already exposure; a new 300 fits under 1,000, a new 500 does not.
-  await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 6, price: 100, commerceItemId: 1 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 6, price: 100, customerLineReference: '1' }] })
   const ok = await invoke(partners, cols, { method: 'POST', path: '/C1/credit-check', body: { net: 300 } })
   assert.equal(ok.statusCode, 200)
   assert.equal(ok.body.status, 'approved')

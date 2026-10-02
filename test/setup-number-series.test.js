@@ -18,7 +18,7 @@ beforeEach(async () => {
 })
 
 const patch = (numberSeries) => invoke(settings, cols, { method: 'PATCH', path: '/setup', body: { numberSeries } })
-const order = (id) => createOrder(cols, { commerceOrderId: id, lines: [{ sku: 'A1', qty: 1, price: 10 }] })
+const order = (id) => createOrder(cols, { purchaseOrderByCustomer: id, lines: [{ sku: 'A1', qty: 1, price: 10 }] })
 
 test('one row per document type: starting, next and ending number', async () => {
   const res = await invoke(settings, cols, { path: '/setup' })

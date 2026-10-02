@@ -36,13 +36,13 @@ test('a partner re-import takes the credit limit and website account Commerce re
   assert.equal(partner.paymentTerms, 'NET60')
 })
 
-test('a price or stock edit raises exactly one ERP event per changed field', async () => {
+test('a price or stock edit raises an ERP event only for what changed', async () => {
   await importProducts(cols, [{ sku: 'A1', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
   await patchProduct(cols, 'A1', { listPrice: 10, warehouses: [{ code: 'default', quantity: 7 }] })
   const entries = await pending(cols)
   assert.equal(entries.length, 1)
-  assert.equal(entries[0].event, 'be-observer.catalog_stock_update')
-  assert.deepEqual(entries[0].value, [{ sku: 'A1', source: 'default', quantity: 7, outOfStock: false }])
+  assert.equal(entries[0].type, 'ProductStock.Changed')
+  assert.deepEqual(entries[0].data, { Product: 'A1', Plant: 'default', Quantity: 7, PrevQuantity: 5 })
 })
 
 test('bad product values are refused', async () => {
@@ -74,13 +74,13 @@ test("an import holds no Commerce ids, and a customer stored with them loses the
   for (const key of ['commerceCompanyId', 'customerGroupId', 'emailDomain', 'website']) assert.equal(key in stored, false, key)
 })
 
-test('credit limit and block changes raise events naming the customer by its own number only', async () => {
+test('a credit limit and block change raise one Customer.Changed naming the customer by its own number only', async () => {
   await importPartners(cols, [{ id: 'P1' }])
   await patchPartner(cols, 'P1', { creditLimit: 1000, blocking: 'all' })
   const entries = await pending(cols)
-  assert.deepEqual(entries.map((e) => e.event), ['be-observer.company_credit_update', 'be-observer.company_status_update'])
-  assert.deepEqual(entries[0].value, { partnerId: 'P1', creditLimit: 1000 })
-  assert.deepEqual(entries[1].value, { partnerId: 'P1', blocked: true })
+  assert.deepEqual(entries.map((e) => e.type), ['Customer.Changed'])
+  const { Customer, CreditLimit, BlockingLevel, PrevBlockingLevel, ChangedFields } = entries[0].data
+  assert.deepEqual({ Customer, CreditLimit, BlockingLevel, PrevBlockingLevel, ChangedFields }, { Customer: 'P1', CreditLimit: 1000, BlockingLevel: 'all', PrevBlockingLevel: 'open', ChangedFields: ['CreditLimit', 'BlockingLevel'] })
 })
 
 test('conditions validate their shape and can be removed', async () => {
@@ -215,22 +215,23 @@ test('stock is per warehouse: each edit goes to its own source, and the total ad
   const edited = await patchProduct(cols, 'T1', { warehouses: [{ code: 'austin_dc', quantity: 20 }, { code: 'denver_dc', quantity: 0 }, { code: 'default', quantity: 120 }] })
   assert.equal(edited.stock, 140)
   assert.deepEqual(edited.warehouses.map((w) => [w.code, w.name, w.quantity]), [['default', 'Default Source', 120], ['austin_dc', 'Austin DC', 20], ['denver_dc', 'Denver DC', 0]])
-  const [event] = await pending(cols)
-  assert.equal(event.event, 'be-observer.catalog_stock_update')
-  // Only the changed sources, each named.
-  assert.deepEqual(event.value, [
-    { sku: 'T1', source: 'austin_dc', quantity: 20, outOfStock: false },
-    { sku: 'T1', source: 'denver_dc', quantity: 0, outOfStock: true }
+  // Only the changed plants, one event each.
+  assert.deepEqual((await pending(cols)).map((e) => [e.type, e.data]), [
+    ['ProductStock.Changed', { Product: 'T1', Plant: 'austin_dc', Quantity: 20, PrevQuantity: 25 }],
+    ['ProductStock.Changed', { Product: 'T1', Plant: 'denver_dc', Quantity: 0, PrevQuantity: 3 }]
   ])
 })
 
-test('a name edit raises one product update carrying the new name and the price', async () => {
+test('a name and price edit raises one Product.Changed carrying the whole product and the fields that changed (AB-60)', async () => {
   await importProducts(cols, [{ sku: 'T1', name: 'Tote', listPrice: 189, warehouses: [] }])
   const edited = await patchProduct(cols, 'T1', { name: '  Aurora Tote ', listPrice: 199 })
   assert.equal(edited.name, 'Aurora Tote')
   const entries = await pending(cols)
   assert.equal(entries.length, 1)
-  assert.deepEqual(entries[0].value, { sku: 'T1', name: 'Aurora Tote', price: 199 })
+  assert.deepEqual(entries[0].data, { Product: 'T1', ProductName: 'Aurora Tote', ProductType: 'simple', ParentProduct: null, BaseUnit: 'EA', ListPrice: 199, SalesStatus: 'sellable', ChangedFields: ['ProductName', 'ListPrice'] })
+  // A name alone is not a price change.
+  await patchProduct(cols, 'T1', { name: 'Aurora Tote II' })
+  assert.deepEqual((await pending(cols))[1].data.ChangedFields, ['ProductName'])
 })
 
 test('the SKU, a single stock number, an unknown warehouse, an empty name and unknown fields are refused', async () => {
@@ -307,7 +308,7 @@ test('an unknown product type is refused', async () => {
   await assert.rejects(importProducts(cols, [{ sku: 'K', type: 'bundle' }]), { statusCode: 400 })
 })
 
-test('a product Commerce deleted leaves the ERP; a deleted parent leaves its variants as products of their own; an unknown SKU is a 404', async () => {
+test('a product deleted in the web shop leaves the ERP; a deleted parent leaves its variants as products of their own; an unknown SKU is a 404', async () => {
   const { deleteProduct, importProducts, getProduct, listProducts } = require('../lib/products')
   const { invoke } = require('./helpers/memory-db')
   const products = require('../actions/products')
@@ -319,7 +320,7 @@ test('a product Commerce deleted leaves the ERP; a deleted parent leaves its var
   ])
   assert.deepEqual(await deleteProduct(cols, 'LONE'), { sku: 'LONE', unlinked: [] })
   assert.equal(await getProduct(cols, 'LONE'), null)
-  const res = await invoke(products, cols, { method: 'DELETE', path: '/PARENT', body: { origin: { event: 'observer.catalog_product_delete_commit_after' } } })
+  const res = await invoke(products, cols, { method: 'DELETE', path: '/PARENT', body: { origin: { system: 'Adobe Commerce', document: 'product PARENT' } } })
   assert.equal(res.statusCode, 200)
   assert.deepEqual(res.body, { sku: 'PARENT', unlinked: ['PARENT-M', 'PARENT-S'] })
   const listed = (await listProducts(cols)).map((p) => [p.sku, p.type, p.parentSku || null])
@@ -327,15 +328,17 @@ test('a product Commerce deleted leaves the ERP; a deleted parent leaves its var
   assert.equal((await invoke(products, cols, { method: 'DELETE', path: '/PARENT' })).statusCode, 404)
   const { recent } = require('../lib/events')
   const [entry] = await recent(cols)
-  assert.equal(entry.summary, 'Product PARENT removed (deleted in Commerce); its 2 variant(s) stay as products of their own')
+  assert.equal(entry.summary, 'Product PARENT removed (deleted in Adobe Commerce); its 2 variant(s) stay as products of their own')
 })
 
-test('a product is sellable until blocked for sales; the block is the ERP\'s own, raises no event, and survives an import', async () => {
+test('a product is sellable until blocked for sales; the block is the ERP\'s own, is announced as a Product.Changed like any edit, and survives an import', async () => {
   await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
   assert.equal((await getProduct(cols, 'A1')).salesStatus, 'sellable')
   const blocked = await patchProduct(cols, 'A1', { salesStatus: 'blocked' })
   assert.equal(blocked.salesStatus, 'blocked')
-  assert.deepEqual(await pending(cols), [])
+  // Version 16: any product edit is a Product.Changed naming its fields; a subscriber decides
+  // what it carries (the web shop integration carries a sales status nowhere).
+  assert.deepEqual((await pending(cols)).map((e) => e.data.ChangedFields), [['SalesStatus']])
   await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 12, stock: 7 }])
   assert.equal((await getProduct(cols, 'A1')).salesStatus, 'blocked')
   assert.equal((await getProduct(cols, 'A1')).listPrice, 12)

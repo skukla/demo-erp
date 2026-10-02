@@ -95,13 +95,12 @@ const day = (d, h = 9) => new Date(Date.UTC(2026, 8, d, h, 12)).toISOString()
 const orders = HEADERS.map((header, i) => {
   const number = String(1000 + i).padStart(10, '0')
   const lines = [
-    { item: 10, sku: products[i % products.length].sku, qty: (i % 4) + 1, price: products[i % products.length].listPrice, commerceItemId: 100 + i * 2, shippedQty: 0, closedQty: 0 },
-    { item: 20, sku: products[(i + 5) % products.length].sku, qty: (i % 3) + 2, price: products[(i + 5) % products.length].listPrice, commerceItemId: 101 + i * 2, shippedQty: 0, closedQty: 0 }
+    { item: 10, sku: products[i % products.length].sku, qty: (i % 4) + 1, price: products[i % products.length].listPrice, customerLineReference: String(100 + i * 2), shippedQty: 0, closedQty: 0 },
+    { item: 20, sku: products[(i + 5) % products.length].sku, qty: (i % 3) + 2, price: products[(i + 5) % products.length].listPrice, customerLineReference: String(101 + i * 2), shippedQty: 0, closedQty: 0 }
   ]
   const order = {
     number,
-    commerceOrderId: String(700 + i),
-    commerceIncrementId: `00000${300 + i}`,
+    purchaseOrderByCustomer: `00000${300 + i}`,
     partnerId: partners[(i % 4) + 1].id,
     lines,
     // The website the order came through, as the integration's setting names it.
@@ -140,7 +139,7 @@ function seedShipment (order, number, lines, warehouse, posted) {
     postedAt: posted ? day(12, 15) : null,
     status: posted ? 'posted' : 'open',
     warehouse,
-    lines: lines.map((l) => ({ ...l, sku: lineOf(l.item).sku, commerceItemId: lineOf(l.item).commerceItemId }))
+    lines: lines.map((l) => ({ ...l, sku: lineOf(l.item).sku, customerLineReference: lineOf(l.item).customerLineReference }))
   })
   if (posted) for (const l of lines) lineOf(l.item).shippedQty += l.qty
 }
@@ -180,7 +179,7 @@ function seedInvoice (order, number, at) {
   }
 }
 function makeCreditMemo (order, lines, returnNumber, number, at) {
-  const credited = lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, amount: cents(l.qty * l.price), commerceItemId: l.commerceItemId ?? null }))
+  const credited = lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, amount: cents(l.qty * l.price), customerLineReference: l.customerLineReference ?? null }))
   const net = cents(credited.reduce((sum, l) => sum + l.amount, 0))
   const tax = order.invoice.net ? cents((order.invoice.tax * net) / order.invoice.net) : 0
   return { number, createdAt: at, orderNumber: order.number, invoiceNumber: order.invoice.number, returnNumber: returnNumber ?? null, lines: credited, net, tax, total: cents(net + tax) }
@@ -219,16 +218,15 @@ const payments = [
 /* Return orders (lib/returns), all on sales order 1002: 6000000001 received and credited by
    credit memo 9500000001, 6000000002 received and waiting for its credit memo, 6000000003
    open — one of each state, so each document's move can be looked at. */
-function seedReturn (order, number, commerceReturnId, lines, moments) {
+function seedReturn (order, number, customerReturnReference, lines, moments) {
   const lineOf = (item) => order.lines.find((x) => x.item === item)
   const r = {
     number,
-    commerceReturnId,
-    commerceReturnIncrementId: `00000000${commerceReturnId}`,
+    customerReturnReference: String(customerReturnReference),
     orderNumber: order.number,
     partnerId: order.partnerId,
     status: 'open',
-    lines: lines.map((l) => ({ item: l.item, sku: lineOf(l.item).sku, qty: l.qty, price: lineOf(l.item).price, reason: l.reason, reasonCode: l.reasonCode, commerceItemId: lineOf(l.item).commerceItemId })),
+    lines: lines.map((l) => ({ item: l.item, sku: lineOf(l.item).sku, qty: l.qty, price: lineOf(l.item).price, reason: l.reason, reasonCode: l.reasonCode, customerLineReference: lineOf(l.item).customerLineReference })),
     creditMemo: null,
     history: [{ status: 'open', at: moments.open }],
     createdAt: moments.open,
@@ -267,15 +265,15 @@ function openItem (order) {
 }
 
 const events = [
-  { _id: 'e1', at: new Date(Date.UTC(2026, 8, 22, 14, 2)).toISOString(), direction: 'out', kind: 'order.confirmed', event: 'be-observer.sales_order_status_update', value: { erpNumber: '0000001001', incrementId: '00000301' }, delivered: true, attempts: 1 },
-  { _id: 'e2', at: new Date(Date.UTC(2026, 8, 22, 13, 55)).toISOString(), direction: 'in', event: 'catalog_stock_update', summary: 'Stock for P000003 set to 18', value: { sku: 'P000003', stock: 18 } },
-  { _id: 'e3', at: new Date(Date.UTC(2026, 8, 22, 13, 40)).toISOString(), direction: 'out', kind: 'product.price', event: 'be-observer.catalog_product_update', value: { sku: 'P000007', price: 189 }, delivered: false, failed: true, attempts: 10, lastError: 'ingestion webhook answered 503' },
-  { _id: 'e4', at: new Date(Date.UTC(2026, 8, 22, 13, 20)).toISOString(), direction: 'out', kind: 'partner.creditLimit', event: 'be-observer.company_credit_update', value: { partnerId: 'C000102', companyId: '7', creditLimit: 120000 }, delivered: false, attempts: 2 },
-  { _id: 'e5', at: new Date(Date.UTC(2026, 8, 22, 12, 5)).toISOString(), direction: 'in', event: 'observer.company_save_commit_after', summary: 'Customer C000103 blocked', value: { companyId: '9', blocked: true } },
-  { _id: 'e6', at: new Date(Date.UTC(2026, 8, 22, 11, 45)).toISOString(), direction: 'out', kind: 'order.shipped', event: 'be-observer.sales_order_shipment_create', value: { erpNumber: '0000001002', items: [{ qty: 3 }, { qty: 2 }], stockSourceCode: 'default' }, delivered: true, attempts: 1 },
-  { _id: 'e7', at: new Date(Date.UTC(2026, 8, 22, 11, 30)).toISOString(), direction: 'out', kind: 'return.received', event: 'be-observer.rma_status_update', value: { erpNumber: '0000001002', returnNumber: '6000000002', items: [{ qty: 1 }] }, delivered: true, attempts: 1 },
-  { _id: 'e9', at: new Date(Date.UTC(2026, 8, 22, 11, 20)).toISOString(), direction: 'out', kind: 'payment.posted', event: 'be-observer.sales_order_payment_create', value: { erpNumber: '0000001009', paymentNumber: '7000000002', invoiceNumber: '9000000003', amount: orders[9].invoice.total, currency: 'USD', partnerId: 'C000102', reference: 'Check 1042' }, delivered: true, attempts: 1 },
-  { _id: 'e8', at: new Date(Date.UTC(2026, 8, 22, 11, 15)).toISOString(), direction: 'out', kind: 'creditmemo.created', event: 'be-observer.sales_order_creditmemo_create', value: { erpNumber: '0000001002', creditMemoNumber: '9500000001', returnNumber: '6000000001' }, delivered: true, attempts: 1 }
+  { _id: 'e1', at: new Date(Date.UTC(2026, 8, 22, 14, 2)).toISOString(), direction: 'out', type: 'SalesOrder.Changed', data: { SalesOrder: '0000001001', PurchaseOrderByCustomer: '00000301', OverallStatus: 'confirmed', PrevOverallStatus: 'created', CreditBlock: false, PrevCreditBlock: false, Reason: null, Items: [] }, delivered: true, attempts: 1 },
+  { _id: 'e2', at: new Date(Date.UTC(2026, 8, 22, 13, 55)).toISOString(), direction: 'in', origin: { system: 'Adobe Commerce', document: 'stock item P000003' }, summary: 'Stock for P000003 set to 18', value: { sku: 'P000003', stock: 18 } },
+  { _id: 'e3', at: new Date(Date.UTC(2026, 8, 22, 13, 40)).toISOString(), direction: 'out', type: 'Product.Changed', data: { Product: 'P000007', ProductName: 'Product 7', ListPrice: 189, ChangedFields: ['ListPrice'] }, delivered: false, failed: true, attempts: 10, lastError: 'ingestion webhook answered 503' },
+  { _id: 'e4', at: new Date(Date.UTC(2026, 8, 22, 13, 20)).toISOString(), direction: 'out', type: 'Customer.Changed', data: { Customer: 'C000102', CreditLimit: 120000, BlockingLevel: 'open', PrevBlockingLevel: 'open', ChangedFields: ['CreditLimit'] }, delivered: false, attempts: 2 },
+  { _id: 'e5', at: new Date(Date.UTC(2026, 8, 22, 12, 5)).toISOString(), direction: 'in', origin: { system: 'Adobe Commerce', document: 'company 9' }, summary: 'Customer C000103 blocked', value: { blocked: true } },
+  { _id: 'e6', at: new Date(Date.UTC(2026, 8, 22, 11, 45)).toISOString(), direction: 'out', type: 'OutboundDelivery.GoodsIssueStatusChanged', data: { OutboundDelivery: '8000000002', SalesOrder: '0000001002', Plant: 'default', Items: [{ Quantity: 3 }, { Quantity: 2 }] }, delivered: true, attempts: 1 },
+  { _id: 'e7', at: new Date(Date.UTC(2026, 8, 22, 11, 30)).toISOString(), direction: 'out', type: 'CustomerReturn.Changed', data: { CustomerReturn: '6000000002', SalesOrder: '0000001002', Status: 'received', PrevStatus: 'open', Items: [{ Quantity: 1 }] }, delivered: true, attempts: 1 },
+  { _id: 'e9', at: new Date(Date.UTC(2026, 8, 22, 11, 20)).toISOString(), direction: 'out', type: 'IncomingPayment.Posted', data: { Payment: '7000000002', BillingDocument: '9000000003', SalesOrder: '0000001009', Amount: orders[9].invoice.total, Currency: 'USD', Customer: 'C000102', PaymentReference: 'Check 1042' }, delivered: true, attempts: 1 },
+  { _id: 'e8', at: new Date(Date.UTC(2026, 8, 22, 11, 15)).toISOString(), direction: 'out', type: 'BillingDocument.Created', data: { BillingDocument: '9500000001', BillingDocumentType: 'CreditMemo', SalesOrder: '0000001002', CustomerReturn: '6000000001' }, delivered: true, attempts: 1 }
 ]
 
 const conditions = [
@@ -339,18 +337,18 @@ function describeStructure () {
   const houses = new Map()
   for (const p of products) {
     for (const w of p.warehouses) {
-      if (!houses.has(w.code)) houses.set(w.code, { code: w.code, commerceName: w.name, products: 0 })
+      if (!houses.has(w.code)) houses.set(w.code, { code: w.code, imported: w.name, products: 0 })
       houses.get(w.code).products += 1
     }
   }
   for (const [code, value] of Object.entries(settings.warehouses)) {
-    if (!houses.has(code)) houses.set(code, { code, commerceName: code, products: 0 })
+    if (!houses.has(code)) houses.set(code, { code, imported: code, products: 0 })
     houses.get(code).name = value.name
   }
   return {
     companyCode: { code: settings.company.code, name: settings.company.name, currency: settings.company.currency, countryId: settings.company.address.countryId || home.storeInfo.countryId, vatNumber: settings.company.taxId, address: settings.company.address },
     salesOrgs: [...orgs.values()].sort((a, b) => a.code.localeCompare(b.code)),
-    warehouses: [...houses.values()].map((h) => ({ ...h, name: h.name || h.commerceName })).sort((a, b) => a.code.localeCompare(b.code)),
+    warehouses: [...houses.values()].map(({ imported, ...h }) => ({ ...h, name: h.name || imported })).sort((a, b) => a.code.localeCompare(b.code)),
     unmapped: []
   }
 }
@@ -558,7 +556,7 @@ function describe (order) {
   const { shipped, open } = totalsOf(order)
   const warehouses = new Map()
   for (const l of order.lines) {
-    for (const w of (productOf(l.sku) || { warehouses: [] }).warehouses) warehouses.set(w.code, { code: w.code, name: (settings.warehouses[w.code] || {}).name || w.name, commerceName: w.name })
+    for (const w of (productOf(l.sku) || { warehouses: [] }).warehouses) warehouses.set(w.code, { code: w.code, name: (settings.warehouses[w.code] || {}).name || w.name })
   }
   return {
     ...order,
@@ -598,14 +596,14 @@ const orderOf = (number) => orders.find((o) => o.number === number) || fail(`Sal
 function describeShipment (order, s) {
   const p = partnerOf(order.partnerId)
   const stocked = productOf(s.lines[0].sku)
-  const commerceName = s.warehouse ? ((stocked && stocked.warehouses.find((w) => w.code === s.warehouse)) || { name: s.warehouse }).name : null
+  const imported = s.warehouse ? ((stocked && stocked.warehouses.find((w) => w.code === s.warehouse)) || { name: s.warehouse }).name : null
   const warehouse = s.warehouse
-    ? { code: s.warehouse, name: (settings.warehouses[s.warehouse] || {}).name || commerceName, commerceName }
+    ? { code: s.warehouse, name: (settings.warehouses[s.warehouse] || {}).name || imported }
     : null
   return {
     ...s,
     orderNumber: order.number,
-    commerceIncrementId: order.commerceIncrementId,
+    purchaseOrderByCustomer: order.purchaseOrderByCustomer,
     partner: p ? { id: p.id, name: p.name } : null,
     warehouse,
     lines: s.lines.map(named)
@@ -618,7 +616,7 @@ function describeInvoice (order, inv) {
     ...inv,
     ...openItem(order),
     orderNumber: order.number,
-    commerceIncrementId: order.commerceIncrementId,
+    purchaseOrderByCustomer: order.purchaseOrderByCustomer,
     currency: order.currency,
     partner: p ? { id: p.id, name: p.name, paymentTerms: p.paymentTerms } : null,
     ...(() => {
@@ -670,8 +668,7 @@ function describePartner (partner) {
       createdAt: o.createdAt,
       status: deriveStatus(o),
       creditStatus: o.creditStatus ?? null,
-      commerceOrderId: o.commerceOrderId,
-      commerceIncrementId: o.commerceIncrementId,
+      purchaseOrderByCustomer: o.purchaseOrderByCustomer,
       currency: o.currency,
       net: cents((o.lines || []).reduce((sum, l) => sum + l.qty * l.price, 0))
     }))
@@ -878,7 +875,7 @@ export const fakeApi = {
       postedAt: null,
       status: 'open',
       warehouse: warehouse || null,
-      lines: asked.map((a) => { const line = lineOf(a.item); return { item: line.item, sku: line.sku, qty: a.qty, commerceItemId: line.commerceItemId } })
+      lines: asked.map((a) => { const line = lineOf(a.item); return { item: line.item, sku: line.sku, qty: a.qty, customerLineReference: line.customerLineReference } })
     })
     return copy(describe(o))
   },
@@ -1071,12 +1068,12 @@ export const fakeApi = {
       return v === needle ? 2 : (v.includes(needle) ? Math.max(best, 1) : best)
     }, 0)
     const hits = []
-    for (const o of orders) hits.push({ rank: score([o.number, o.commerceIncrementId, (partnerOf(o.partnerId) || {}).name]), kind: 'order', number: o.number, title: `Sales Order ${o.number}`, subtitle: (partnerOf(o.partnerId) || {}).name })
+    for (const o of orders) hits.push({ rank: score([o.number, o.purchaseOrderByCustomer, (partnerOf(o.partnerId) || {}).name]), kind: 'order', number: o.number, title: `Sales Order ${o.number}`, subtitle: (partnerOf(o.partnerId) || {}).name })
     for (const o of orders) for (const sh of o.shipments) hits.push({ rank: score([sh.number, o.number]), kind: 'shipment', number: sh.number, title: `Shipment ${sh.number}`, subtitle: `for sales order ${o.number}` })
     for (const o of orders) if (o.invoice) hits.push({ rank: score([o.invoice.number, o.number]), kind: 'invoice', number: o.invoice.number, title: `Invoice ${o.invoice.number}`, subtitle: `for sales order ${o.number}` })
     // A document found by another's number never outranks that document (lib/search ownFirst).
     const ownFirst = (own, related) => Math.max(score(own), Math.min(1, score(related)))
-    for (const r of returnOrders) hits.push({ rank: ownFirst([r.number, r.commerceReturnIncrementId], [r.orderNumber]), kind: 'return', number: r.number, title: `Return Order ${r.number}`, subtitle: `for sales order ${r.orderNumber}` })
+    for (const r of returnOrders) hits.push({ rank: ownFirst([r.number, r.customerReturnReference], [r.orderNumber]), kind: 'return', number: r.number, title: `Return Order ${r.number}`, subtitle: `for sales order ${r.orderNumber}` })
     for (const m of allCreditMemos()) hits.push({ rank: ownFirst([m.number], [m.orderNumber, m.invoiceNumber, m.returnNumber]), kind: 'creditMemo', number: m.number, title: `Credit Memo ${m.number}`, subtitle: `for sales order ${m.orderNumber}` })
     for (const p of payments) hits.push({ rank: ownFirst([p.number, p.reference], [p.invoiceNumber, p.orderNumber]), kind: 'payment', number: p.number, title: `Payment ${p.number}`, subtitle: `for invoice ${p.invoiceNumber}` })
     for (const p of products) hits.push({ rank: score([p.sku, p.name]), kind: 'product', number: p.sku, title: p.name, subtitle: p.sku })

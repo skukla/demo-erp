@@ -1,8 +1,8 @@
 /*
- * Warehouses: the plants stock lives in, one per Commerce inventory source (SAP's plant /
+ * Warehouses: the plants stock lives in, one per stock location the import named (SAP's plant /
  * storage location; Business Central's location). The ERP masters the stock in each, so it
  * shows them as their own master data rather than only inside a product. The SC gives each
- * its own name here — the Commerce source code and the stock are the ERP's to read, the name
+ * its own name here — the plant code and the stock are the ERP's to read, the name
  * is the ERP's to set. Derived on read from the products and the ERP's saved warehouse names
  * (lib/structure describeStructure), so a wipe and a refill rebuild the list identically.
  */
@@ -39,11 +39,11 @@ export default function Warehouses ({ api, onChanged }) {
   return (
     <Frame title='Warehouses' error={actionError || error} loading={!rows}>
       {rows && rows.length === 0
-        ? <Text>None yet — loading demo data brings the Commerce inventory sources in as warehouses.</Text>
+        ? <Text>None yet — loading demo data brings the web shop's stock locations in as warehouses.</Text>
         : (
           <TableView aria-label='Warehouses' density='compact' overflowMode='wrap'>
             <TableHeader>
-              <Column key='code' width={220}>Commerce source</Column>
+              <Column key='code' width={220}>Plant</Column>
               <Column key='name' width='1fr' minWidth={220}>Name</Column>
               <Column key='products' width={130} align='end'>Products</Column>
               <Column key='stock' width={130} align='end'>In stock</Column>

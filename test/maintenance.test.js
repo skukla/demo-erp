@@ -71,7 +71,7 @@ test('in maintenance every record route answers 503 naming the end, and nothing 
   const { body } = await start({ minutes: 10 })
   const calls = [
     [products], [products, { path: '/A1' }], [partners], [pricing, { method: 'POST', path: '/quote', body: { lines: [{ sku: 'A1', qty: 1 }] } }],
-    [contracts, { path: '/in-force' }], [orders, { method: 'POST', body: { commerceOrderId: '9', lines: [{ sku: 'A1', qty: 1, price: 100 }] } }],
+    [contracts, { path: '/in-force' }], [orders, { method: 'POST', body: { purchaseOrderByCustomer: '9', lines: [{ sku: 'A1', qty: 1, price: 100 }] } }],
     [shipments], [invoices], [events], [retry], [search, { params: { q: 'A1' } }],
     [admin, { method: 'POST', path: '/import', body: { products: [{ sku: 'B2', name: 'New', listPrice: 1 }] } }]
   ]

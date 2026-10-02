@@ -2,7 +2,7 @@
  * GET  pricing                 the pricing conditions
  * POST pricing                 create or replace a condition
  * DELETE pricing/:id           remove one
- *                              a create, change or delete raises contract.changed for each customer whose
+ *                              a create, change or delete raises PriceList.Changed for each customer whose
  *                              prices in force it moved (lib/conditions)
  * POST pricing/quote           { partnerId?, lines:[{sku, qty}], date?, salesOrg? }
  *                              date (YYYY-MM-DD) is the day priced on — today when absent; salesOrg scopes

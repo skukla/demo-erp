@@ -1,9 +1,9 @@
 /*
  * The words a person reads are American English: the audience is American (owner,
  * 2026-09-28). So are the values the ERP and the integration exchange (contract version 10):
- * the status `canceled`, the event kind `order.canceled` and the reason "Canceled in
- * Commerce". The British spellings are refused on the wire; orders and journal entries
- * stored with them before version 10 read as the American ones.
+ * the status `canceled` and the reason "Canceled in the web shop" (contract version 16). The
+ * British spellings are refused on the wire; orders and journal entries stored with them
+ * before version 10 read as the American ones.
  */
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
@@ -14,7 +14,7 @@ const { createOrder, setStatus, getOrder, listOrders, overallStatus } = require(
 const { cancelOrder, confirmOrder } = require('../lib/fulfilment')
 const { importProducts } = require('../lib/products')
 const { importPartners, describePartner } = require('../lib/partners')
-const { EVENT_NAMES, recent, pending, retryPending } = require('../lib/events')
+const { recent, pending, retryPending } = require('../lib/events')
 const { describeEvent, KIND_NAMES } = require('../lib/journal')
 
 /* British spellings, each as a whole word. A camelCase identifier (OrganisationCard) is
@@ -67,62 +67,62 @@ test('the screen shows no British spelling', () => {
   assert.deepEqual(offenders, [])
 })
 
-test('the values the ERP exchanges are American: canceled, order.canceled, Canceled in Commerce', async () => {
-  assert.ok(EVENT_NAMES['order.canceled'])
-  assert.equal(EVENT_NAMES['order.cancelled'], undefined)
+test('the values the ERP exchanges are American: canceled, and Canceled in the web shop', async () => {
   assert.equal(KIND_NAMES['order.canceled'], 'Order canceled')
 
   const cols = memoryCollections()
-  const order = await createOrder(cols, { commerceOrderId: '1', lines: [] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '1', lines: [] })
   await setStatus(cols, order.number, 'confirmed')
   const gone = await setStatus(cols, order.number, 'canceled', undefined, { reason: 'Out of stock' })
   assert.equal(gone.header, 'canceled')
   assert.equal(gone.status, 'canceled')
   assert.equal(gone.history.at(-1).status, 'canceled')
-  const event = (await pending(cols)).find((e) => e.event === 'be-observer.sales_order_cancel')
-  assert.equal(event.kind, 'order.canceled')
-  assert.equal(event.value.status, 'canceled')
+  const event = (await pending(cols)).find((e) => e.type === 'SalesOrder.Changed' && e.data.OverallStatus === 'canceled')
+  assert.equal(event.data.Reason, 'Out of stock')
 
-  const fromCommerce = await createOrder(cols, { commerceOrderId: '2', lines: [] })
-  const origin = { origin: { event: 'observer.sales_order_save_commit_after' } }
-  const canceled = await cancelOrder(cols, fromCommerce.number, 'Canceled in Commerce', undefined, origin)
-  assert.equal(canceled.cancelReason, 'Canceled in Commerce')
+  const fromShop = await createOrder(cols, { purchaseOrderByCustomer: '2', lines: [] })
+  const origin = { origin: { system: 'Adobe Commerce', document: 'order 2' } }
+  const canceled = await cancelOrder(cols, fromShop.number, 'Canceled in the web shop', undefined, origin)
+  assert.equal(canceled.cancelReason, 'Canceled in the web shop')
 })
 
 test('the British spellings are refused on the wire, not read as the American ones', async () => {
   const cols = memoryCollections()
-  const order = await createOrder(cols, { commerceOrderId: '1', lines: [] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '1', lines: [] })
   await assert.rejects(() => setStatus(cols, order.number, 'cancelled', undefined, { reason: 'Out of stock' }), /status must be one of created, confirmed, shipped, invoiced, canceled/)
-  await assert.rejects(() => cancelOrder(cols, order.number, 'Cancelled in Commerce'), /needs one of these reasons/)
+  await assert.rejects(() => cancelOrder(cols, order.number, 'Cancelled in the web shop'), /needs one of these reasons/)
   assert.equal((await getOrder(cols, order.number)).header, 'created')
 })
 
 test('the Event Journal names a cancellation in American words', () => {
   const out = (value) => ({ direction: 'out', kind: 'order.canceled', value })
   assert.equal(describeEvent(out({ erpNumber: '0000001001', reason: 'Out of stock' })).text, 'Sales order 0000001001 canceled: Out of stock')
-  assert.equal(describeEvent(out({ erpNumber: '0000001001', reason: 'Canceled in Commerce' })).text, 'Sales order 0000001001 canceled: Canceled in Commerce')
+  assert.equal(describeEvent(out({ erpNumber: '0000001001', reason: 'Canceled in the web shop' })).text, 'Sales order 0000001001 canceled: Canceled in the web shop')
+  const v16 = { direction: 'out', type: 'SalesOrder.Changed', data: { SalesOrder: '0000001001', OverallStatus: 'canceled', PrevOverallStatus: 'created', Reason: 'Out of stock' } }
+  assert.equal(describeEvent(v16).text, 'Sales order 0000001001 canceled: Out of stock')
 })
 
 test('the API refuses a canceled order, and a cancel after an invoice, in American words', async () => {
   const cols = memoryCollections()
   await importProducts(cols, [{ sku: 'A1', name: 'Widget', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 50 }] }])
-  const gone = await createOrder(cols, { commerceOrderId: '1', lines: [{ sku: 'A1', qty: 1, price: 10 }] })
+  const gone = await createOrder(cols, { purchaseOrderByCustomer: '1', lines: [{ sku: 'A1', qty: 1, price: 10 }] })
   await setStatus(cols, gone.number, 'canceled', undefined, { reason: 'Out of stock' })
   await assert.rejects(() => confirmOrder(cols, gone.number), /^Error: This order was canceled on /)
 
-  const billed = await confirmOrder(cols, (await createOrder(cols, { commerceOrderId: '2', lines: [] })).number)
+  const billed = await confirmOrder(cols, (await createOrder(cols, { purchaseOrderByCustomer: '2', lines: [] })).number)
   const stored = await cols.salesOrders.findOne({ _id: billed.number })
   await cols.salesOrders.replaceOne({ _id: billed.number }, { ...stored, invoice: { number: '9000000001' } })
   await assert.rejects(() => cancelOrder(cols, billed.number, 'Out of stock'), { message: 'This order was invoiced (9000000001) and cannot be canceled.' })
 })
 
-test('a cancellation from Commerce is journaled in American words', async () => {
+test('a cancellation from the web shop is journaled in American words, naming the system that sent it', async () => {
   const cols = memoryCollections()
-  const order = await createOrder(cols, { commerceOrderId: '3', lines: [] })
-  const origin = { origin: { event: 'observer.sales_order_save_commit_after', eventId: 'evt-1' } }
-  await cancelOrder(cols, order.number, 'Canceled in Commerce', undefined, origin)
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '3', lines: [] })
+  const origin = { origin: { system: 'Adobe Commerce', document: 'order 3', eventId: 'evt-1' } }
+  await cancelOrder(cols, order.number, 'Canceled in the web shop', undefined, origin)
   const entry = (await recent(cols)).find((e) => e.direction === 'in')
-  assert.equal(entry.summary, `Sales order ${order.number} canceled in Commerce`)
+  assert.equal(entry.summary, `Sales order ${order.number} canceled in Adobe Commerce`)
+  assert.equal(entry.eventId, 'evt-1')
 })
 
 test("an order's overall status word is American English in the API itself (owner, 2026-09-28)", () => {
@@ -153,8 +153,10 @@ test('an order stored with the British spellings reads as canceled, wherever it 
   const order = await getOrder(cols, OLD_ORDER.number)
   assert.equal(order.header, 'canceled')
   assert.equal(order.status, 'canceled')
-  assert.equal(order.cancelReason, 'Canceled in Commerce')
-  assert.deepEqual(order.history.map((h) => [h.status, h.reason]), [['created', undefined], ['canceled', 'Canceled in Commerce']])
+  // The reason it stored named the shop; it reads in version 16's words (lib/legacy).
+  assert.equal(order.cancelReason, 'Canceled in the web shop')
+  assert.deepEqual(order.history.map((h) => [h.status, h.reason]), [['created', undefined], ['canceled', 'Canceled in the web shop']])
+  assert.equal(order.purchaseOrderByCustomer, '7')
   assert.equal((await listOrders(cols))[0].status, 'canceled')
   assert.equal((await listOrders(cols))[0].can.cancel, false)
 
@@ -182,26 +184,23 @@ const OLD_ENTRY = {
   attempts: 1
 }
 
-test('a journal entry stored with the British spellings reads, and is delivered, as the American ones', async () => {
+test('a journal entry stored with the British spellings reads as the American ones, and is no longer delivered (version 16 subscribers read CloudEvents)', async () => {
   const cols = memoryCollections()
   await cols.events.replaceOne({ _id: OLD_ENTRY._id }, OLD_ENTRY, { upsert: true })
   const { kind: _k, ...kindless } = OLD_ENTRY
   await cols.events.replaceOne({ _id: 'old-2' }, { ...kindless, _id: 'old-2', delivered: true }, { upsert: true })
 
-  const [read] = await pending(cols)
+  assert.deepEqual(await pending(cols), [])
+  const listed = await recent(cols)
+  const read = listed.find((e) => e._id === 'old-1')
   assert.equal(read.kind, 'order.canceled')
   assert.equal(read.value.status, 'canceled')
-  assert.equal(read.value.reason, 'Canceled in Commerce')
-  const listed = await recent(cols)
+  assert.equal(read.value.reason, 'Canceled in the web shop')
   assert.deepEqual(listed.map((e) => describeEvent(e).name), ['Order canceled', 'Order canceled'])
-  assert.equal(describeEvent(listed.find((e) => e._id === 'old-2')).text, 'Sales order 0000001001 canceled: Canceled in Commerce')
+  assert.equal(describeEvent(listed.find((e) => e._id === 'old-2')).text, 'Sales order 0000001001 canceled: Canceled in the web shop')
 
   const posts = []
   const fetch = async (url, init) => { posts.push(JSON.parse(init.body)); return { ok: true, status: 200 } }
   await retryPending(cols, { EVENTS_WEBHOOK_URL: 'https://erp.example/webhook' }, { fetch, headers: {} })
-  assert.equal(posts.length, 1)
-  assert.equal(posts[0].data.value.status, 'canceled')
-  assert.equal(posts[0].data.value.reason, 'Canceled in Commerce')
-  const stored = await cols.events.findOne({ _id: 'old-1' })
-  assert.equal(stored.kind, 'order.canceled')
+  assert.equal(posts.length, 0)
 })

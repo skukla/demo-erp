@@ -81,7 +81,7 @@ export default function ReturnDetail ({ api, number, backLabel = 'Returns', onBa
               <Field label='Sales order'>
                 <button type='button' className='erp-link' onClick={() => onOpen('order', returnOrder.orderNumber)}>{returnOrder.orderNumber}</button>
               </Field>
-              <Field label='Commerce return'>{returnOrder.commerceReturnIncrementId || returnOrder.commerceReturnId}</Field>
+              <Field label='Customer return reference'>{returnOrder.customerReturnReference || '—'}</Field>
               <Field label='Received'>{returnOrder.receivedAt ? formatDate(returnOrder.receivedAt) : '—'}</Field>
             </Grid>
             {returnOrder.creditMemo && (

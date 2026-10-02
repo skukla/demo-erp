@@ -37,7 +37,7 @@ beforeEach(async () => {
 })
 
 test('POST products/availability answers per line; an open order reduces what is available now; an unknown SKU is flagged', async () => {
-  await createOrder(cols, { commerceOrderId: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 6, price: 100, commerceItemId: 1 }] })
+  await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C1', lines: [{ sku: 'A1', qty: 6, price: 100, customerLineReference: '1' }] })
   const res = await invoke(products, cols, { method: 'POST', path: '/availability', body: { lines: [{ sku: 'A1', qty: 2 }, { sku: 'A1', qty: 5 }, { sku: 'GHOST', qty: 1 }] } })
   const lines = res.body.lines
   assert.equal(lines[0].availableNow, 2, 'stock 8 less 6 committed')

@@ -1,14 +1,16 @@
 /*
  * An ERP names itself on every event it delivers (contract version 4): the integration serving
  * several ERPs matches the message to that ERP's part and key map. The id is the one the
- * integration's ERP list gives this ERP, set at deploy (ERP_ID). An ERP deployed without it
- * sends exactly what it always sent, and the integration reads it as its single ERP.
+ * integration's ERP list gives this ERP, set at deploy (ERP_ID). Since version 16 it is the
+ * CloudEvents envelope's `source`, /erp/<ERP_ID>; an ERP deployed without it speaks as /erp,
+ * which the integration reads as its single ERP. The data is never changed for it.
  */
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { deliver } = require('../lib/events')
 
-const ENTRY = { _id: 'e1', event: 'be-observer.sales_order_hold', value: { orderId: 55, erpNumber: '0000001000', held: true } }
+const DATA = { SalesOrder: '0000001000', CreditBlock: true }
+const ENTRY = { _id: 'e1', at: '2026-10-02T10:00:00.000Z', type: 'SalesOrder.Changed', data: DATA }
 
 async function sent (params) {
   const calls = []
@@ -17,34 +19,24 @@ async function sent (params) {
     fetch: async (url, init) => { calls.push(JSON.parse(init.body)); return { ok: true, status: 200 } }
   })
   assert.equal(res.delivered, true)
-  return calls[0].data
+  return calls[0]
 }
 
-test('an ERP deployed with an id names itself on the event it delivers', async () => {
-  const data = await sent({ ERP_ID: 'brand-b' })
-  assert.deepEqual(data.value, { ...ENTRY.value, erpId: 'brand-b' })
-  assert.deepEqual(ENTRY.value, { orderId: 55, erpNumber: '0000001000', held: true }, 'the journal entry is not changed')
+test('an ERP deployed with an id names itself as the source of the event it delivers', async () => {
+  const body = await sent({ ERP_ID: 'brand-b' })
+  assert.equal(body.source, '/erp/brand-b')
+  assert.deepEqual(body.data, DATA, 'the data carries no id of the speaker')
+  assert.deepEqual(ENTRY.data, { SalesOrder: '0000001000', CreditBlock: true }, 'the journal entry is not changed')
 })
 
-test('an ERP deployed without an id sends exactly what it always sent', async () => {
-  const data = await sent({})
-  assert.deepEqual(data, { uid: 'e1', event: ENTRY.event, value: ENTRY.value })
+test('an ERP deployed without an id speaks as /erp, in the same envelope', async () => {
+  const body = await sent({})
+  assert.deepEqual(body, { specversion: '1.0', id: 'e1', source: '/erp', type: 'SalesOrder.Changed', time: ENTRY.at, datacontenttype: 'application/json', data: DATA })
 })
 
 test('an ERP_ID left unset at deploy is not an id', async () => {
-  for (const ERP_ID of ['', '$ERP_ID']) {
-    const data = await sent({ ERP_ID })
-    assert.deepEqual(data.value, ENTRY.value, JSON.stringify(ERP_ID))
+  for (const ERP_ID of ['', '$ERP_ID', 'Not An Id']) {
+    const body = await sent({ ERP_ID })
+    assert.equal(body.source, '/erp', JSON.stringify(ERP_ID))
   }
-})
-
-test('a list-valued event keeps its list shape when the ERP has an id', async () => {
-  const stock = [{ sku: 'A1', source: 'default', quantity: 3, outOfStock: false }]
-  const calls = []
-  await deliver({ EVENTS_WEBHOOK_URL: 'https://x.example/api/v1/web/ingestion/webhook', ERP_ID: 'brand-b' },
-    { _id: 'e2', event: 'be-observer.catalog_stock_update', value: stock }, {
-      headers: {},
-      fetch: async (url, init) => { calls.push(JSON.parse(init.body)); return { ok: true, status: 200 } }
-    })
-  assert.deepEqual(calls[0].data.value, stock, 'a stock line is routed by the product that owns it, so it carries no erpId')
 })

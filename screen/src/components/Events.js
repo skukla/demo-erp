@@ -44,15 +44,18 @@ const STATES = [
 ]
 
 /** The sentence for a row: the ERP's (lib/journal), else what the row carried. */
-const detailText = (e) => (e.describe && e.describe.text) || (isIncoming(e) ? e.summary : (e.lastError || JSON.stringify(e.value).slice(0, 120)))
-const eventName = (e) => (e.describe && e.describe.name) || e.event || ''
+const detailText = (e) => (e.describe && e.describe.text) || (isIncoming(e) ? e.summary : (e.lastError || JSON.stringify(e.data ?? e.value).slice(0, 120)))
+/* What the entry was on the wire: its event type (contract version 16), the document its
+   origin named, or the event name an entry journaled before version 16 carries. */
+const wireName = (e) => e.type || (e.origin && [e.origin.system, e.origin.document].filter(Boolean).join(': ')) || e.event || ''
+const eventName = (e) => (e.describe && e.describe.name) || wireName(e)
 
 /* The journal refreshes itself while open, so "watch the event go" needs no rail click.
    Slow enough that a screen check's three agreeing samples fit between two reads. */
 const REFRESH_MS = 8000
 
 const EVENT_GRID = {
-  fields: [(e) => e.event, (e) => eventName(e), (e) => detailText(e), (e) => e.lastError],
+  fields: [(e) => wireName(e), (e) => eventName(e), (e) => detailText(e), (e) => e.lastError],
   values: {
     at: (e) => Date.parse(e.at) || 0,
     direction: (e) => (isIncoming(e) ? 'Inbound' : 'Outbound'),

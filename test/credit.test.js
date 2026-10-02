@@ -26,7 +26,7 @@ beforeEach(async () => {
   await ensureDefaultPartner(cols, 'Demo')
 })
 
-const order = (id, qty, price = 100) => ({ commerceOrderId: id, partnerId: 'C1', lines: [{ sku: 'A1', qty, price, commerceItemId: 1 }] })
+const order = (id, qty, price = 100) => ({ purchaseOrderByCustomer: id, partnerId: 'C1', lines: [{ sku: 'A1', qty, price, customerLineReference: '1' }] })
 
 test('an order within the limit is approved; one that takes exposure past it is CREATED and HELD, with the reason in words', async () => {
   const fine = await createOrder(cols, order('1', 6))
@@ -48,18 +48,18 @@ test('a customer blocked for shipping or for all business gets held orders; bloc
   }
 })
 
-test('either switch holds an order: a website account closed in Commerce holds it with the credit block at None, and reopening lets the next one through', async () => {
+test('either switch holds an order: a website account closed in the web shop holds it with the credit block at None, and reopening lets the next one through', async () => {
   await importPartners(cols, [{ id: 'C1', name: 'Acme', websiteAccountClosed: true }])
   const held = await createOrder(cols, order('w-1', 1))
   assert.equal(held.creditStatus, 'held')
-  assert.equal(held.creditReason, "Customer's website account is closed in Commerce")
+  assert.equal(held.creditReason, "Customer's website account is closed")
   assert.equal((await getPartner(cols, 'C1')).blocking, 'open')
   await importPartners(cols, [{ id: 'C1', name: 'Acme', websiteAccountClosed: false }])
   assert.equal((await createOrder(cols, order('w-2', 1))).creditStatus, 'approved')
 })
 
 test('the walk-in customer, and any customer without a Commerce company, is never held and has no credit status', async () => {
-  const o = await createOrder(cols, { commerceOrderId: 'w', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 500, price: 100 }] })
+  const o = await createOrder(cols, { purchaseOrderByCustomer: 'w', partnerId: 'P000000', lines: [{ sku: 'A1', qty: 500, price: 100 }] })
   assert.equal(o.creditStatus, null)
   const doc = await describeOrder(cols, o)
   assert.equal(doc.credit, null)
@@ -74,13 +74,13 @@ test('a held order refuses to confirm, and says what to do; Release clears it an
   assert.equal(doc.can.confirm, false)
   assert.equal(doc.can.release, true)
   assert.equal(doc.can.reject, true)
-  // Commerce heard the hold when the order was created, and hears the release now.
-  const holdEvents = () => pending(cols).then((all) => all.filter((e) => e.kind === 'order.hold').map((e) => e.value))
-  assert.deepEqual((await holdEvents()).map((v) => [v.erpNumber, v.held, v.reason]), [[held.number, true, 'Credit limit USD 1,000.00 exceeded by USD 100.00']])
+  // The hold was announced when the order was created (credit block on), and the release now (off).
+  const holdEvents = () => pending(cols).then((all) => all.filter((e) => e.type === 'SalesOrder.Changed' && e.data.CreditBlock !== e.data.PrevCreditBlock).map((e) => e.data))
+  assert.deepEqual((await holdEvents()).map((v) => [v.SalesOrder, v.CreditBlock, v.Reason]), [[held.number, true, 'Credit limit USD 1,000.00 exceeded by USD 100.00']])
   const released = await releaseCredit(cols, held.number)
   assert.equal(released.creditStatus, 'released')
   assert.ok(released.creditDecidedAt)
-  assert.deepEqual((await holdEvents()).map((v) => [v.held, v.reason]), [[true, 'Credit limit USD 1,000.00 exceeded by USD 100.00'], [false, null]])
+  assert.deepEqual((await holdEvents()).map((v) => [v.CreditBlock, v.Reason]), [[true, 'Credit limit USD 1,000.00 exceeded by USD 100.00'], [false, null]])
   const confirmed = await confirmOrder(cols, held.number)
   assert.equal(confirmed.header, 'confirmed')
   const after = await describeOrder(cols, confirmed)
@@ -88,15 +88,17 @@ test('a held order refuses to confirm, and says what to do; Release clears it an
   assert.equal(after.credit.status, 'released')
 })
 
-test('Reject cancels the held order with the reason "Credit rejected", and Commerce hears the cancel', async () => {
+test('Reject cancels the held order with the reason "Credit rejected", and the cancel is announced', async () => {
   await createOrder(cols, order('1', 6))
   const held = await createOrder(cols, order('2', 5))
   const rejected = await rejectCredit(cols, held.number)
   assert.equal(rejected.header, 'canceled')
   assert.equal(rejected.cancelReason, 'Credit rejected')
   assert.equal(rejected.creditStatus, 'held')
-  const cancel = (await pending(cols)).find((e) => e.kind === 'order.canceled')
-  assert.equal(cancel.value.reason, 'Credit rejected')
+  const cancel = (await pending(cols)).find((e) => e.type === 'SalesOrder.Changed' && e.data.OverallStatus === 'canceled')
+  assert.equal(cancel.data.Reason, 'Credit rejected')
+  // A reject is a cancel: the credit block is unchanged by it.
+  assert.deepEqual([cancel.data.PrevCreditBlock, cancel.data.CreditBlock], [true, true])
   await assert.rejects(releaseCredit(cols, held.number), /canceled/)
 })
 
@@ -144,7 +146,7 @@ test('any customer but the walk-in one has credit, whatever it was imported with
   assert.equal(hasCredit(null), false)
 })
 
-test('two switches: Commerce\'s switch imports as the website account and never touches the ERP\'s credit block; a legacy record reads as All; the event keeps sending a boolean', async () => {
+test('two switches: the web shop\'s switch imports as the website account and never touches the ERP\'s credit block; a legacy record reads as All; every level change is a Customer.Changed with the level before', async () => {
   await importPartners(cols, [{ id: 'C2', name: 'Beta', websiteAccountClosed: true }])
   assert.equal((await getPartner(cols, 'C2')).websiteAccount, 'closed')
   assert.equal((await getPartner(cols, 'C2')).blocking, 'open')
@@ -165,10 +167,10 @@ test('two switches: Commerce\'s switch imports as the website account and never 
   await patchPartner(cols, 'C1', { blocking: 'shipping' })
   await patchPartner(cols, 'C1', { blocking: 'invoicing' })
   await patchPartner(cols, 'C1', { blocking: 'open' })
-  const events = (await pending(cols)).filter((e) => e.kind === 'partner.blocked' && e.value.partnerId === 'C1')
-  // shipping → blocked:true; invoicing changes the level but not the boolean → no event; open → blocked:false
-  assert.deepEqual(events.map((e) => e.value.blocked), [true, false])
-  assert.deepEqual(Object.keys(events[0].value).sort(), ['blocked', 'partnerId'])
+  const events = (await pending(cols)).filter((e) => e.type === 'Customer.Changed' && e.data.Customer === 'C1')
+  // Version 16: every level change is announced, with the level before; what a level means to a
+  // web shop (blocked or not) is the subscriber's to fold.
+  assert.deepEqual(events.map((e) => [e.data.PrevBlockingLevel, e.data.BlockingLevel, e.data.ChangedFields]), [['open', 'shipping', ['BlockingLevel']], ['shipping', 'invoicing', ['BlockingLevel']], ['invoicing', 'open', ['BlockingLevel']]])
   await assert.rejects(patchPartner(cols, 'C1', { blocking: 'sometimes' }), /blocking must be one of/)
   assert.deepEqual(BLOCKING, ['open', 'shipping', 'invoicing', 'all'])
 })

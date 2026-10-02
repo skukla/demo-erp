@@ -33,7 +33,7 @@ function InvoiceDocuments ({ invoice, payments, onOpen }) {
   return (
     <Card title='Related Documents'>
       <div className='erp-doc-flow'>
-        <Box kind='Sales order' number={invoice.orderNumber} when={invoice.commerceIncrementId ? `Ref ${invoice.commerceIncrementId}` : ''} status='Invoiced' variant='info' onOpen={() => onOpen('order', invoice.orderNumber)} />
+        <Box kind='Sales order' number={invoice.orderNumber} when={invoice.purchaseOrderByCustomer ? `Ref ${invoice.purchaseOrderByCustomer}` : ''} status='Invoiced' variant='info' onOpen={() => onOpen('order', invoice.orderNumber)} />
         {payments.map((p) => (
           <Box
             key={p.number}
@@ -106,7 +106,7 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
                     )
                   : '—'}
               </Field>
-              <Field label='Customer reference'>{invoice.commerceIncrementId || '—'}</Field>
+              <Field label='Customer reference'>{invoice.purchaseOrderByCustomer || '—'}</Field>
               <Field label='Bill-to'>{invoice.partner ? `${invoice.partner.id} · ${invoice.partner.name}` : 'Same as sold-to'}</Field>
               <Field label='Payment terms'>{invoice.partner ? invoice.partner.paymentTerms : '—'}</Field>
               {/* Billing date plus the terms (lib/terms): what both reference systems print

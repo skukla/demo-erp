@@ -188,7 +188,7 @@ function OrdersCard ({ orders, onOpen, hasCredit }) {
                 <Row key={o.number}>
                   <Cell><span className='erp-key'>{o.number}</span></Cell>
                   <Cell>{formatDate(o.createdAt)}</Cell>
-                  <Cell>{o.commerceIncrementId || o.commerceOrderId || '—'}</Cell>
+                  <Cell>{o.purchaseOrderByCustomer || '—'}</Cell>
                   <Cell>{money(o.net, o.currency)}</Cell>
                   <Cell>
                     {o.creditStatus === 'held' && o.status !== 'canceled'

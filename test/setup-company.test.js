@@ -29,7 +29,7 @@ beforeEach(async () => {
 })
 
 async function anInvoice () {
-  const order = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C7', salesOrg: '1000', lines: [{ sku: 'A1', qty: 1, price: 100, commerceItemId: 1 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C7', salesOrg: '1000', lines: [{ sku: 'A1', qty: 1, price: 100, customerLineReference: '1' }] })
   await confirmOrder(cols, order.number)
   const shipped = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 1 }] })
   await postShipment(cols, order.number, shipped.shipments[0].number)

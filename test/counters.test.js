@@ -27,7 +27,7 @@ test('each document type starts in its own range, and peeking reserves nothing',
 
 test('the real documents draw from those ranges, and the next numbers survive a wipe', async () => {
   await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 50 }] }])
-  const order = await createOrder(cols, { commerceOrderId: '1', lines: [{ sku: 'A1', qty: 2, price: 10 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '1', lines: [{ sku: 'A1', qty: 2, price: 10 }] })
   await confirmOrder(cols, order.number)
   await createShipment(cols, order.number, { lines: [{ item: 10, qty: 2 }] })
   await postShipment(cols, order.number, '8000000001')

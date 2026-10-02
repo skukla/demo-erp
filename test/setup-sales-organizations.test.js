@@ -54,7 +54,7 @@ test('an edited name and currency are what the customer document and the invoice
   await edit('2000', { name: 'Europe B2B', currency: 'CHF' })
   const doc = await describePartner(cols, await getPartner(cols, 'C7'))
   assert.equal(doc.salesOrgNames['2000'], 'Europe B2B')
-  const order = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C7', salesOrg: '2000', salesOrgName: 'Online EU', lines: [{ sku: 'A1', qty: 1, price: 100, commerceItemId: 1 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C7', salesOrg: '2000', salesOrgName: 'Online EU', lines: [{ sku: 'A1', qty: 1, price: 100, customerLineReference: '1' }] })
   await confirmOrder(cols, order.number)
   const shipped = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 1 }] })
   await postShipment(cols, order.number, shipped.shipments[0].number)

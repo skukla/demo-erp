@@ -9,7 +9,7 @@ const { pending } = require('../lib/events')
 let cols
 beforeEach(() => { cols = memoryCollections() })
 
-const input = { commerceOrderId: '42', commerceIncrementId: '000000042', partnerId: 'P1', lines: [{ sku: 'A1', qty: 2, price: 10, commerceItemId: 5 }] }
+const input = { purchaseOrderByCustomer: '000000042', partnerId: 'P1', lines: [{ sku: 'A1', qty: 2, price: 10, customerLineReference: '5' }] }
 
 test('creates an SAP-style ten-digit number and totals the lines', async () => {
   const order = await createOrder(cols, input)
@@ -21,11 +21,11 @@ test('creates an SAP-style ten-digit number and totals the lines', async () => {
 test('an order names its customer by number; without one it is the walk-in customer\'s', async () => {
   await importPartners(cols, [{ id: 'C2', name: 'Kukla Studios' }])
   await ensureDefaultPartner(cols, 'Demo')
-  const named = await createOrder(cols, { commerceOrderId: '1', partnerId: 'C2', lines: [] })
+  const named = await createOrder(cols, { purchaseOrderByCustomer: '1', partnerId: 'C2', lines: [] })
   assert.equal(named.partnerId, 'C2')
-  const unnamed = await createOrder(cols, { commerceOrderId: '2', email: 'buyer@kuklastudios.example', lines: [] })
+  const unnamed = await createOrder(cols, { purchaseOrderByCustomer: '2', email: 'buyer@kuklastudios.example', lines: [] })
   assert.equal(unnamed.partnerId, 'P000000')
-  const none = await createOrder(memoryCollections(), { commerceOrderId: '3', lines: [] })
+  const none = await createOrder(memoryCollections(), { purchaseOrderByCustomer: '3', lines: [] })
   assert.equal(none.partnerId, null)
 })
 
@@ -38,10 +38,10 @@ test('the same Commerce order posted twice answers the same ERP order', async ()
 
 test('the order number never rewinds, not even across a wipe', async () => {
   await createOrder(cols, input)
-  await createOrder(cols, { ...input, commerceOrderId: '43' })
+  await createOrder(cols, { ...input, purchaseOrderByCustomer: '43' })
   await wipe(cols)
   assert.equal(await cols.salesOrders.countDocuments({}), 0)
-  const after = await createOrder(cols, { ...input, commerceOrderId: '44' })
+  const after = await createOrder(cols, { ...input, purchaseOrderByCustomer: '44' })
   assert.equal(after.number, '0000001002')
 })
 
@@ -52,10 +52,10 @@ test('status moves follow the machine and each move raises the ERP event for tha
   assert.equal(shipped.status, 'shipped')
   assert.deepEqual(shipped.history.map((h) => h.status), ['created', 'confirmed', 'shipped'])
   const entries = await pending(cols)
-  assert.deepEqual(entries.map((e) => e.event), ['be-observer.sales_order_status_update', 'be-observer.sales_order_shipment_create'])
-  assert.equal(entries[1].value.orderId, 42)
-  assert.equal(entries[1].value.erpNumber, '0000001000')
-  assert.deepEqual(entries[1].value.items, [{ orderItemId: 5, qty: 2, sku: 'A1' }])
+  assert.deepEqual(entries.map((e) => e.type), ['SalesOrder.Changed', 'OutboundDelivery.GoodsIssueStatusChanged'])
+  assert.equal(entries[1].data.PurchaseOrderByCustomer, '000000042')
+  assert.equal(entries[1].data.SalesOrder, '0000001000')
+  assert.deepEqual(entries[1].data.Items, [{ SalesOrderItem: 10, Material: 'A1', Quantity: 2, CustomerLineReference: '5' }])
 })
 
 test('a move the machine does not allow is refused as a bad request', async () => {
@@ -78,7 +78,7 @@ const { importProducts } = require('../lib/products')
 
 test('the document numbers its lines in tens, the way every ERP does', async () => {
   const order = await createOrder(cols, {
-    commerceOrderId: '90',
+    purchaseOrderByCustomer: '90',
     lines: [{ sku: 'A1', qty: 1, price: 10 }, { sku: 'B2', qty: 2, price: 5 }, { sku: 'C3', qty: 1, price: 1 }]
   })
 
@@ -90,7 +90,7 @@ test('the document numbers its lines in tens, the way every ERP does', async () 
 test('each line carries the product description and base unit, and falls back when the product is gone', async () => {
   await importProducts(cols, [{ sku: 'A1', name: 'Wide-leg trouser', unit: 'PC', listPrice: 89 }])
   const order = await createOrder(cols, {
-    commerceOrderId: '91',
+    purchaseOrderByCustomer: '91',
     lines: [{ sku: 'A1', qty: 2, price: 89 }, { sku: 'GONE', qty: 1, price: 4 }]
   })
 
@@ -104,7 +104,7 @@ test('each line carries the product description and base unit, and falls back wh
 
 test('net is the lines, total is what Commerce charged, and tax is the difference', async () => {
   const order = await createOrder(cols, {
-    commerceOrderId: '92',
+    purchaseOrderByCustomer: '92',
     lines: [{ sku: 'A1', qty: 4, price: 89 }, { sku: 'B2', qty: 10, price: 34.2 }],
     total: 755.59
   })
@@ -117,7 +117,7 @@ test('net is the lines, total is what Commerce charged, and tax is the differenc
 })
 
 test('an order Commerce sent no total for is its lines, and carries no tax', async () => {
-  const order = await createOrder(cols, { commerceOrderId: '93', lines: [{ sku: 'A1', qty: 3, price: 19.99 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '93', lines: [{ sku: 'A1', qty: 3, price: 19.99 }] })
 
   const document = await describeOrder(cols, order)
 
@@ -128,16 +128,16 @@ test('an order Commerce sent no total for is its lines, and carries no tax', asy
 
 test('the document names the customer, and says so plainly when there is none', async () => {
   await importPartners(cols, [{ id: 'C2', name: 'Northwind Trading', creditLimit: 50000 }])
-  const withPartner = await describeOrder(cols, await createOrder(cols, { commerceOrderId: '94', partnerId: 'C2', lines: [] }))
+  const withPartner = await describeOrder(cols, await createOrder(cols, { purchaseOrderByCustomer: '94', partnerId: 'C2', lines: [] }))
   assert.deepEqual(withPartner.partner, { id: 'C2', name: 'Northwind Trading', paymentTerms: 'NET30' })
   assert.equal(withPartner.salesOrg, '1000')
 
-  const none = await describeOrder(cols, await createOrder(memoryCollections(), { commerceOrderId: '95', lines: [] }))
+  const none = await describeOrder(cols, await createOrder(memoryCollections(), { purchaseOrderByCustomer: '95', lines: [] }))
   assert.equal(none.partner, null)
 })
 
 test('the document says where the order may go next', async () => {
-  const order = await createOrder(cols, { commerceOrderId: '96', lines: [] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '96', lines: [] })
 
   assert.deepEqual((await describeOrder(cols, order)).nextStatuses, ['confirmed', 'canceled'])
   const cancelled = await setStatus(cols, order.number, 'canceled', undefined, { reason: 'Out of stock' })
@@ -145,7 +145,7 @@ test('the document says where the order may go next', async () => {
 })
 
 test('a line amount is money, not float dust', async () => {
-  const order = await createOrder(cols, { commerceOrderId: '97', lines: [{ sku: 'A1', qty: 3, price: 0.1 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '97', lines: [{ sku: 'A1', qty: 3, price: 0.1 }] })
 
   const document = await describeOrder(cols, order)
 
@@ -154,7 +154,7 @@ test('a line amount is money, not float dust', async () => {
 })
 
 test('an order cannot be cancelled without a reason from the ERP\'s own list', async () => {
-  const order = await createOrder(cols, { commerceOrderId: '98', lines: [] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '98', lines: [] })
 
   await assert.rejects(() => setStatus(cols, order.number, 'canceled'), /needs one of these reasons/)
   await assert.rejects(
@@ -165,7 +165,7 @@ test('an order cannot be cancelled without a reason from the ERP\'s own list', a
 })
 
 test('a cancellation records why, on the order and in its history', async () => {
-  const order = await createOrder(cols, { commerceOrderId: '99', lines: [] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '99', lines: [] })
 
   const cancelled = await setStatus(cols, order.number, 'canceled', undefined, { reason: 'Credit rejected' })
 
@@ -174,7 +174,7 @@ test('a cancellation records why, on the order and in its history', async () => 
 })
 
 test('a reason is recorded only where it belongs: moving forward carries none', async () => {
-  const order = await createOrder(cols, { commerceOrderId: '100', lines: [] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '100', lines: [] })
 
   const confirmed = await setStatus(cols, order.number, 'confirmed', undefined, { reason: 'Customer request' })
 
@@ -184,7 +184,7 @@ test('a reason is recorded only where it belongs: moving forward carries none', 
 
 test('the document offers the ERP\'s own cancellation reasons, and stops offering them', async () => {
   const { CANCEL_REASONS } = require('../lib/orders')
-  const order = await createOrder(cols, { commerceOrderId: '101', lines: [] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '101', lines: [] })
 
   assert.deepEqual((await describeOrder(cols, order)).cancelReasons, CANCEL_REASONS)
 

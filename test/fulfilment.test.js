@@ -27,7 +27,7 @@ beforeEach(async () => {
   ])
 })
 
-const input = { commerceOrderId: '42', commerceIncrementId: '000000042', lines: [{ sku: 'A1', qty: 12, price: 10, commerceItemId: 1 }, { sku: 'B2', qty: 4, price: 5, commerceItemId: 2 }] }
+const input = { purchaseOrderByCustomer: '000000042', lines: [{ sku: 'A1', qty: 12, price: 10, customerLineReference: '1' }, { sku: 'B2', qty: 4, price: 5, customerLineReference: '2' }] }
 
 async function confirmed () {
   const order = await createOrder(cols, input)
@@ -42,7 +42,7 @@ test('a shipment is created with its own ten-digit number in the 8000000000 rang
   assert.equal(next.shipments[0].status, 'open')
   // Nothing has shipped yet: creating is not posting.
   assert.equal(next.lines[0].shippedQty, 0)
-  assert.deepEqual(await pending(cols).then((e) => e.map((x) => x.kind)), ['order.confirmed'])
+  assert.deepEqual(await pending(cols).then((e) => e.map((x) => x.type)), ['SalesOrder.Changed'])
 })
 
 test('posting a shipment moves the shipped quantities and raises the shipment event with THAT shipment\'s items', async () => {
@@ -54,24 +54,27 @@ test('posting a shipment moves the shipped quantities and raises the shipment ev
   assert.equal(posted.lines[0].shippedQty, 5)
   assert.equal(posted.lines[1].shippedQty, 0)
   const events = await pending(cols)
-  const shipped = events.find((e) => e.kind === 'order.shipped')
-  assert.deepEqual(shipped.value.items, [{ orderItemId: 1, qty: 5, sku: 'A1' }])
-  // The warehouse the shipment named, so Commerce deducts from the matching source.
-  assert.equal(shipped.value.stockSourceCode, 'east')
+  const shipped = events.find((e) => e.type === 'OutboundDelivery.GoodsIssueStatusChanged')
+  assert.deepEqual(shipped.data.Items, [{ SalesOrderItem: 10, Material: 'A1', Quantity: 5, CustomerLineReference: '1' }])
+  // The plant the shipment named, so the customer's side deducts from the matching stock.
+  assert.equal(shipped.data.Plant, 'east')
+  assert.equal(shipped.data.OutboundDelivery, '8000000001')
+  assert.equal(shipped.data.PurchaseOrderByCustomer, '000000042')
+  assert.deepEqual([shipped.data.PrevGoodsMovementStatus, shipped.data.GoodsMovementStatus], ['open', 'posted'])
 })
 
 test("a shipment with no warehouse named ships from the products' single warehouse, not \"default\"", async () => {
-  // A null warehouse became stockSourceCode "default" in Commerce, where the goods are not,
+  // A null warehouse became the source "default" in the web shop, where the goods are not,
   // and the ship 400'd. An ERP ships from where the goods are (Bodea's accesspoint is in
   // "northwind", not "default").
   await importProducts(cols, [{ sku: 'NW1', name: 'Access Point', listPrice: 100, warehouses: [{ code: 'northwind', name: 'Northwind Warehouse', quantity: 30 }] }])
-  const order = await createOrder(cols, { commerceOrderId: '99', commerceIncrementId: '000000099', lines: [{ sku: 'NW1', qty: 2, price: 100, commerceItemId: 9 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '000000099', lines: [{ sku: 'NW1', qty: 2, price: 100, customerLineReference: '9' }] })
   await confirmOrder(cols, order.number)
   const next = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 2 }] })
   assert.equal(next.shipments[0].warehouse, 'northwind')
   await postShipment(cols, order.number, next.shipments[0].number)
-  const shipped = (await pending(cols)).find((e) => e.kind === 'order.shipped')
-  assert.equal(shipped.value.stockSourceCode, 'northwind')
+  const shipped = (await pending(cols)).find((e) => e.type === 'OutboundDelivery.GoodsIssueStatusChanged')
+  assert.equal(shipped.data.Plant, 'northwind')
 })
 
 test('a shipment cannot be posted twice, and says when it was', async () => {
@@ -146,16 +149,19 @@ test('one invoice covers the whole order, once, and raises the invoice event', a
   assert.equal(doc.billingStatus, 'invoiced')
   assert.equal(doc.overall, 'Completed')
   await assert.rejects(createInvoice(cols, order.number), /already invoiced/)
-  const kinds = (await pending(cols)).map((e) => e.kind)
-  assert.deepEqual(kinds, ['order.confirmed', 'order.shipped', 'order.invoiced'])
+  const raised = await pending(cols)
+  assert.deepEqual(raised.map((e) => e.type), ['SalesOrder.Changed', 'OutboundDelivery.GoodsIssueStatusChanged', 'BillingDocument.Created'])
+  const bill = raised[2].data
+  assert.deepEqual([bill.BillingDocument, bill.BillingDocumentType, bill.TotalNetAmount, bill.ReferenceBillingDocument], ['9000000001', 'Invoice', 140, null])
+  assert.deepEqual(bill.Items.map((i) => [i.SalesOrderItem, i.Quantity, i.CustomerLineReference]), [[10, 12, '1'], [20, 4, '2']])
 })
 
-test('a cancellation carries its reason to Commerce', async () => {
+test('a cancellation carries its reason in the sales order event', async () => {
   const order = await createOrder(cols, input)
   await cancelOrder(cols, order.number, 'Duplicate order')
-  const event = (await pending(cols)).find((e) => e.kind === 'order.canceled')
-  assert.equal(event.value.reason, 'Duplicate order')
-  assert.equal(event.value.status, 'canceled')
+  const event = (await pending(cols)).find((e) => e.type === 'SalesOrder.Changed')
+  assert.equal(event.data.Reason, 'Duplicate order')
+  assert.deepEqual([event.data.PrevOverallStatus, event.data.OverallStatus], ['created', 'canceled'])
 })
 
 test('confirming twice, and cancelling a shipped order, are refused in words', async () => {
@@ -199,7 +205,7 @@ test('an order stored before shipments existed reads as shipped and invoiced, wi
 
 test('shipments and invoices are listed and read across orders, each naming its order', async () => {
   const a = await confirmed()
-  const b = await confirmOrder(cols, (await createOrder(cols, { ...input, commerceOrderId: '43' })).number)
+  const b = await confirmOrder(cols, (await createOrder(cols, { ...input, purchaseOrderByCustomer: '43' })).number)
   await createShipment(cols, a.number, { lines: [{ item: 10, qty: 12 }, { item: 20, qty: 4 }], warehouse: 'east' })
   await postShipment(cols, a.number, '8000000001')
   await createShipment(cols, b.number, { lines: [{ item: 20, qty: 1 }] })
@@ -209,7 +215,7 @@ test('shipments and invoices are listed and read across orders, each naming its 
   assert.deepEqual(list.map((s) => [s.number, s.orderNumber, s.status]), [['8000000002', b.number, 'open'], ['8000000001', a.number, 'posted']])
   const one = await getShipment(cols, '8000000001')
   assert.equal(one.orderNumber, a.number)
-  assert.deepEqual(one.warehouse, { code: 'east', name: 'East DC', commerceName: 'East DC' })
+  assert.deepEqual(one.warehouse, { code: 'east', name: 'East DC' })
   assert.deepEqual(one.lines.map((l) => [l.item, l.sku, l.name, l.qty, l.unit]), [[10, 'A1', 'Trouser', 12, 'EA'], [20, 'B2', 'Shirt', 4, 'EA']])
   assert.equal(await getShipment(cols, 'nope'), null)
 
@@ -266,7 +272,7 @@ test('the invoice document carries a due date: the billing date plus the payment
   await importPartners(cols, [{ id: 'C9', name: 'Net Fifteen', commerceCompanyId: '9', creditLimit: 10000 }])
   // Payment terms are the ERP's own (an import carries none): set on the partner, as the screen does.
   await patchPartner(cols, 'C9', { paymentTerms: 'NET15' })
-  const order = await createOrder(cols, { ...input, commerceOrderId: '77', partnerId: 'C9' })
+  const order = await createOrder(cols, { ...input, purchaseOrderByCustomer: '77', partnerId: 'C9' })
   await confirmOrder(cols, order.number)
   await createShipment(cols, order.number, { lines: [{ item: 10, qty: 12 }, { item: 20, qty: 4 }] })
   await postShipment(cols, order.number, '8000000001')

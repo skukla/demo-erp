@@ -20,7 +20,7 @@ beforeEach(async () => {
   await importPartners(cols, [{ id: 'P1', name: 'Acme' }, { id: 'P2', name: 'Kukla Studios' }, { id: 'P3', name: 'Third' }])
 })
 
-const changes = async () => (await pending(cols)).filter((e) => e.kind === 'contract.changed').map((e) => e.value)
+const changes = async () => (await pending(cols)).filter((e) => e.type === 'PriceList.Changed').map((e) => ({ partnerId: e.data.Customer, lines: e.data.Lines }))
 // Every published line carries salesOrg (contract version 12): null is "for every website".
 const loose = (sku, extra) => ({ sku, minQty: 1, contractNumber: null, appliesTo: 'customer', salesOrg: null, ...extra })
 const tenOff = [loose('A1', { kind: 'discount', percent: 10 }), loose('B2', { kind: 'discount', percent: 10 })]

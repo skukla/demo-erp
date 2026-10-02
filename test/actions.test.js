@@ -35,7 +35,7 @@ test('health reports the name and the counts', async () => {
 })
 
 test('health carries the work list Home and the rail draw: cue counts, open order value, recent documents', async () => {
-  await invoke(orders, cols, { method: 'POST', body: { commerceOrderId: '9', partnerId: 'P1', lines: [{ sku: 'A1', qty: 2, price: 100 }] } })
+  await invoke(orders, cols, { method: 'POST', body: { purchaseOrderByCustomer: '9', partnerId: 'P1', lines: [{ sku: 'A1', qty: 2, price: 100 }] } })
   const res = await invoke(health, cols)
   assert.equal(res.body.work.counts.toConfirm, 1)
   assert.equal(res.body.work.counts.toShip, 0)
@@ -97,7 +97,7 @@ test('pricing: a condition then a quote for the customer it names; a Commerce id
 })
 
 test('orders: create is 201 then 200 for the same Commerce order; status moves publish events', async () => {
-  const body = { commerceOrderId: '42', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 80 }] }
+  const body = { purchaseOrderByCustomer: '42', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 80 }] }
   const first = await invoke(orders, cols, { method: 'POST', body })
   assert.equal(first.statusCode, 201)
   const again = await invoke(orders, cols, { method: 'POST', body })
@@ -128,15 +128,15 @@ test('an unknown route is a 404, a bad import is a 400', async () => {
 })
 
 test('the journal answers each entry with its sentence, so the screen names documents rather than JSON', async () => {
-  await invoke(orders, cols, { method: 'POST', body: { commerceOrderId: '9', commerceIncrementId: '000000009', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 100 }] } })
+  await invoke(orders, cols, { method: 'POST', body: { purchaseOrderByCustomer: '000000009', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 100 }] } })
   await invoke(orders, cols, { method: 'POST', path: '/0000001000/confirm' })
   const res = await invoke(events, cols)
-  const confirmed = res.body.items.find((e) => e.kind === 'order.confirmed')
-  assert.equal(confirmed.describe.name, 'Order confirmed')
+  const confirmed = res.body.items.find((e) => e.type === 'SalesOrder.Changed')
+  assert.equal(confirmed.describe.name, 'Sales order changed')
   assert.equal(confirmed.describe.text, 'Sales order 0000001000 confirmed (customer reference 000000009)')
 })
 
-test('events are delivered to the ingestion webhook with the journal id, and retried when pending', async () => {
+test('events are delivered to the ingestion webhook as CloudEvents with the journal id, and retried when pending', async () => {
   const calls = []
   const realFetch = global.fetch
   global.fetch = async (url, init) => { calls.push({ url, body: JSON.parse(init.body), auth: init.headers.Authorization }); return { ok: calls.length > 1, status: calls.length > 1 ? 200 : 503, text: async () => 'busy' } }
@@ -147,8 +147,10 @@ test('events are delivered to the ingestion webhook with the journal id, and ret
     assert.equal(log.body.pending, 1)
     assert.equal(log.body.items[0].lastError, 'busy')
     assert.equal(calls[0].url, params.EVENTS_WEBHOOK_URL)
-    assert.equal(calls[0].body.data.event, 'be-observer.catalog_stock_update')
-    assert.equal(calls[0].body.data.uid, log.body.items[0]._id)
+    assert.equal(calls[0].body.specversion, '1.0')
+    assert.equal(calls[0].body.type, 'ProductStock.Changed')
+    assert.equal(calls[0].body.id, log.body.items[0]._id)
+    assert.deepEqual(calls[0].body.data, { Product: 'A1', Plant: 'default', Quantity: 1, PrevQuantity: log.body.items[0].data.PrevQuantity })
     assert.equal(calls[0].auth, undefined)
     const retried = await invoke(events, cols, { method: 'POST', path: '/retry', params })
     assert.deepEqual(retried.body, { delivered: 1, pending: 0 })
@@ -205,11 +207,11 @@ test('health answers the document numbering (the next numbers, nothing reserved)
 })
 
 test('orders: the list filters by the customer reference, as a real ERP API does', async () => {
-  await invoke(orders, cols, { method: 'POST', body: { commerceOrderId: '9', commerceIncrementId: '000000009', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 100 }] } })
-  await invoke(orders, cols, { method: 'POST', body: { commerceOrderId: '10', commerceIncrementId: '000000010', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 100 }] } })
+  await invoke(orders, cols, { method: 'POST', body: { purchaseOrderByCustomer: '000000009', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 100 }] } })
+  await invoke(orders, cols, { method: 'POST', body: { purchaseOrderByCustomer: '000000010', partnerId: 'P1', lines: [{ sku: 'A1', qty: 1, price: 100 }] } })
   const one = await invoke(orders, cols, { params: { reference: '000000010' } })
   assert.equal(one.body.items.length, 1)
-  assert.equal(one.body.items[0].commerceIncrementId, '000000010')
+  assert.equal(one.body.items[0].purchaseOrderByCustomer, '000000010')
   const none = await invoke(orders, cols, { params: { reference: 'nope' } })
   assert.deepEqual(none.body.items, [])
   const all = await invoke(orders, cols, {})

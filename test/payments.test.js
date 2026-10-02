@@ -12,7 +12,7 @@ const { memoryCollections, invoke } = require('./helpers/memory-db')
 const { createOrder, setStatus, getOrder } = require('../lib/orders')
 const { importProducts } = require('../lib/products')
 const { importPartners } = require('../lib/partners')
-const { pending, EVENT_NAMES } = require('../lib/events')
+const { pending } = require('../lib/events')
 const { STARTS, peek } = require('../lib/counters')
 const { describeEvent, KIND_NAMES } = require('../lib/journal')
 const invoices = require('../actions/invoices')
@@ -27,8 +27,8 @@ beforeEach(async () => {
 })
 
 /* Net 40, total 42.42: the invoice total the refusal example in the brief names. */
-async function invoiced (commerceOrderId = '42') {
-  const order = await createOrder(cols, { commerceOrderId, commerceIncrementId: `0000000${commerceOrderId}`, partnerId: 'C1', currency: 'USD', total: 42.42, lines: [{ sku: 'A1', qty: 4, price: 10, commerceItemId: 1 }] })
+async function invoiced (id = '42') {
+  const order = await createOrder(cols, { purchaseOrderByCustomer: `0000000${id}`, partnerId: 'C1', currency: 'USD', total: 42.42, lines: [{ sku: 'A1', qty: 4, price: 10, customerLineReference: '1' }] })
   for (const status of ['confirmed', 'shipped', 'invoiced']) await setStatus(cols, order.number, status)
   return getOrder(cols, order.number)
 }
@@ -100,23 +100,19 @@ test('a credited invoice has nothing open to pay', async () => {
   assert.equal(res.body.errorMessage, `Invoice ${order.invoice.number} was credited; nothing is open on it.`)
 })
 
-test('payment.posted carries the order fields, the payment and its invoice', async () => {
+test('IncomingPayment.Posted carries the payment, its invoice, its order and the customer\'s reference', async () => {
   const order = await invoiced()
   await pay(order.invoice.number, { amount: 12.5, reference: 'Check 1001' })
-  const event = (await pending(cols)).find((e) => e.kind === 'payment.posted')
-  assert.equal(event.event, 'be-observer.sales_order_payment_create')
-  assert.equal(EVENT_NAMES['payment.posted'], 'be-observer.sales_order_payment_create')
-  assert.deepEqual(event.value, {
-    id: 42,
-    orderId: 42,
-    incrementId: '000000042',
-    erpNumber: order.number,
-    paymentNumber: '7000000001',
-    invoiceNumber: order.invoice.number,
-    amount: 12.5,
-    currency: 'USD',
-    partnerId: 'C1',
-    reference: 'Check 1001'
+  const event = (await pending(cols)).find((e) => e.type === 'IncomingPayment.Posted')
+  assert.deepEqual(event.data, {
+    Payment: '7000000001',
+    BillingDocument: order.invoice.number,
+    SalesOrder: order.number,
+    PurchaseOrderByCustomer: '000000042',
+    Customer: 'C1',
+    Amount: 12.5,
+    Currency: 'USD',
+    PaymentReference: 'Check 1001'
   })
 })
 

@@ -23,7 +23,7 @@ beforeEach(async () => {
   ])
 })
 
-const order = (id, qty = 2) => createOrder(cols, { commerceOrderId: id, partnerId: 'C1', lines: [{ sku: 'A1', qty, price: 10, commerceItemId: Number(id) }] })
+const order = (id, qty = 2) => createOrder(cols, { purchaseOrderByCustomer: id, partnerId: 'C1', lines: [{ sku: 'A1', qty, price: 10, commerceItemId: Number(id) }] })
 
 test('each cue counts the orders on which that move is open, and nothing else', async () => {
   await order('1') // created: to confirm
@@ -38,7 +38,7 @@ test('each cue counts the orders on which that move is open, and nothing else', 
   await postShipment(cols, done.number, shipped.shipments[0].number)
   await createInvoice(cols, done.number) // invoiced: no cue
   await cancelOrder(cols, (await order('6')).number, 'Customer request') // cancelled: no cue
-  await createOrder(cols, { commerceOrderId: '7', partnerId: 'C2', lines: [{ sku: 'A1', qty: 1, price: 10 }] }) // over C2's limit: held
+  await createOrder(cols, { purchaseOrderByCustomer: '7', partnerId: 'C2', lines: [{ sku: 'A1', qty: 1, price: 10 }] }) // over C2's limit: held
 
   const { counts, openValue } = await workList(cols)
   assert.equal(counts.toConfirm, 1, 'order 1 waits for confirmation; the held order 7 does not count until released')
@@ -53,8 +53,8 @@ test('each cue counts the orders on which that move is open, and nothing else', 
 })
 
 test('events not delivered and events waiting are counted from the journal', async () => {
-  const entry = await emit(cols, 'product.price', { sku: 'A1', price: 12 })
-  await emit(cols, 'product.price', { sku: 'A1', price: 13 })
+  const entry = await emit(cols, 'Product.Changed', { Product: 'A1', ListPrice: 12, ChangedFields: ['ListPrice'] })
+  await emit(cols, 'Product.Changed', { Product: 'A1', ListPrice: 13, ChangedFields: ['ListPrice'] })
   await cols.events.replaceOne({ _id: entry._id }, { ...entry, failed: true, attempts: 10 }, { upsert: true })
   const { counts } = await workList(cols)
   assert.equal(counts.eventsFailed, 1)

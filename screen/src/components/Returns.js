@@ -25,7 +25,7 @@ const RETURN_COLUMNS = [
 const soldTo = (r) => (r.partnerName ? `${r.partnerId} · ${r.partnerName}` : (r.partnerId || '—'))
 
 const RETURN_GRID = {
-  fields: [(r) => r.number, (r) => r.orderNumber, (r) => r.commerceReturnIncrementId, (r) => r.partnerId, (r) => r.partnerName, (r) => returnStatusText(r)],
+  fields: [(r) => r.number, (r) => r.orderNumber, (r) => r.customerReturnReference, (r) => r.partnerId, (r) => r.partnerName, (r) => returnStatusText(r)],
   values: {
     number: (r) => r.number,
     date: (r) => Date.parse(r.createdAt) || 0,
@@ -61,7 +61,7 @@ export default function Returns ({ api, query = {}, onChanged, onNavigate }) {
 
   return (
     <Frame title='Returns' error={error} loading={!rows}>
-      <GridSearch placeholder='Return, order, Commerce return or customer' view={view}>
+      <GridSearch placeholder='Return, order, customer return reference or customer' view={view}>
         <Picker aria-label='Status' label='Show' selectedKey={show} onSelectionChange={(k) => setShow(String(k))} items={SHOW}>
           {(x) => <Item key={x.key}>{x.label}</Item>}
         </Picker>

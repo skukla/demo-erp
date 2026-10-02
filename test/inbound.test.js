@@ -1,6 +1,6 @@
 /*
- * What arrives from Commerce: a stock number lands on the right warehouse, and every
- * write a Commerce event brings is journaled, so the Events log shows both directions.
+ * What arrives from the web shop: a stock number lands on the right warehouse, and every
+ * write a change there brings is journaled, so the Events log shows both directions.
  *
  * Found live 2026-09-18: a product renamed in Commerce reached the ERP two minutes later
  * and left no trace on the Events page, and a stock change never reached it at all — the
@@ -15,9 +15,11 @@ const admin = require('../actions/admin')
 const orders = require('../actions/orders')
 const health = require('../actions/health')
 
-const PRODUCT_EVENT = 'observer.catalog_product_save_commit_after'
-const STOCK_EVENT = 'observer.cataloginventory_stock_item_save_commit_after'
-const ORDER_EVENT = 'observer.sales_order_save_commit_after'
+// Contract version 16: an origin names the sending system and its document, in its own words.
+const SYSTEM = 'Adobe Commerce'
+const PRODUCT = { system: SYSTEM, document: 'product DW1' }
+const STOCK = { system: SYSTEM, document: 'stock item A1' }
+const ORDER = { system: SYSTEM, document: 'order 000000042' }
 
 let cols
 beforeEach(() => { cols = memoryCollections() })
@@ -53,18 +55,18 @@ test('a product with no warehouses yet gets the default one', async () => {
   assert.deepEqual(product.warehouses.map((w) => [w.code, w.quantity]), [['default', 7]])
 })
 
-test('an import a Commerce event brought is journaled once, in words', async () => {
+test('an import a change in the web shop brought is journaled once, in words', async () => {
   await importProducts(cols, [{ sku: 'DW1', name: 'DigiWrist Explorer' }])
 
   await invoke(admin, cols, {
     method: 'POST',
     path: '/import',
-    body: { products: [{ sku: 'DW1', name: 'DigiWrist ExplorerTest', listPrice: 199 }], origin: { event: PRODUCT_EVENT } },
+    body: { products: [{ sku: 'DW1', name: 'DigiWrist ExplorerTest', listPrice: 199 }], origin: PRODUCT },
   })
 
   const [entry] = await recent(cols)
   assert.equal(entry.direction, 'in')
-  assert.equal(entry.event, PRODUCT_EVENT)
+  assert.deepEqual(entry.origin, PRODUCT)
   assert.equal(entry.summary, 'Product DW1 updated: name "DigiWrist ExplorerTest", price 199')
   assert.deepEqual(entry.value, { skus: ['DW1'], partners: [] })
 })
@@ -75,7 +77,7 @@ test('a stock event that could not land says so in the journal', async () => {
   await invoke(admin, cols, {
     method: 'POST',
     path: '/import',
-    body: { products: [{ sku: 'A1', stock: 12 }], origin: { event: STOCK_EVENT } },
+    body: { products: [{ sku: 'A1', stock: 12 }], origin: STOCK },
   })
 
   const [entry] = await recent(cols)
@@ -88,22 +90,22 @@ test('a fill batch carries no origin and is not journaled row by row', async () 
   assert.deepEqual(await recent(cols), [])
 })
 
-test('a Commerce order is journaled the first time, and a redelivery is not', async () => {
-  const body = { commerceOrderId: '42', commerceIncrementId: '000000042', lines: [], origin: { event: ORDER_EVENT } }
+test('an order from the web shop is journaled the first time, and a redelivery is not', async () => {
+  const body = { purchaseOrderByCustomer: '000000042', lines: [], origin: ORDER }
 
   const first = await invoke(orders, cols, { method: 'POST', body })
   await invoke(orders, cols, { method: 'POST', body })
 
   const entries = await recent(cols)
   assert.equal(entries.length, 1)
-  assert.equal(entries[0].summary, `Commerce order 000000042 received as sales order ${first.body.number}`)
+  assert.equal(entries[0].summary, `Order 000000042 from Adobe Commerce received as sales order ${first.body.number}`)
 })
 
 test('incoming entries never join the retry queue, and Home counts only what is waiting', async () => {
   await invoke(admin, cols, {
     method: 'POST',
     path: '/import',
-    body: { products: [{ sku: 'A1', name: 'Widget' }], origin: { event: PRODUCT_EVENT } },
+    body: { products: [{ sku: 'A1', name: 'Widget' }], origin: PRODUCT },
   })
 
   assert.deepEqual(await pending(cols), [])
@@ -118,7 +120,7 @@ test("the delivered event's own id is kept, so the row can be found in I/O Event
     path: '/import',
     body: {
       products: [{ sku: 'A1', name: 'Widget' }],
-      origin: { event: PRODUCT_EVENT, eventId: 'ca67f792-f56e-45f3-ba7c-7c97302bcc00' },
+      origin: { ...PRODUCT, eventId: 'ca67f792-f56e-45f3-ba7c-7c97302bcc00' },
     },
   })
 
@@ -130,7 +132,7 @@ test('an origin without an id is journaled without one, rather than failing', as
   await invoke(admin, cols, {
     method: 'POST',
     path: '/import',
-    body: { products: [{ sku: 'A1', name: 'Widget' }], origin: { event: PRODUCT_EVENT } },
+    body: { products: [{ sku: 'A1', name: 'Widget' }], origin: PRODUCT },
   })
 
   const [entry] = await recent(cols)
@@ -145,7 +147,7 @@ test('a stock-only import moves quantities on products the ERP has, reports the 
   const res = await invoke(admin, cols, {
     method: 'POST',
     path: '/import',
-    body: { stock: [{ sku: 'A1', warehouses: warehouses(['default', 5], ['east', 12]) }, { sku: 'ZZ', warehouses: warehouses(['default', 1]) }], origin: { event: 'inventory source items, read every minute' } }
+    body: { stock: [{ sku: 'A1', warehouses: warehouses(['default', 5], ['east', 12]) }, { sku: 'ZZ', warehouses: warehouses(['default', 1]) }], origin: { system: SYSTEM, document: 'inventory source items, read every minute' } }
   })
   assert.equal(res.statusCode, 200)
   assert.deepEqual(res.body.stock, { updated: 1, unknown: ['ZZ'] })
@@ -158,4 +160,13 @@ test('a stock-only import moves quantities on products the ERP has, reports the 
   const [entry] = await recent(cols)
   assert.equal(entry.direction, 'in')
   assert.equal(entry.summary, 'Stock of A1: default 5, east 12. Stock of ZZ not applied (the ERP has no such product)')
+})
+
+test('an origin that names no system is not journaled: the old shape, an event name alone, is not read', async () => {
+  await invoke(admin, cols, {
+    method: 'POST',
+    path: '/import',
+    body: { products: [{ sku: 'A1', name: 'Widget' }], origin: { event: 'observer.catalog_product_save_commit_after' } },
+  })
+  assert.deepEqual(await recent(cols), [])
 })

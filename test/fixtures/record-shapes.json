@@ -50,8 +50,6 @@
   ],
   "order": [
     "_id",
-    "commerceIncrementId",
-    "commerceOrderId",
     "createdAt",
     "creditDecidedAt",
     "creditReason",
@@ -63,6 +61,7 @@
     "lines",
     "number",
     "partnerId",
+    "purchaseOrderByCustomer",
     "salesOrg",
     "salesOrgName",
     "shipments",
@@ -71,7 +70,7 @@
   ],
   "orderLine": [
     "closedQty",
-    "commerceItemId",
+    "customerLineReference",
     "item",
     "price",
     "qty",
@@ -87,7 +86,7 @@
     "warehouse"
   ],
   "shipmentLine": [
-    "commerceItemId",
+    "customerLineReference",
     "item",
     "qty",
     "sku"

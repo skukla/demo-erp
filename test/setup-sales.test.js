@@ -30,7 +30,7 @@ const patchSales = (sales) => invoke(settings, cols, { method: 'PATCH', path: '/
 let orderId = 0
 async function invoicedOrder (qty = 3) {
   orderId += 1
-  const order = await createOrder(cols, { commerceOrderId: String(orderId), partnerId: 'C1', lines: [{ sku: 'A1', qty, price: 10, commerceItemId: 1 }] })
+  const order = await createOrder(cols, { purchaseOrderByCustomer: String(orderId), partnerId: 'C1', lines: [{ sku: 'A1', qty, price: 10, customerLineReference: '1' }] })
   for (const status of ['confirmed', 'shipped', 'invoiced']) await setStatus(cols, order.number, status)
   return getOrder(cols, order.number)
 }
@@ -44,7 +44,7 @@ async function overdueInvoice () {
   return order
 }
 
-const newOrder = (qty) => createOrder(cols, { commerceOrderId: `n${++orderId}`, partnerId: 'C1', lines: [{ sku: 'A1', qty, price: 10, commerceItemId: 1 }] })
+const newOrder = (qty) => createOrder(cols, { purchaseOrderByCustomer: `n${++orderId}`, partnerId: 'C1', lines: [{ sku: 'A1', qty, price: 10, customerLineReference: '1' }] })
 
 test('the setup answers the sales defaults: NET30, the credit limit checked, the shipped return reasons', async () => {
   const res = await invoke(settings, cols, { path: '/setup' })
@@ -132,7 +132,7 @@ test('credit warnings outside the four are refused', async () => {
 
 test('return reasons: a reason matching a description takes its code; none takes the default; any other keeps its words under the default', async () => {
   const order = await invoicedOrder(5)
-  const make = (id, reason) => createReturn(cols, { commerceReturnId: id, orderNumber: order.number, lines: [{ commerceItemId: 1, qty: 1, ...(reason === undefined ? {} : { reason }) }] })
+  const make = (id, reason) => createReturn(cols, { customerReturnReference: id, orderNumber: order.number, lines: [{ customerLineReference: '1', qty: 1, ...(reason === undefined ? {} : { reason }) }] })
   const [line] = (await make(1, 'wrong size')).returnOrder.lines
   assert.deepEqual([line.reasonCode, line.reason], ['WRONGSIZE', 'wrong size'])
   const [none] = (await make(2)).returnOrder.lines
@@ -146,7 +146,7 @@ test('return reasons: the list and the default are the ERP\'s own, and a change 
   assert.equal(res.statusCode, 200)
   assert.deepEqual(res.body.sales.returnReasons, [{ code: 'LATE', description: 'Arrived late' }, { code: 'DAMAGED', description: 'Damaged' }])
   const order = await invoicedOrder(5)
-  const make = (id, reason) => createReturn(cols, { commerceReturnId: id, orderNumber: order.number, lines: [{ commerceItemId: 1, qty: 1, ...(reason === undefined ? {} : { reason }) }] })
+  const make = (id, reason) => createReturn(cols, { customerReturnReference: id, orderNumber: order.number, lines: [{ customerLineReference: '1', qty: 1, ...(reason === undefined ? {} : { reason }) }] })
   assert.equal((await make(1, 'arrived LATE')).returnOrder.lines[0].reasonCode, 'LATE')
   const [none] = (await make(2)).returnOrder.lines
   assert.deepEqual([none.reasonCode, none.reason], ['DAMAGED', 'Damaged'])
