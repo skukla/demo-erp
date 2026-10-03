@@ -866,7 +866,7 @@ test('a paid invoice offers no payment, and its payment opens as a document of i
     const text = await page.locator('.erp-content').textContent()
     assert.match(text, /9000000003/)
     assert.match(text, /Check 1042/)
-    assert.match(text, /USD\s*218\.67/)
+    assert.match(text, /USD\s*199\.40/)
     assert.deepEqual(problems, [], 'paid invoice → payment console')
   } finally {
     await context.close()
@@ -933,7 +933,7 @@ test('the shell search opens a payment by number, and the sales order shows it i
 test('the journal names a posted payment', async () => {
   const { page, context } = await open('events')
   try {
-    assert.match(await page.locator('.erp-rows-open').textContent(), /Payment 7000000002 of USD 218\.67 against invoice 9000000003 for sales order 0000001009/)
+    assert.match(await page.locator('.erp-rows-open').textContent(), /Payment 7000000002 of USD 199\.40 against invoice 9000000003 for sales order 0000001009/)
   } finally {
     await context.close()
   }

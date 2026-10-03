@@ -68,8 +68,8 @@ test('a return order is created from a customer\'s return: 201, numbered from 60
   assert.deepEqual(r.history.map((h) => h.status), ['open'])
   // Each line names the sales order line it returns, its price there, and why.
   assert.deepEqual(r.lines, [
-    { item: 10, sku: 'A1', qty: 2, price: 10, reason: 'Damaged', reasonCode: 'DAMAGED', customerLineReference: '1' },
-    { item: 20, sku: 'B2', qty: 1, price: 5, reason: 'Customer return', reasonCode: 'RETURN', customerLineReference: '2' }
+    { item: 10, sku: 'A1', qty: 2, price: 10, discount: 0, reason: 'Damaged', reasonCode: 'DAMAGED', customerLineReference: '1' },
+    { item: 20, sku: 'B2', qty: 1, price: 5, discount: 0, reason: 'Customer return', reasonCode: 'RETURN', customerLineReference: '2' }
   ])
 })
 
@@ -164,8 +164,8 @@ test('a received return is credited by a credit memo of its lines, which names t
   assert.equal(memo.returnNumber, '6000000001')
   assert.equal(memo.invoiceNumber, '9000000001')
   assert.deepEqual(memo.lines, [
-    { item: 10, sku: 'A1', qty: 2, price: 10, amount: 20, customerLineReference: '1' },
-    { item: 20, sku: 'B2', qty: 1, price: 5, amount: 5, customerLineReference: '2' }
+    { item: 10, sku: 'A1', qty: 2, price: 10, discount: 0, amount: 20, customerLineReference: '1' },
+    { item: 20, sku: 'B2', qty: 1, price: 5, discount: 0, amount: 5, customerLineReference: '2' }
   ])
   // Net 25 of the invoice's 40, so 25/40 of its 3.20 tax.
   assert.deepEqual([memo.net, memo.tax, memo.total], [25, 2, 27])

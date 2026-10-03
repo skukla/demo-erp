@@ -294,8 +294,7 @@ test('from version 15: the ERP\'s setup, its routes and shapes as the code answe
   assert.ok(contract.returns.responseLine.includes('reasonCode'))
 })
 
-test('the contract is at version 16: the ERP speaks its own language — CloudEvents of its own types, and the customer\'s references where the shop\'s ids were', async () => {
-  assert.equal(contract.contractVersion, 16)
+test('from version 16: the ERP speaks its own language — CloudEvents of its own types, and the customer\'s references where the shop\'s ids were', async () => {
   assert.deepEqual(contract.delivery.envelope, ['specversion', 'id', 'source', 'type', 'time', 'datacontenttype', 'data'])
   assert.ok(contract.order.request.includes('purchaseOrderByCustomer'))
   assert.ok(contract.order.requestLine.includes('customerLineReference'))
@@ -315,4 +314,23 @@ test('the contract is at version 16: the ERP speaks its own language — CloudEv
   assert.deepEqual(Object.keys(made.body).filter((k) => contract.order.response.includes(k)).sort(), [...contract.order.response].sort())
   assert.equal(made.body.purchaseOrderByCustomer, '000000042')
   assert.equal(made.body.lines[0].customerLineReference, '7')
+})
+
+test('the contract is at version 17: the ERP has no product delete, and a line may carry the discount the web shop took off it', async () => {
+  assert.equal(contract.contractVersion, 17)
+  // AB-26y step 5: a product is not deleted because another system dropped it.
+  assert.deepEqual(contract.routes.products, ['GET', 'GET /:sku', 'PATCH /:sku', 'POST /availability'])
+  assert.match(contract.productsNote, /version 17/)
+  const { invoke } = require('./helpers/memory-db')
+  await importProducts(cols, [{ sku: 'A1', name: 'A', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
+  assert.equal((await invoke(require('../actions/products'), cols, { method: 'DELETE', path: '/A1' })).statusCode, 404)
+  // AB-16l: the discount rides on the order line and on every document made from it.
+  assert.ok(contract.order.requestLine.includes('discount'))
+  assert.match(contract.order.discountNote, /version 17/)
+  assert.ok(contract.returns.responseLine.includes('discount'))
+  assert.ok(contract.creditMemo.line.includes('discount'))
+  const made = await invoke(require('../actions/orders'), cols, { method: 'POST', body: { purchaseOrderByCustomer: '000000043', lines: [{ sku: 'A1', qty: 2, price: 10, discount: 3, customerLineReference: '7' }] } })
+  assert.equal(made.statusCode, 201)
+  assert.equal(made.body.lines[0].discount, 3)
+  assert.equal(made.body.total, 17)
 })

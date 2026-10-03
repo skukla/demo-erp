@@ -27,6 +27,19 @@ import { canCreditInvoice, canPayInvoice } from '../../../lib/return-moves'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
 import { addressLines } from './setupFormat'
+import { discountTotal, withDiscountColumn } from './lineDiscount'
+
+/* Dynamic columns: Discount is among them only when a line carries one (lineDiscount.js). */
+const LINE_COLUMNS = [
+  { key: 'item', label: 'Item', width: 90 },
+  { key: 'sku', label: 'Product', width: 170 },
+  { key: 'name', label: 'Description', width: '1fr', minWidth: 220 },
+  { key: 'qty', label: 'Qty', width: 110, align: 'end' },
+  { key: 'unit', label: 'Base unit', width: 110 },
+  { key: 'price', label: 'Net price', width: 150, align: 'end' },
+  { key: 'amount', label: 'Net amount', width: 160, align: 'end' }
+]
+const MONEY_KEYS = new Set(['price', 'discount', 'amount'])
 
 /** The invoice's related documents: its sales order and the payments against it (a credit memo is named in the header). */
 function InvoiceDocuments ({ invoice, payments, onOpen }) {
@@ -135,31 +148,21 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
             </Card>
           )}
           <Card>
-            <TableView aria-label='Invoice lines' density='compact' overflowMode='wrap'>
-              <TableHeader>
-                <Column key='item' width={90}>Item</Column>
-                <Column key='sku' width={170}>Product</Column>
-                <Column key='name' width='1fr' minWidth={220}>Description</Column>
-                <Column key='qty' width={110} align='end'>Qty</Column>
-                <Column key='unit' width={110}>Base unit</Column>
-                <Column key='price' width={150} align='end'>Net price</Column>
-                <Column key='amount' width={160} align='end'>Net amount</Column>
+            {/* Keyed on the column set: the table builds its column model once, and the
+                Discount column is there only when a line carries one (lineDiscount.js). */}
+            <TableView key={discountTotal(invoice.lines) > 0 ? 'lines-discount' : 'lines'} aria-label='Invoice lines' density='compact' overflowMode='wrap'>
+              <TableHeader columns={withDiscountColumn(LINE_COLUMNS, invoice.lines)}>
+                {(c) => <Column key={c.key} width={c.width} minWidth={c.minWidth} align={c.align}>{c.label}</Column>}
               </TableHeader>
               <TableBody items={invoice.lines.map((l) => ({ ...l, id: l.item }))}>
                 {(line) => (
                   <Row key={line.item}>
-                    <Cell>{line.item}</Cell>
-                    <Cell>{line.sku}</Cell>
-                    <Cell>{line.name}</Cell>
-                    <Cell>{line.qty}</Cell>
-                    <Cell>{line.unit}</Cell>
-                    <Cell>{money(line.price, invoice.currency)}</Cell>
-                    <Cell>{money(line.amount, invoice.currency)}</Cell>
+                    {(key) => <Cell>{MONEY_KEYS.has(key) ? money(line[key] || 0, invoice.currency) : line[key]}</Cell>}
                   </Row>
                 )}
               </TableBody>
             </TableView>
-            <Totals net={invoice.net} tax={invoice.tax} total={invoice.total} currency={invoice.currency} />
+            <Totals discount={discountTotal(invoice.lines)} net={invoice.net} tax={invoice.tax} total={invoice.total} currency={invoice.currency} />
           </Card>
           <InvoiceDocuments invoice={invoice} payments={invoice.paymentDocuments} onOpen={onOpen} />
         </>

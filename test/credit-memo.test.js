@@ -60,8 +60,8 @@ test('crediting an invoiced order answers 201 with the order, its invoice credit
   assert.deepEqual([memo.net, memo.tax, memo.total], [40, 3.2, 43.2])
   assert.deepEqual(Object.keys(memo.lines[0]).sort(), [...contract.creditMemo.line].sort())
   assert.deepEqual(memo.lines, [
-    { item: 10, sku: 'A1', qty: 3, price: 10, amount: 30, customerLineReference: '1' },
-    { item: 20, sku: 'B2', qty: 2, price: 5, amount: 10, customerLineReference: '2' }
+    { item: 10, sku: 'A1', qty: 3, price: 10, discount: 0, amount: 30, customerLineReference: '1' },
+    { item: 20, sku: 'B2', qty: 2, price: 5, discount: 0, amount: 10, customerLineReference: '2' }
   ])
   // The stored invoice says so too, so billingStatus reads it from the record.
   assert.equal(billingStatus(await getOrder(cols, order.number)), 'credited')

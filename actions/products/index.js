@@ -2,16 +2,15 @@
  * GET products                   every product with `committed` and `available` (lib/availability)
  * GET products/:sku              the product, plus its `openOrders` — each order holding it, with the customer named
  * PATCH products/:sku            { name?, listPrice?, warehouses?, salesStatus? }
- * DELETE products/:sku { origin? }   the product was deleted in the web shop; its variants stay as products of their own
+ * No DELETE: a product is not deleted because another system dropped it (contract version 17).
  */
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { notFound } = require('../../lib/errors')
-const { listProducts, getProduct, patchProduct, deleteProduct } = require('../../lib/products')
+const { listProducts, getProduct, patchProduct } = require('../../lib/products')
 const { listOrders } = require('../../lib/orders')
 const { listPartners } = require('../../lib/partners')
 const { committedBySku, openOrdersFor, withAvailability, withAvailabilityAll, promiseLine } = require('../../lib/availability')
-const { journalDelete } = require('../../lib/inbound')
 
 /** One product as its page shows it: committed, available, and the orders behind them. */
 async function describeProduct (cols, product) {
@@ -54,12 +53,6 @@ async function handler ({ cols, method, segments, body, params }) {
     const product = await patchProduct(cols, sku, body, params)
     if (!product) throw notFound(`Product ${sku}`)
     return ok(await describeProduct(cols, product))
-  }
-  if (method === 'DELETE' && sku) {
-    const removed = await deleteProduct(cols, sku)
-    if (!removed) throw notFound(`Product ${sku}`)
-    await journalDelete(cols, body || {}, removed)
-    return ok(removed)
   }
 }
 

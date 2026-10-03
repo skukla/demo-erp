@@ -17,6 +17,7 @@ import {
 import { money } from '../money'
 import Card from './Card'
 import Totals from './Totals'
+import { discountTotal, withDiscountColumn } from './lineDiscount'
 
 /* The lines are printed, not browsed: no resizing and no sorting, so the headers carry
    no chevrons to suggest otherwise. An order's lines are in their own order — that is
@@ -86,11 +87,15 @@ const CLOSE_COLUMN = { key: 'close', label: ' ', width: 170, align: 'end' }
 export default function OrderLines ({ order, onCloseLine, busy, onOpen }) {
   const lines = order.lines || []
   const canClose = Boolean(order.can && order.can.close && onCloseLine)
-  const columns = canClose ? [...LINE_COLUMNS, CLOSE_COLUMN] : LINE_COLUMNS
+  // A Discount column only when a line carries one (lineDiscount.js).
+  const discount = discountTotal(lines)
+  const priced = withDiscountColumn(LINE_COLUMNS, lines)
+  const columns = canClose ? [...priced, CLOSE_COLUMN] : priced
 
   function cell (line, key) {
     if (key === 'open') return openText(line)
     if (key === 'price') return money(line.price, order.currency)
+    if (key === 'discount') return money(line.discount || 0, order.currency)
     if (key === 'amount') return money(line.amount, order.currency)
     if (key === 'shipped') return line.shippedQty
     // Master data is one click from the document: the SKU opens the product on the trail.
@@ -107,7 +112,7 @@ export default function OrderLines ({ order, onCloseLine, busy, onOpen }) {
     <Card>
       {/* Keyed on the column set as well: the table builds its column model once, so a
           Column that appears or disappears on a later render needs a remount. */}
-      <TableView key={canClose ? 'lines-closable' : 'lines'} aria-label='Order lines' density='compact' overflowMode='wrap'>
+      <TableView key={`${canClose ? 'lines-closable' : 'lines'}${discount > 0 ? '-discount' : ''}`} aria-label='Order lines' density='compact' overflowMode='wrap'>
         <TableHeader columns={columns}>
           {(c) => <Column key={c.key} width={c.width} minWidth={c.minWidth} align={c.align}>{c.label}</Column>}
         </TableHeader>
@@ -122,7 +127,7 @@ export default function OrderLines ({ order, onCloseLine, busy, onOpen }) {
       {lines.length === 0 && (
         <Text marginTop='size-200'>This order has no lines.</Text>
       )}
-      <Totals net={order.net} tax={order.tax} total={order.total} currency={order.currency} />
+      <Totals discount={discount} net={order.net} tax={order.tax} total={order.total} currency={order.currency} />
     </Card>
   )
 }

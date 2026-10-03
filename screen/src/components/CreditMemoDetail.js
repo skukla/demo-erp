@@ -15,8 +15,20 @@ import Totals from './Totals'
 import { useLoad } from './useLoad'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
+import { discountTotal, withDiscountColumn } from './lineDiscount'
 
 const orderLineOf = (order, item) => (order.lines || []).find((l) => l.item === item) || {}
+
+/* Dynamic columns: Discount is among them only when a line carries one (lineDiscount.js). */
+const LINE_COLUMNS = [
+  { key: 'item', label: 'Item', width: 90 },
+  { key: 'sku', label: 'Product', width: 170 },
+  { key: 'name', label: 'Description', width: '1fr', minWidth: 220 },
+  { key: 'qty', label: 'Qty', width: 110, align: 'end' },
+  { key: 'price', label: 'Net price', width: 150, align: 'end' },
+  { key: 'amount', label: 'Net amount', width: 160, align: 'end' }
+]
+const MONEY_KEYS = new Set(['price', 'discount', 'amount'])
 
 /** A document number that opens it; null for none, which the Field prints as a dash. */
 function documentLink (kind, number, onOpen) {
@@ -56,29 +68,20 @@ export default function CreditMemoDetail ({ api, number, backLabel = 'Credit Mem
             </Grid>
           </Card>
           <Card>
-            <TableView aria-label='Credit memo lines' density='compact' overflowMode='wrap'>
-              <TableHeader>
-                <Column key='item' width={90}>Item</Column>
-                <Column key='sku' width={170}>Product</Column>
-                <Column key='name' width='1fr' minWidth={220}>Description</Column>
-                <Column key='qty' width={110} align='end'>Qty</Column>
-                <Column key='price' width={150} align='end'>Net price</Column>
-                <Column key='amount' width={160} align='end'>Net amount</Column>
+            {/* Keyed on the column set: the table builds its column model once. */}
+            <TableView key={discountTotal(memo.lines) > 0 ? 'lines-discount' : 'lines'} aria-label='Credit memo lines' density='compact' overflowMode='wrap'>
+              <TableHeader columns={withDiscountColumn(LINE_COLUMNS, memo.lines)}>
+                {(c) => <Column key={c.key} width={c.width} minWidth={c.minWidth} align={c.align}>{c.label}</Column>}
               </TableHeader>
-              <TableBody items={memo.lines.map((l) => ({ ...l, id: l.item }))}>
+              <TableBody items={memo.lines.map((l) => ({ ...l, id: l.item, name: orderLineOf(order, l.item).name || l.sku }))}>
                 {(line) => (
                   <Row key={line.item}>
-                    <Cell>{line.item}</Cell>
-                    <Cell>{line.sku}</Cell>
-                    <Cell>{orderLineOf(order, line.item).name || line.sku}</Cell>
-                    <Cell>{line.qty}</Cell>
-                    <Cell>{money(line.price, currency)}</Cell>
-                    <Cell>{money(line.amount, currency)}</Cell>
+                    {(key) => <Cell>{MONEY_KEYS.has(key) ? money(line[key] || 0, currency) : line[key]}</Cell>}
                   </Row>
                 )}
               </TableBody>
             </TableView>
-            <Totals net={memo.net} tax={memo.tax} total={memo.total} currency={currency} />
+            <Totals discount={discountTotal(memo.lines)} net={memo.net} tax={memo.tax} total={memo.total} currency={currency} />
           </Card>
         </>
       )}

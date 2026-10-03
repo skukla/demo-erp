@@ -122,7 +122,7 @@ test('settings takes the appearance and ignores anything else sent with it', asy
 })
 
 test('an unknown route is a 404, a bad import is a 400', async () => {
-  // PUT is no route of products (PATCH edits, DELETE removes).
+  // PUT is no route of products (PATCH edits; there is no delete).
   assert.equal((await invoke(products, cols, { method: 'PUT', path: '/A1' })).statusCode, 404)
   assert.equal((await invoke(admin, cols, { method: 'POST', path: '/import', body: {} })).statusCode, 400)
 })

@@ -91,6 +91,8 @@ const partners = [
    and the invoice. The outward `status` is DERIVED below, as the ERP derives it. */
 const HEADERS = ['created', 'confirmed', 'confirmed', 'confirmed', 'canceled', 'created', 'confirmed', 'created', 'confirmed', 'confirmed']
 const cents = (value) => Math.round(value * 100) / 100
+/** A line's net amount, as lib/line-amounts has it: quantity × price − discount. */
+const lineNet = (l) => cents(l.qty * l.price - (l.discount || 0))
 const day = (d, h = 9) => new Date(Date.UTC(2026, 8, d, h, 12)).toISOString()
 const orders = HEADERS.map((header, i) => {
   const number = String(1000 + i).padStart(10, '0')
@@ -146,12 +148,12 @@ function seedShipment (order, number, lines, warehouse, posted) {
 seedShipment(orders[2], '8000000001', [{ item: 10, qty: orders[2].lines[0].qty }], 'default', true)
 seedShipment(orders[2], '8000000002', [{ item: 20, qty: orders[2].lines[1].qty }], 'default', true)
 {
-  const net = cents(orders[2].lines.reduce((s, l) => s + l.qty * l.price, 0))
+  const net = cents(orders[2].lines.reduce((s, l) => s + lineNet(l), 0))
   orders[2].invoice = {
     number: '9000000001',
     createdAt: day(13),
     status: 'open',
-    lines: orders[2].lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, amount: cents(l.qty * l.price) })),
+    lines: orders[2].lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, discount: l.discount || 0, amount: lineNet(l) })),
     net,
     tax: cents(orders[2].total - net),
     total: orders[2].total,
@@ -166,12 +168,12 @@ orders[6].lines[1].closeReason = 'Out of stock'
 /* Invoice the way createInvoice does, and the whole-invoice credit memo the way
    lib/credit-memos makeCreditMemo does: tax in proportion to the net credited. */
 function seedInvoice (order, number, at) {
-  const net = cents(order.lines.reduce((s, l) => s + l.qty * l.price, 0))
+  const net = cents(order.lines.reduce((s, l) => s + lineNet(l), 0))
   order.invoice = {
     number,
     createdAt: at,
     status: 'open',
-    lines: order.lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, amount: cents(l.qty * l.price) })),
+    lines: order.lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, discount: l.discount || 0, amount: lineNet(l) })),
     net,
     tax: cents(order.total - net),
     total: order.total,
@@ -179,13 +181,17 @@ function seedInvoice (order, number, at) {
   }
 }
 function makeCreditMemo (order, lines, returnNumber, number, at) {
-  const credited = lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, amount: cents(l.qty * l.price), customerLineReference: l.customerLineReference ?? null }))
+  const credited = lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, discount: l.discount || 0, amount: lineNet(l), customerLineReference: l.customerLineReference ?? null }))
   const net = cents(credited.reduce((sum, l) => sum + l.amount, 0))
   const tax = order.invoice.net ? cents((order.invoice.tax * net) / order.invoice.net) : 0
   return { number, createdAt: at, orderNumber: order.number, invoiceNumber: order.invoice.number, returnNumber: returnNumber ?? null, lines: credited, net, tax, total: cents(net + tax) }
 }
 
-/* Order 1008: shipped, invoiced, and its invoice credited in full by credit memo 9500000002. */
+/* Order 1008: shipped, invoiced, and its invoice credited in full by credit memo 9500000002.
+   Its first line carries a discount the web shop gave (contract version 17), so the Discount
+   column and total can be looked at on a credit memo. */
+orders[8].lines[0].discount = 25
+orders[8].total = cents(orders[8].total - 25)
 seedShipment(orders[8], '8000000006', orders[8].lines.map((l) => ({ item: l.item, qty: l.qty })), 'default', true)
 seedInvoice(orders[8], '9000000002', day(14))
 {
@@ -200,10 +206,11 @@ seedInvoice(orders[8], '9000000002', day(14))
    lines are two sellable products (the index would have picked P000010, which is blocked
    for sales and could not have shipped). */
 orders[9].lines = [
-  { ...orders[9].lines[0], sku: 'P000001', price: 89 },
+  // A promotion in the web shop took 17.80 off the first line (contract version 17).
+  { ...orders[9].lines[0], sku: 'P000001', price: 89, discount: 17.8 },
   { ...orders[9].lines[1], sku: 'P000003', price: 12 }
 ]
-orders[9].total = cents(orders[9].lines.reduce((sum, l) => sum + l.qty * l.price, 0) * 1.0825)
+orders[9].total = cents(orders[9].lines.reduce((sum, l) => sum + lineNet(l), 0) * 1.0825)
 seedShipment(orders[9], '8000000007', orders[9].lines.map((l) => ({ item: l.item, qty: l.qty })), 'default', true)
 seedInvoice(orders[9], '9000000003', day(16))
 orders[9].history.push({ status: 'invoiced', at: day(16) })
@@ -366,7 +373,7 @@ function workList () {
     if (can.invoice) counts.toInvoice += 1
     if (o.invoice && canPayInvoice({ ...o.invoice, ...openItem(o) })) counts.invoicesToCollect += 1
     counts.toPost += o.shipments.filter((s) => s.status !== 'posted').length
-    if (o.header !== 'canceled' && !o.invoice) amount += o.lines.reduce((sum, l) => sum + l.qty * l.price, 0)
+    if (o.header !== 'canceled' && !o.invoice) amount += o.lines.reduce((sum, l) => sum + lineNet(l), 0)
     const last = o.history.reduce((at, h) => (h.at > at ? h.at : at), o.createdAt)
     recent.push({ kind: 'order', number: o.number, at: last, title: `Sales Order ${o.number}` })
     for (const sh of o.shipments) recent.push({ kind: 'shipment', number: sh.number, at: sh.postedAt || sh.createdAt, title: `Shipment ${sh.number}` })
@@ -549,7 +556,7 @@ const partnerOf = (id) => partners.find((p) => p.id === id) || null
 
 function describe (order) {
   const partner = partnerOf(order.partnerId)
-  const lines = order.lines.map((line) => ({ ...named(line), openQty: openQty(line), amount: cents(line.qty * line.price) }))
+  const lines = order.lines.map((line) => ({ ...named(line), openQty: openQty(line), amount: lineNet(line) }))
   const net = cents(lines.reduce((sum, l) => sum + l.amount, 0))
   const total = cents(Number(order.total ?? net))
   const can = abilities(order)
@@ -670,7 +677,7 @@ function describePartner (partner) {
       creditStatus: o.creditStatus ?? null,
       purchaseOrderByCustomer: o.purchaseOrderByCustomer,
       currency: o.currency,
-      net: cents((o.lines || []).reduce((sum, l) => sum + l.qty * l.price, 0))
+      net: cents((o.lines || []).reduce((sum, l) => sum + lineNet(l), 0))
     }))
   // Open orders plus open items (lib/partners exposures, openItemsOf).
   const openOrders = cents(own.filter((o) => OPEN.has(o.status) && o.creditStatus !== 'held').reduce((sum, o) => sum + o.net, 0))
@@ -907,12 +914,12 @@ export const fakeApi = {
     const short = o.lines.find((l) => openQty(l) > 0)
     if (short) fail(`Item ${short.item}: ${openQty(short)} EA are not yet shipped. Ship them, or close the remainder.`)
     if (totalsOf(o).shipped === 0) fail('Nothing on this order has shipped.')
-    const net = cents(o.lines.reduce((s, l) => s + l.qty * l.price, 0))
+    const net = cents(o.lines.reduce((s, l) => s + lineNet(l), 0))
     o.invoice = {
       number: String(nextInvoice++),
       createdAt: new Date().toISOString(),
       status: 'open',
-      lines: o.lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, amount: cents(l.qty * l.price) })),
+      lines: o.lines.map((l) => ({ item: l.item, sku: l.sku, qty: l.qty, price: l.price, discount: l.discount || 0, amount: lineNet(l) })),
       net,
       tax: cents(o.total - net),
       total: o.total,

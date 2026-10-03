@@ -308,27 +308,17 @@ test('an unknown product type is refused', async () => {
   await assert.rejects(importProducts(cols, [{ sku: 'K', type: 'bundle' }]), { statusCode: 400 })
 })
 
-test('a product deleted in the web shop leaves the ERP; a deleted parent leaves its variants as products of their own; an unknown SKU is a 404', async () => {
-  const { deleteProduct, importProducts, getProduct, listProducts } = require('../lib/products')
+test('the ERP has no product delete (contract version 17): DELETE products/:sku is no route, and the product stays', async () => {
+  const { importProducts, getProduct } = require('../lib/products')
   const { invoke } = require('./helpers/memory-db')
   const products = require('../actions/products')
-  await importProducts(cols, [
-    { sku: 'PARENT', name: 'Knit', type: 'configurable' },
-    { sku: 'PARENT-S', name: 'Knit S', parentSku: 'PARENT', variantAttributes: [{ label: 'Size', value: 'S' }], listPrice: 10 },
-    { sku: 'PARENT-M', name: 'Knit M', parentSku: 'PARENT', variantAttributes: [{ label: 'Size', value: 'M' }], listPrice: 10 },
-    { sku: 'LONE', name: 'Belt', listPrice: 5 }
-  ])
-  assert.deepEqual(await deleteProduct(cols, 'LONE'), { sku: 'LONE', unlinked: [] })
-  assert.equal(await getProduct(cols, 'LONE'), null)
-  const res = await invoke(products, cols, { method: 'DELETE', path: '/PARENT', body: { origin: { system: 'Adobe Commerce', document: 'product PARENT' } } })
-  assert.equal(res.statusCode, 200)
-  assert.deepEqual(res.body, { sku: 'PARENT', unlinked: ['PARENT-M', 'PARENT-S'] })
-  const listed = (await listProducts(cols)).map((p) => [p.sku, p.type, p.parentSku || null])
-  assert.deepEqual(listed, [['PARENT-M', 'simple', null], ['PARENT-S', 'simple', null]])
-  assert.equal((await invoke(products, cols, { method: 'DELETE', path: '/PARENT' })).statusCode, 404)
+  await importProducts(cols, [{ sku: 'LONE', name: 'Belt', listPrice: 5 }])
+  const res = await invoke(products, cols, { method: 'DELETE', path: '/LONE', body: { origin: { system: 'Adobe Commerce', document: 'product LONE' } } })
+  assert.equal(res.statusCode, 404)
+  assert.equal((await getProduct(cols, 'LONE')).name, 'Belt')
+  assert.equal(require('../lib/products').deleteProduct, undefined)
   const { recent } = require('../lib/events')
-  const [entry] = await recent(cols)
-  assert.equal(entry.summary, 'Product PARENT removed (deleted in Adobe Commerce); its 2 variant(s) stay as products of their own')
+  assert.deepEqual(await recent(cols), [])
 })
 
 test('a product is sellable until blocked for sales; the block is the ERP\'s own, is announced as a Product.Changed like any edit, and survives an import', async () => {
