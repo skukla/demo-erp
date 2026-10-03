@@ -6,8 +6,8 @@
  * The memo carries its sales order's number; the order is read beside it for the
  * sold-to, the products' names and the currency the memo is in.
  */
-import React from 'react'
-import { Grid, TableView, TableHeader, Column, TableBody, Row, Cell } from '@adobe/react-spectrum'
+import React, { useMemo } from 'react'
+import { Grid } from '@adobe/react-spectrum'
 import DocumentPage from './DocumentPage'
 import Card from './Card'
 import Field from './Field'
@@ -16,18 +16,12 @@ import { useLoad } from './useLoad'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
 import { discountTotal, withDiscountColumn } from './lineDiscount'
+import { GRID_COLUMNS } from './gridColumns'
+import LinesTable from './LinesTable'
 
 const orderLineOf = (order, item) => (order.lines || []).find((l) => l.item === item) || {}
 
-/* Dynamic columns: Discount is among them only when a line carries one (lineDiscount.js). */
-const LINE_COLUMNS = [
-  { key: 'item', label: 'Item', width: 90 },
-  { key: 'sku', label: 'Product', width: 170 },
-  { key: 'name', label: 'Description', width: '1fr', minWidth: 220 },
-  { key: 'qty', label: 'Qty', width: 110, align: 'end' },
-  { key: 'price', label: 'Net price', width: 150, align: 'end' },
-  { key: 'amount', label: 'Net amount', width: 160, align: 'end' }
-]
+/* The line columns that print money; Discount is among them only when a line carries one. */
 const MONEY_KEYS = new Set(['price', 'discount', 'amount'])
 
 /** A document number that opens it; null for none, which the Field prints as a dash. */
@@ -45,6 +39,7 @@ export default function CreditMemoDetail ({ api, number, backLabel = 'Credit Mem
   const memo = loaded && loaded.memo
   const order = loaded && loaded.order
   const currency = order && order.currency
+  const lineColumns = useMemo(() => withDiscountColumn(GRID_COLUMNS.creditMemoLines, memo ? memo.lines : []), [memo])
   return (
     <DocumentPage
       backLabel={backLabel}
@@ -68,19 +63,11 @@ export default function CreditMemoDetail ({ api, number, backLabel = 'Credit Mem
             </Grid>
           </Card>
           <Card>
-            {/* Keyed on the column set: the table builds its column model once. */}
-            <TableView key={discountTotal(memo.lines) > 0 ? 'lines-discount' : 'lines'} aria-label='Credit memo lines' density='compact' overflowMode='wrap'>
-              <TableHeader columns={withDiscountColumn(LINE_COLUMNS, memo.lines)}>
-                {(c) => <Column key={c.key} width={c.width} minWidth={c.minWidth} align={c.align}>{c.label}</Column>}
-              </TableHeader>
-              <TableBody items={memo.lines.map((l) => ({ ...l, id: l.item, name: orderLineOf(order, l.item).name || l.sku }))}>
-                {(line) => (
-                  <Row key={line.item}>
-                    {(key) => <Cell>{MONEY_KEYS.has(key) ? money(line[key] || 0, currency) : line[key]}</Cell>}
-                  </Row>
-                )}
-              </TableBody>
-            </TableView>
+            <LinesTable
+              tableId='creditMemoLines' label='Credit memo lines' columns={lineColumns}
+              lines={memo.lines.map((l) => ({ ...l, name: orderLineOf(order, l.item).name || l.sku }))}
+              cell={(line, key) => (MONEY_KEYS.has(key) ? money(line[key] || 0, currency) : line[key])}
+            />
             <Totals discount={discountTotal(memo.lines)} net={memo.net} tax={memo.tax} total={memo.total} currency={currency} />
           </Card>
         </>

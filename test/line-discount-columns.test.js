@@ -23,6 +23,6 @@ test('a line with a discount: a Discount column sits before the net amount, and 
   const lines = [{ qty: 3, price: 20, discount: 3.33 }, { qty: 1, price: 5, discount: 0 }, { qty: 1, price: 5, discount: 3.34 }]
   const columns = withDiscountColumn(COLUMNS, lines)
   assert.deepEqual(columns.map((c) => c.key), ['qty', 'price', 'discount', 'amount'])
-  assert.deepEqual(columns[2], { key: 'discount', label: 'Discount', width: 130, align: 'end' })
+  assert.deepEqual(columns[2], { key: 'discount', label: 'Discount', width: 103, align: 'end', holds: 'amount' })
   assert.equal(discountTotal(lines), 6.67)
 })

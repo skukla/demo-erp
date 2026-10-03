@@ -11,22 +11,13 @@ import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Pick
 import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { paymentStatusText, paymentStatusLight } from './paymentFormat'
 import { canPayInvoice } from '../../../lib/return-moves'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
-
-const INVOICE_COLUMNS = [
-  { key: 'number', width: 165 },
-  { key: 'date', width: 140 },
-  { key: 'order', width: 150 },
-  { key: 'partner', width: '2fr', minWidth: 220 },
-  { key: 'total', width: 150 },
-  { key: 'open', width: 150 },
-  { key: 'status', width: 140 }
-]
 
 const soldTo = (i) => (i.partnerName ? `${i.partnerId} · ${i.partnerName}` : (i.partnerId || '—'))
 
@@ -56,7 +47,7 @@ const INVOICE_GRID = {
 }
 
 export default function Invoices ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('invoices', INVOICE_COLUMNS)
+  const widths = useColumnWidths('invoices', GRID_COLUMNS.invoices)
   const { rows, error, reload } = useLoad(() => api.invoices(), [api])
   const [show, setShow] = useState(() => showKey(query.work))
   const shown = useMemo(() => (rows ? rows.filter(SHOW.find((x) => x.key === show).keep) : rows), [rows, show])

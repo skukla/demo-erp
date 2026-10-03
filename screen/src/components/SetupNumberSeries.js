@@ -9,8 +9,11 @@ import Card from './Card'
 import EditableText from './EditableText'
 import { saveInPlace } from './saveInPlace'
 import { seriesText } from './setupFormat'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 export default function SetupNumberSeries ({ series, onSave }) {
+  const widths = useColumnWidths('numberSeries', GRID_COLUMNS.numberSeries)
   const [rows, setRows] = useState(series)
   const [saving, setSaving] = useState(null)
 
@@ -27,16 +30,12 @@ export default function SetupNumberSeries ({ series, onSave }) {
 
   return (
     <Card title='Number Series'>
-      <TableView aria-label='Number series' density='compact' overflowMode='wrap'>
+      <TableView {...widths.tableProps} aria-label='Number series' density='compact' overflowMode='wrap'>
         <TableHeader>
-          <Column key='type' width='1fr' minWidth={110}>Document</Column>
-          <Column key='starting' width={120}>Starting no.</Column>
-          {/* 160, not 140 (AB-65): the cell is its width less 32 px of Spectrum's own padding, and
-              a ten-digit number in its edit button is up to 113 px. At 140 the button was cut off,
-              and a table cell marks a cut with "…" — whose first dot showed after the narrowest
-              number (0000001010). The Document column gives up the 20 px. */}
-          <Column key='next' width={160}>Next no.</Column>
-          <Column key='ending' width={120}>Ending no.</Column>
+          <Column key='type' {...widths.columnProps('type')}>Document</Column>
+          <Column key='starting' {...widths.columnProps('starting')}>Starting no.</Column>
+          <Column key='next' {...widths.columnProps('next')}>Next no.</Column>
+          <Column key='ending' {...widths.columnProps('ending')}>Ending no.</Column>
         </TableHeader>
         <TableBody items={rows.map((r) => ({ ...r, id: r.type }))}>
           {(r) => (

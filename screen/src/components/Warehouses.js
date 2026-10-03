@@ -12,8 +12,11 @@ import Frame from './Frame'
 import { useLoad } from './useLoad'
 import EditableText from './EditableText'
 import { toastSaved, toastFailed } from './toast'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 export default function Warehouses ({ api, onChanged }) {
+  const widths = useColumnWidths('warehouseList', GRID_COLUMNS.warehouseList)
   const { rows, error, reload } = useLoad(async () => {
     const health = await api.health()
     return (health.structure && health.structure.warehouses) || []
@@ -41,12 +44,12 @@ export default function Warehouses ({ api, onChanged }) {
       {rows && rows.length === 0
         ? <Text>None yet — loading demo data brings the web shop's stock locations in as warehouses.</Text>
         : (
-          <TableView aria-label='Warehouses' density='compact' overflowMode='wrap'>
+          <TableView {...widths.tableProps} aria-label='Warehouses' density='compact' overflowMode='wrap'>
             <TableHeader>
-              <Column key='code' width={220}>Plant</Column>
-              <Column key='name' width='1fr' minWidth={220}>Name</Column>
-              <Column key='products' width={130} align='end'>Products</Column>
-              <Column key='stock' width={130} align='end'>In stock</Column>
+              <Column key='code' {...widths.columnProps('code')}>Plant</Column>
+              <Column key='name' {...widths.columnProps('name')}>Name</Column>
+              <Column key='products' {...widths.columnProps('products')} align='end'>Products</Column>
+              <Column key='stock' {...widths.columnProps('stock')} align='end'>In stock</Column>
             </TableHeader>
             <TableBody items={(rows || []).map((w) => ({ ...w, id: w.code }))}>
               {(w) => (

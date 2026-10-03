@@ -12,6 +12,8 @@ import {
 import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { toastSaved } from './toast'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 function AddPriceGroup ({ onAdd }) {
   const [code, setCode] = useState('')
@@ -40,6 +42,7 @@ function AddPriceGroup ({ onAdd }) {
 }
 
 export default function PriceGroups ({ api, onChanged }) {
+  const widths = useColumnWidths('priceGroups', GRID_COLUMNS.priceGroups)
   const { rows, error, reload } = useLoad(() => api.priceGroups(), [api])
   const { rows: customers } = useLoad(() => api.partners(), [api])
   const members = useMemo(() => {
@@ -66,12 +69,12 @@ export default function PriceGroups ({ api, onChanged }) {
       loading={!rows}
       actions={<AddPriceGroup onAdd={(group) => act(() => api.savePriceGroup(group), 'Price group saved')} />}
     >
-      <TableView aria-label='Price groups' density='compact' overflowMode='wrap'>
+      <TableView {...widths.tableProps} aria-label='Price groups' density='compact' overflowMode='wrap'>
         <TableHeader>
-          <Column key='code' width={200}>Code</Column>
-          <Column key='name' width='1fr' minWidth={200}>Name</Column>
-          <Column key='customers' width={130} align='end'>Customers</Column>
-          <Column key='remove' width={100}> </Column>
+          <Column key='code' {...widths.columnProps('code')}>Code</Column>
+          <Column key='name' {...widths.columnProps('name')}>Name</Column>
+          <Column key='customers' {...widths.columnProps('customers')} align='end'>Customers</Column>
+          <Column key='remove' {...widths.columnProps('remove')}> </Column>
         </TableHeader>
         <TableBody items={(rows || []).map((g) => ({ ...g, id: g.code }))}>
           {(g) => (

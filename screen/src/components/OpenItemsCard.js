@@ -11,6 +11,8 @@ import Card from './Card'
 import { paymentStatusText, paymentStatusLight } from './paymentFormat'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 /** "2 open items · USD 1,040.00 — invoiced, not yet paid." */
 function summary (items) {
@@ -19,6 +21,7 @@ function summary (items) {
 }
 
 export default function OpenItemsCard ({ items, onOpen }) {
+  const widths = useColumnWidths('openItems', GRID_COLUMNS.openItems)
   return (
     <Card title='Open items'>
       {items.length === 0
@@ -26,18 +29,18 @@ export default function OpenItemsCard ({ items, onOpen }) {
         : (
           <>
             <Text UNSAFE_className='erp-subtle'>{summary(items)}</Text>
-            <TableView
+            <TableView {...widths.tableProps}
               aria-label="This customer's open items" density='compact' overflowMode='wrap'
               UNSAFE_className='erp-rows-open' selectionMode='none' onAction={(key) => onOpen(String(key))}
             >
               <TableHeader>
-                <Column key='number' width={165}>Invoice</Column>
-                <Column key='date' width={140}>Billing date</Column>
-                <Column key='due' width={140}>Due date</Column>
-                <Column key='order' width='1fr' minWidth={150}>Sales order</Column>
-                <Column key='total' width={150} align='end'>Total</Column>
-                <Column key='open' width={150} align='end'>Open amount</Column>
-                <Column key='status' width={140}>Payment status</Column>
+                <Column key='number' {...widths.columnProps('number')}>Invoice</Column>
+                <Column key='date' {...widths.columnProps('date')}>Billing date</Column>
+                <Column key='due' {...widths.columnProps('due')}>Due date</Column>
+                <Column key='order' {...widths.columnProps('order')}>Sales order</Column>
+                <Column key='total' {...widths.columnProps('total')} align='end'>Total</Column>
+                <Column key='open' {...widths.columnProps('open')} align='end'>Open amount</Column>
+                <Column key='status' {...widths.columnProps('status')}>Payment status</Column>
               </TableHeader>
               <TableBody items={items.map((i) => ({ ...i, id: i.invoiceNumber }))}>
                 {(i) => (

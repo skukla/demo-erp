@@ -162,6 +162,10 @@ seedShipment(orders[2], '8000000002', [{ item: 20, qty: orders[2].lines[1].qty }
 }
 seedShipment(orders[3], '8000000003', [{ item: 10, qty: orders[3].lines[0].qty }], 'default', true)
 seedShipment(orders[3], '8000000004', [{ item: 20, qty: 1 }], 'default', false)
+/* Its open line carries a web-shop discount too, so one order shows BOTH the Discount column
+   and the Close column: the widest set of order line columns there is. */
+orders[3].lines[1].discount = 5
+orders[3].total = cents(orders[3].total - 5)
 seedShipment(orders[6], '8000000005', [{ item: 10, qty: orders[6].lines[0].qty }, { item: 20, qty: 1 }], 'default', true)
 orders[6].lines[1].closedQty = orders[6].lines[1].qty - 1
 orders[6].lines[1].closeReason = 'Out of stock'

@@ -5,19 +5,9 @@ import EventDetail from './EventDetail'
 import { formatStamp } from '../formatStamp'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { LIST_OF } from './Home'
-
-/* The event name and its detail are the long ones, so they take the slack between
-   them: an event name runs to "be-observer.sales_order_shipment_create". */
-const EVENT_COLUMNS = [
-  { key: 'at', width: 200 },
-  { key: 'direction', width: 180 },
-  { key: 'event', width: '1fr', minWidth: 270 },
-  // "failed after 10 tries" is the longest of these, and wrapping doubles the row.
-  { key: 'state', width: 190 },
-  { key: 'detail', width: '1fr', minWidth: 200 }
-]
 
 /** An entry journaled before the direction was recorded is outbound: nothing else was. */
 const isIncoming = (e) => e.direction === 'in'
@@ -71,7 +61,7 @@ const EVENT_GRID = {
  * the outbound half was here, so a change Commerce sent left no trace on this screen.
  */
 export default function Events ({ api, query = {}, onNavigate }) {
-  const widths = useColumnWidths('events', EVENT_COLUMNS)
+  const widths = useColumnWidths('events', GRID_COLUMNS.events)
   const [meta, setMeta] = useState({})
   const { rows, error, reload } = useLoad(async () => {
     const data = await api.events()

@@ -11,6 +11,8 @@ import {
 } from '@adobe/react-spectrum'
 import Card from './Card'
 import { toastSaved } from './toast'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 const BLANK = { code: '', name: '', currency: '', websiteCode: '' }
 
@@ -59,6 +61,7 @@ function SalesOrgDialog ({ editing, onSubmit, close }) {
 }
 
 export default function SetupSalesOrganizations ({ salesOrganizations, onAdd, onEdit }) {
+  const widths = useColumnWidths('salesOrganizations', GRID_COLUMNS.salesOrganizations)
   const [rows, setRows] = useState(salesOrganizations)
   // null: no dialog; {}: adding; a row: editing it.
   const [open, setOpen] = useState(null)
@@ -72,18 +75,13 @@ export default function SetupSalesOrganizations ({ salesOrganizations, onAdd, on
 
   return (
     <Card title='Sales Organizations' actions={<ActionButton onPress={() => setOpen({})}>Add</ActionButton>}>
-      <TableView aria-label='Sales organizations' density='compact' overflowMode='wrap' renderEmptyState={() => 'None yet: the first fill brings them from the websites.'}>
+      <TableView {...widths.tableProps} aria-label='Sales organizations' density='compact' overflowMode='wrap' renderEmptyState={() => 'None yet: the first fill brings them from the websites.'}>
         <TableHeader>
-          {/* The card's table is 520 px at 1,440 px. Edit 96, not 80 (AB-65): the quiet button and
-              its margin are 14 px wider than an 80 px cell less Spectrum's 32 px of padding, so
-              the cell held a cut. The columns added up to 530, so the table also scrolled
-              sideways by 10 px; Website (a short code) gives up 20 and Name's minimum is 130 (a
-              long name wraps), which brings them to 516. */}
-          <Column key='code' width={90}>Code</Column>
-          <Column key='name' width='1fr' minWidth={130}>Name</Column>
-          <Column key='currency' width={100}>Currency</Column>
-          <Column key='website' width={100}>Website</Column>
-          <Column key='edit' width={96}> </Column>
+          <Column key='code' {...widths.columnProps('code')}>Code</Column>
+          <Column key='name' {...widths.columnProps('name')}>Name</Column>
+          <Column key='currency' {...widths.columnProps('currency')}>Currency</Column>
+          <Column key='website' {...widths.columnProps('website')}>Website</Column>
+          <Column key='edit' {...widths.columnProps('edit')}> </Column>
         </TableHeader>
         <TableBody items={rows.map((o) => ({ ...o, id: o.code }))}>
           {(o) => (

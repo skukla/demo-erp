@@ -8,19 +8,10 @@ import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Pick
 import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { formatDate } from '../formatStamp'
-
-const SHIPMENT_COLUMNS = [
-  { key: 'number', width: 150 },
-  { key: 'date', width: 130 },
-  { key: 'order', width: 150 },
-  { key: 'partner', width: '2fr', minWidth: 200 },
-  { key: 'warehouse', width: '1fr', minWidth: 160 },
-  { key: 'qty', width: 100 },
-  { key: 'status', width: 120 }
-]
 
 /* A shipment list without who it went to is a warehouse's view, not a sales view. */
 const soldTo = (s) => (s.partnerName ? `${s.partnerId} · ${s.partnerName}` : (s.partnerId || '—'))
@@ -49,7 +40,7 @@ const SHOW = [
 const showKey = (asked) => (SHOW.some((x) => x.key === asked) ? asked : 'all')
 
 export default function Shipments ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('shipments', SHIPMENT_COLUMNS)
+  const widths = useColumnWidths('shipments', GRID_COLUMNS.shipments)
   const { rows, error, reload } = useLoad(() => api.shipments(), [api])
   // Home's "Shipments to post" lands here with ?work=open.
   const [show, setShow] = useState(() => showKey(query.work))

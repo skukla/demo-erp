@@ -21,27 +21,13 @@ import PriceTest from './PriceTest'
 import { useLoad } from './useLoad'
 import { toastSaved } from './toast'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { amountText, customerText, productText, ruleText, statusOf, todayIso, validityText } from './pricingRuleFormat'
-
-const RULE_COLUMNS = [
-  /* Fixed columns add up to 590px and the three flexible ones need 480px more, so the
-     grid fits the 1,170px content area at a 1,440px window without a horizontal scroll
-     (the Remove column was clipped at 1,220px, measured 2026-09-24). */
-  { key: 'rule', width: '1fr', minWidth: 170 },
-  { key: 'customer', width: '1fr', minWidth: 150 },
-  { key: 'product', width: '1fr', minWidth: 130 },
-  { key: 'scope', width: 95 },
-  { key: 'amount', width: 100 },
-  { key: 'minQty', width: 90 },
-  { key: 'validity', width: 170 },
-  { key: 'status', width: 110 },
-  { key: 'remove', width: 90, resizable: false }
-]
 
 export default function Pricing ({ api, health, onChanged }) {
   // The sales organisations the structure knows, for the scope picker and column.
   const salesOrgs = (health && health.structure && health.structure.salesOrgs) || []
-  const widths = useColumnWidths('pricing', RULE_COLUMNS)
+  const widths = useColumnWidths('pricing', GRID_COLUMNS.pricing)
   const { rows, error, reload } = useLoad(() => api.conditions(), [api])
   // Read separately rather than folded into the rules: a row needs the customer's NAME
   // (C000101 tells a room nothing) and so does the price test below, and there are

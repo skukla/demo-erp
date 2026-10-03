@@ -14,8 +14,11 @@ import Field from './Field'
 import { useLoad } from './useLoad'
 import { useDocumentAction } from './useDocumentAction'
 import { formatDate } from '../formatStamp'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 export default function ShipmentDetail ({ api, number, backLabel = 'Shipments', onBack, onOpen, onChanged }) {
+  const widths = useColumnWidths('shipmentLines', GRID_COLUMNS.shipmentLines)
   const { rows, error, reload } = useLoad(async () => [await api.shipment(number)], [api, number])
   const shipment = rows && rows[0]
   const { act, busy, error: actionError } = useDocumentAction(reload, onChanged)
@@ -52,13 +55,13 @@ export default function ShipmentDetail ({ api, number, backLabel = 'Shipments', 
             </Grid>
           </Card>
           <Card>
-            <TableView aria-label='Shipment lines' density='compact' overflowMode='wrap'>
+            <TableView {...widths.tableProps} aria-label='Shipment lines' density='compact' overflowMode='wrap'>
               <TableHeader>
-                <Column key='item' width={90}>Item</Column>
-                <Column key='sku' width={170}>Product</Column>
-                <Column key='name' width='1fr' minWidth={220}>Description</Column>
-                <Column key='qty' width={140} align='end'>Shipped qty</Column>
-                <Column key='unit' width={110}>Base unit</Column>
+                <Column key='item' {...widths.columnProps('item')}>Item</Column>
+                <Column key='sku' {...widths.columnProps('sku')}>Product</Column>
+                <Column key='name' {...widths.columnProps('name')}>Description</Column>
+                <Column key='qty' {...widths.columnProps('qty')} align='end'>Shipped qty</Column>
+                <Column key='unit' {...widths.columnProps('unit')}>Base unit</Column>
               </TableHeader>
               <TableBody items={shipment.lines.map((l) => ({ ...l, id: l.item }))}>
                 {(line) => (

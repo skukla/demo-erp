@@ -23,37 +23,12 @@ import EditableNumber from './EditableNumber'
 import { saveInPlace } from './saveInPlace'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { money, moneyOptions } from '../money'
 
 // One object, not one per render: a Spectrum number field compares this by identity.
 const MONEY = moneyOptions()
-
-/* Wide enough for the header plus its sort chevron; see Orders.js. */
-/* Name takes twice the slack of the two id columns beside it; the switch at the end
-   takes none, which is why it is a fixed width. */
-/* A credit limit with no exposure beside it says nothing (UI audit §Customers): Exposure
-   and Available joined the list, and the Commerce company id moved to the document, where
-   it is one fact among the customer's identity. Eight columns fit a 1,440px window. */
-/* Credit limit 180 and Available 150, not 140 and 130: a cell is its width less 32 px of
-   Spectrum's padding, and a cell clips what does not fit with "…" (AB-65). The credit limit's
-   edit button for USD 120,000.00 is 131 px and was cut mid-digit; USD 118,713.60 available
-   read "USD 118,71…". */
-/* The headings clip too: Customer (sorted, so it carries the chevron) needs 133 px, Sales
-   organizations 177, Payment terms 150, Credit block 137, measured 2026-10-03 when they read
-   "CUSTO…", "SALES ORGANI…", "PAYMEN…". The room came from Name (its minimum 96: a long name
-   wraps), Credit limit (172 still holds the 131 px button) and Credit block's empty slack. A
-   heading only just fits; another column needs a shorter heading, not a narrower one. */
-const PARTNER_COLUMNS = [
-  { key: 'id', width: 136 },
-  { key: 'name', width: '2fr', minWidth: 96 },
-  { key: 'salesOrgs', width: '1fr', minWidth: 182 },
-  { key: 'terms', width: 154 },
-  { key: 'creditLimit', width: 172 },
-  { key: 'exposure', width: 130 },
-  { key: 'available', width: 150 },
-  { key: 'blocking', width: 140 }
-]
 
 const PARTNER_GRID = {
   fields: [(p) => p.id, (p) => p.name],
@@ -76,7 +51,7 @@ const SHOW = [
 ]
 
 export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('partners', PARTNER_COLUMNS)
+  const widths = useColumnWidths('partners', GRID_COLUMNS.partners)
   const { rows, error, reload, updateRow } = useLoad(() => api.partners(), [api])
   // Home's "Blocked customers" lands here with ?work=blocked.
   const [show, setShow] = useState(() => (query.work === 'blocked' ? 'blocked' : 'all'))

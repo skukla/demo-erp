@@ -24,6 +24,8 @@ import { returnStatusText, returnStatusLight, returnReasonText } from './returnF
 import { returnMoves } from '../../../lib/return-moves'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 /** The sales order line a return line takes back, for its product name and unit. */
 const orderLineOf = (order, item) => (order.lines || []).find((l) => l.item === item) || {}
@@ -47,6 +49,7 @@ function Related ({ returnOrder, order, onOpen }) {
 }
 
 export default function ReturnDetail ({ api, number, backLabel = 'Returns', onBack, onOpen, onChanged }) {
+  const widths = useColumnWidths('returnLines', GRID_COLUMNS.returnLines)
   const { rows, error, reload } = useLoad(async () => {
     const returnOrder = await api.returnOrder(number)
     return [{ returnOrder, order: await api.order(returnOrder.orderNumber) }]
@@ -95,14 +98,14 @@ export default function ReturnDetail ({ api, number, backLabel = 'Returns', onBa
             )}
           </Card>
           <Card>
-            <TableView aria-label='Return lines' density='compact' overflowMode='wrap'>
+            <TableView {...widths.tableProps} aria-label='Return lines' density='compact' overflowMode='wrap'>
               <TableHeader>
-                <Column key='item' width={90}>Item</Column>
-                <Column key='sku' width={170}>Product</Column>
-                <Column key='name' width='1fr' minWidth={200}>Description</Column>
-                <Column key='qty' width={130} align='end'>Returned qty</Column>
-                <Column key='unit' width={110}>Base unit</Column>
-                <Column key='reason' width='1fr' minWidth={160}>Reason</Column>
+                <Column key='item' {...widths.columnProps('item')}>Item</Column>
+                <Column key='sku' {...widths.columnProps('sku')}>Product</Column>
+                <Column key='name' {...widths.columnProps('name')}>Description</Column>
+                <Column key='qty' {...widths.columnProps('qty')} align='end'>Returned qty</Column>
+                <Column key='unit' {...widths.columnProps('unit')}>Base unit</Column>
+                <Column key='reason' {...widths.columnProps('reason')}>Reason</Column>
               </TableHeader>
               <TableBody items={returnOrder.lines.map((l) => ({ ...l, id: l.item }))}>
                 {(line) => (

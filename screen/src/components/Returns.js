@@ -8,19 +8,11 @@ import { TableView, TableHeader, Column, TableBody, Row, Cell, StatusLight, Pick
 import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { returnStatusText, returnStatusLight } from './returnFormat'
 import { formatDate } from '../formatStamp'
-
-const RETURN_COLUMNS = [
-  { key: 'number', width: 160 },
-  { key: 'date', width: 130 },
-  { key: 'order', width: 150 },
-  { key: 'partner', width: '2fr', minWidth: 200 },
-  { key: 'lines', width: 100 },
-  { key: 'status', width: 130 }
-]
 
 const soldTo = (r) => (r.partnerName ? `${r.partnerId} · ${r.partnerName}` : (r.partnerId || '—'))
 
@@ -47,7 +39,7 @@ const SHOW = [
 const showKey = (asked) => (SHOW.some((x) => x.key === asked) ? asked : 'all')
 
 export default function Returns ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('returns', RETURN_COLUMNS)
+  const widths = useColumnWidths('returns', GRID_COLUMNS.returns)
   const { rows, error, reload } = useLoad(() => api.returns(), [api])
   const [show, setShow] = useState(() => showKey(query.work))
   const shown = useMemo(() => (!rows || show === 'all' ? rows : rows.filter((r) => r.status === show)), [rows, show])

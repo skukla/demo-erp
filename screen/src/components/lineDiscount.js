@@ -4,7 +4,7 @@
  * column and the total are shown only when a line has one, the way Totals leaves the Tax row
  * out when there is no tax: a document with no promotion on it reads as it always did.
  */
-const DISCOUNT_COLUMN = { key: 'discount', label: 'Discount', width: 130, align: 'end' }
+export const DISCOUNT_COLUMN = { key: 'discount', label: 'Discount', width: 103, align: 'end', holds: 'amount' }
 
 const discountOf = (line) => Number(line && line.discount) || 0
 

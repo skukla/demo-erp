@@ -12,8 +12,11 @@ import {
   Button, ButtonGroup, Content, Dialog, DialogTrigger, Divider, Heading, Item, NumberField, Picker, Text,
   TableView, TableHeader, Column, TableBody, Row, Cell, View
 } from '@adobe/react-spectrum'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 export default function CreateShipment ({ order, onCreate, isDisabled }) {
+  const widths = useColumnWidths('linesToShip', GRID_COLUMNS.linesToShip)
   const open = (order.lines || []).filter((l) => l.openQty > 0)
   const warehouses = order.warehouses || []
   const [qty, setQty] = useState({})
@@ -32,12 +35,12 @@ export default function CreateShipment ({ order, onCreate, isDisabled }) {
           <Content>
             <Text>Each line ships what is still open unless you take some out. Nothing moves until the shipment is posted.</Text>
             <View marginTop='size-200'>
-              <TableView aria-label='Lines to ship' density='compact'>
+              <TableView {...widths.tableProps} aria-label='Lines to ship' density='compact'>
                 <TableHeader>
-                  <Column key='item' width={70}>Item</Column>
-                  <Column key='name' width='1fr'>Product</Column>
-                  <Column key='open' width={90} align='end'>Open</Column>
-                  <Column key='ship' width={170} align='end'>Ship now</Column>
+                  <Column key='item' {...widths.columnProps('item')}>Item</Column>
+                  <Column key='name' {...widths.columnProps('name')}>Product</Column>
+                  <Column key='open' {...widths.columnProps('open')} align='end'>Open</Column>
+                  <Column key='ship' {...widths.columnProps('ship')} align='end'>Ship now</Column>
                 </TableHeader>
                 <TableBody items={open.map((l) => ({ ...l, id: l.item }))}>
                   {(line) => (

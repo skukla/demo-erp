@@ -7,20 +7,11 @@ import { TableView, TableHeader, Column, TableBody, Row, Cell } from '@adobe/rea
 import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
-
-const MEMO_COLUMNS = [
-  { key: 'number', width: 165 },
-  { key: 'date', width: 130 },
-  { key: 'order', width: 150 },
-  { key: 'invoice', width: 150 },
-  { key: 'return', width: 160 },
-  { key: 'partner', width: '2fr', minWidth: 200 },
-  { key: 'total', width: 150 }
-]
 
 const soldTo = (m) => (m.partnerName ? `${m.partnerId} · ${m.partnerName}` : (m.partnerId || '—'))
 
@@ -39,7 +30,7 @@ const MEMO_GRID = {
 }
 
 export default function CreditMemos ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('creditMemos', MEMO_COLUMNS)
+  const widths = useColumnWidths('creditMemos', GRID_COLUMNS.creditMemos)
   const { rows, error, reload } = useLoad(() => api.creditMemos(), [api])
   const view = useGridView(rows, MEMO_GRID)
   const trail = useTrail('Credit Memos')

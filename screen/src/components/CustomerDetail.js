@@ -31,6 +31,8 @@ import { amountText, productText, ruleText, todayIso } from './pricingRuleFormat
 import { appliesToText, contractStatus, termText } from './contractFormat'
 import { formatDate } from '../formatStamp'
 import { money, moneyOptions } from '../money'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 const MONEY = moneyOptions()
 
@@ -154,6 +156,7 @@ const SHOW = [
  * open items card below is the other — and the whole history behind a switch.
  */
 function OrdersCard ({ orders, onOpen, hasCredit }) {
+  const widths = useColumnWidths('customerOrders', GRID_COLUMNS.customerOrders)
   const [show, setShow] = useState(hasCredit ? 'open' : 'all')
   const shown = show === 'open' ? orders.filter(isOpenOrder) : orders
   const openNet = orders.filter(isOpenOrder).reduce((sum, o) => sum + (o.net || 0), 0)
@@ -172,16 +175,16 @@ function OrdersCard ({ orders, onOpen, hasCredit }) {
       {shown.length === 0
         ? <Text>{show === 'open' ? 'No open orders: nothing this customer has ordered is still uninvoiced.' : 'No sales orders for this customer.'}</Text>
         : (
-          <TableView
+          <TableView {...widths.tableProps}
             aria-label="This customer's sales orders" density='compact' overflowMode='wrap'
             UNSAFE_className='erp-rows-open' selectionMode='none' onAction={(key) => onOpen(String(key))}
           >
             <TableHeader>
-              <Column key='number' width={165}>Sales order</Column>
-              <Column key='date' width={140}>Order date</Column>
-              <Column key='reference' width='1fr' minWidth={150}>Reference</Column>
-              <Column key='net' width={150} align='end'>Net amount</Column>
-              <Column key='status' width={140}>Status</Column>
+              <Column key='number' {...widths.columnProps('number')}>Sales order</Column>
+              <Column key='date' {...widths.columnProps('date')}>Order date</Column>
+              <Column key='reference' {...widths.columnProps('reference')}>Reference</Column>
+              <Column key='net' {...widths.columnProps('net')} align='end'>Net amount</Column>
+              <Column key='status' {...widths.columnProps('status')}>Status</Column>
             </TableHeader>
             <TableBody items={shown.map((o) => ({ ...o, id: o.number }))}>
               {(o) => (
@@ -205,6 +208,7 @@ function OrdersCard ({ orders, onOpen, hasCredit }) {
 }
 
 function PricingCard ({ conditions, onNavigate }) {
+  const widths = useColumnWidths('customerPricing', GRID_COLUMNS.customerPricing)
   return (
     <Card
       title='Pricing'
@@ -213,11 +217,11 @@ function PricingCard ({ conditions, onNavigate }) {
       {conditions.length === 0
         ? <Text>No pricing rules are agreed with this customer; it pays list price.</Text>
         : (
-          <TableView aria-label='Pricing rules for this customer' density='compact' overflowMode='wrap'>
+          <TableView {...widths.tableProps} aria-label='Pricing rules for this customer' density='compact' overflowMode='wrap'>
             <TableHeader>
-              <Column key='rule' width='1fr' minWidth={230}>Rule</Column>
-              <Column key='product' width='1fr' minWidth={190}>Product</Column>
-              <Column key='amount' width={150} align='end'>Amount</Column>
+              <Column key='rule' {...widths.columnProps('rule')}>Rule</Column>
+              <Column key='product' {...widths.columnProps('product')}>Product</Column>
+              <Column key='amount' {...widths.columnProps('amount')} align='end'>Amount</Column>
             </TableHeader>
             <TableBody items={conditions.map((c) => ({ ...c, id: c._id }))}>
               {(c) => (
@@ -237,6 +241,7 @@ function PricingCard ({ conditions, onNavigate }) {
 /* The price lists that apply to this customer: its own, then its price group's (lib/partners
    describePartner); a row opens the list on the same trail. */
 function PriceListsCard ({ contracts, groupNames, onOpen, onNavigate }) {
+  const widths = useColumnWidths('customerPriceLists', GRID_COLUMNS.customerPriceLists)
   const today = todayIso()
   return (
     <Card
@@ -246,16 +251,16 @@ function PriceListsCard ({ contracts, groupNames, onOpen, onNavigate }) {
       {contracts.length === 0
         ? <Text>No price list applies to this customer.</Text>
         : (
-          <TableView
+          <TableView {...widths.tableProps}
             aria-label="This customer's price lists" density='compact' overflowMode='wrap'
             UNSAFE_className='erp-rows-open' selectionMode='none' onAction={(key) => onOpen(String(key))}
           >
             <TableHeader>
-              <Column key='number' width={165}>Price list</Column>
-              <Column key='appliesTo' width={240}>Applies to</Column>
-              <Column key='description' width='1fr' minWidth={150}>Description</Column>
-              <Column key='term' width={230}>Term</Column>
-              <Column key='status' width={190}>Status</Column>
+              <Column key='number' {...widths.columnProps('number')}>Price list</Column>
+              <Column key='appliesTo' {...widths.columnProps('appliesTo')}>Applies to</Column>
+              <Column key='description' {...widths.columnProps('description')}>Description</Column>
+              <Column key='term' {...widths.columnProps('term')}>Term</Column>
+              <Column key='status' {...widths.columnProps('status')}>Status</Column>
             </TableHeader>
             <TableBody items={contracts.map((c) => ({ ...c, id: c.number }))}>
               {(c) => (

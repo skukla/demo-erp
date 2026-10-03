@@ -523,6 +523,14 @@ async function cutHeaders (grid) {
     .filter((h) => h.over > 0))
 }
 
+/* The headings of a grid that cannot be dragged: a resizable heading carries Spectrum's menu
+   chevron, through which a keyboard resizes it too. The rule is in gridColumns.js. */
+async function fixedHeadings (grid) {
+  return grid.evaluate((el) => [...el.querySelectorAll('[role="columnheader"]')]
+    .filter((h) => !h.querySelector('[class*="spectrum-Table-menuChevron"]'))
+    .map((h) => h.textContent.trim()))
+}
+
 test('customers: every credit limit edit button and every amount fits its cell, so none is cut', async () => {
   // AB-65's measure, extended: the credit limit's edit button for USD 120,000.00 was 34 px wider
   // than its 140 px column and showed cut mid-digit; Available read "USD 118,71…".
@@ -535,6 +543,7 @@ test('customers: every credit limit edit button and every amount fits its cell, 
     assert.deepEqual(await cutHeaders(grid), [], 'every heading fits')
     assert.equal(await grid.locator('button[aria-label^="Edit credit limit"]').count(), 5, 'every customer was looked at')
     assert.deepEqual(await sideways(grid), [], 'the wider columns still fit the table')
+    assert.deepEqual(await fixedHeadings(grid), [], 'every column can be dragged')
     assert.deepEqual(problems, [], 'customers console')
   } finally {
     await context.close()
@@ -542,11 +551,17 @@ test('customers: every credit limit edit button and every amount fits its cell, 
 })
 
 /* Sales order 1001 can still close a line (the Close column shows); 1009 carries a discount
-   (the Discount column shows): the two widest sets of order line columns the preview has. */
-for (const [number, what] of [['0000001001', 'with its Close column'], ['0000001009', 'with its Discount column']]) {
+   (the Discount column shows); 1003 has both: the widest set of order line columns there is. */
+const ORDER_LINE_SETS = [
+  ['0000001001', 'with its Close column', { close: true }],
+  ['0000001009', 'with its Discount column', { discount: true }],
+  ['0000001003', 'with both its Discount and its Close column', { close: true, discount: true }]
+]
+for (const [number, what, has] of ORDER_LINE_SETS) {
   test(`order lines ${what}: every heading and cell fits, and the table does not scroll sideways`, async () => {
     // The columns added up to 34 px more than the table on every order, 204 px with Close: the
-    // last column sat past the edge and read "NET AMOU…" and "USD 245." (2026-10-03).
+    // last column sat past the edge and read "NET AMOU…" and "USD 245." (2026-10-03). With both
+    // Discount and Close it still scrolled about 120 px until Qty and Unit were shortened.
     const { page, context, problems } = await open(`orders?open=${number}`)
     try {
       const grid = page.getByRole('grid', { name: 'Order lines' })
@@ -554,16 +569,68 @@ for (const [number, what] of [['0000001001', 'with its Close column'], ['0000001
       assert.deepEqual(await cutHeaders(grid), [], 'every heading fits')
       assert.deepEqual(await cutCells(grid), [], 'every cell fits')
       assert.deepEqual(await sideways(grid), [], 'the columns fit the table')
-      const marker = what.includes('Close')
-        ? grid.getByRole('button', { name: 'Close remaining' })
-        : grid.getByRole('columnheader', { name: 'Discount' })
-      assert.ok(await marker.count() > 0, 'the column set under test is there')
+      assert.equal(await grid.getByRole('button', { name: 'Close remaining' }).count() > 0, Boolean(has.close), 'the Close column is there when it should be')
+      assert.equal(await grid.getByRole('columnheader', { name: 'Discount' }).count(), has.discount ? 1 : 0, 'the Discount column is there when it should be')
+      // Only the line number and the Close button stay put; the Close heading is blank.
+      assert.deepEqual(await fixedHeadings(grid), has.close ? ['Item', ''] : ['Item'], 'every other column can be dragged')
       assert.deepEqual(problems, [], 'order console')
     } finally {
       await context.close()
     }
   })
 }
+
+/* Header widths by heading text, rounded. */
+async function columnWidths (grid) {
+  return grid.evaluate((el) => Object.fromEntries([...el.querySelectorAll('[role="columnheader"]')]
+    .map((h) => [h.textContent.trim(), Math.round(h.getBoundingClientRect().width)])))
+}
+
+/* Drag a heading's right edge by dx px, in steps, the way a hand does. */
+async function dragEdge (page, grid, heading, dx) {
+  const header = grid.locator('[role="columnheader"]', { hasText: heading })
+  await header.hover()
+  const box = await header.boundingBox()
+  const x = box.x + box.width - 3
+  const y = box.y + box.height / 2
+  await page.mouse.move(x, y)
+  await page.waitForTimeout(200)
+  await page.mouse.down()
+  for (let i = 1; i <= 10; i++) await page.mouse.move(x + (dx * i) / 10, y)
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+}
+
+/* Sales orders at 1,440 px has its shares at their minimums, and the order's lines have one
+   share: until 2026-10-03 neither Sold-to nor Description could be widened by a drag at all. */
+test('a column dragged wider grows, the table still fits, and the width is kept on reload', async () => {
+  const { page, context, problems } = await open('orders')
+  try {
+    const grid = page.getByRole('grid', { name: 'Sales Orders' })
+    await grid.waitFor()
+    const before = await columnWidths(grid)
+    await dragEdge(page, grid, 'Sold-to', 60)
+    const after = await columnWidths(grid)
+    assert.ok(after['Sold-to'] >= before['Sold-to'] + 55, `Sold-to ${before['Sold-to']} → ${after['Sold-to']}`)
+    assert.deepEqual(await sideways(grid), [], 'the columns still fit the table')
+    await page.reload()
+    await settled(page)
+    assert.equal((await columnWidths(grid))['Sold-to'], after['Sold-to'], 'kept on reload')
+
+    await page.goto(`${preview.url}#orders?open=0000001003`)
+    const lines = page.getByRole('grid', { name: 'Order lines' })
+    await lines.waitFor()
+    await settled(page)
+    const was = await columnWidths(lines)
+    await dragEdge(page, lines, 'Description', 50)
+    const now = await columnWidths(lines)
+    assert.ok(now.Description >= was.Description + 45, `Description ${was.Description} → ${now.Description}`)
+    assert.deepEqual(await sideways(lines), [], 'the lines still fit the table')
+    assert.deepEqual(problems, [], 'drag console')
+  } finally {
+    await context.close()
+  }
+})
 
 test('sales organizations: every Edit button fits its cell', async () => {
   const { page, context, problems } = await open('settings')
@@ -574,6 +641,8 @@ test('sales organizations: every Edit button fits its cell', async () => {
     assert.equal(await grid.locator('button[aria-label^="Edit sales organization"]').count(), 2, 'every sales organization was looked at')
     // The columns added up to 10 px more than the card's table, which scrolled sideways.
     assert.deepEqual(await sideways(grid), [], 'the columns fit the table')
+    assert.deepEqual(await cutHeaders(grid), [], 'every heading fits')
+    assert.deepEqual(await fixedHeadings(grid), [''], 'every column but Edit can be dragged')
     assert.deepEqual(problems, [], 'settings console')
   } finally {
     await context.close()

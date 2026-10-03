@@ -10,30 +10,12 @@ import ProductDetail from './ProductDetail'
 import StockStatus from './StockStatus'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import EditToggle from './EditToggle'
 import { saveInPlace, savingField } from './saveInPlace'
 import { NameCell, PriceCell, StockCell } from './ProductCells'
 import { kindText, withAnswer, withEdit } from './productFormat'
-
-// Room for a product name to read whole, even as an edit button.
-const NAME_MIN_WIDTH = 220
-
-/* Eight columns fit a 1,440px window with the rail open; a ninth (Committed) clipped the
-   grid, so Committed is on the product's page and the list shows On hand and Available. */
-const PRODUCT_COLUMNS = [
-  { key: 'sku', width: 150 },
-  { key: 'name', width: '2fr', minWidth: NAME_MIN_WIDTH },
-  // "Configurable · 16 variants" is the longest thing this column holds.
-  { key: 'kind', width: '1fr', minWidth: 175 },
-  /* Wider than the words need: the headings are set in uppercase with letter-spacing,
-     which costs about a quarter again on a short one. "Base unit" was clipping. */
-  { key: 'unit', width: 115 },
-  { key: 'listPrice', width: 150 },
-  { key: 'stock', width: 105 },
-  { key: 'available', width: 115 },
-  { key: 'status', width: 165 }
-]
 
 /* A configurable parent has no price of its own, so it sorts by the bottom of its
    range — which is the figure its row shows first. */
@@ -56,7 +38,7 @@ const PRODUCT_GRID = {
 }
 
 export default function Products ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('products', PRODUCT_COLUMNS)
+  const widths = useColumnWidths('products', GRID_COLUMNS.products)
   const { rows, error, reload, updateRow } = useLoad(() => api.products(), [api])
   // The pages opened from here, newest last: Back returns to the one before. A product
   // named in the address bar (?open=SKU — a search result, a journal line) starts open.

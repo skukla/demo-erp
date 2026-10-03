@@ -13,6 +13,7 @@ import Frame from './Frame'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
@@ -21,23 +22,6 @@ import { statusLight, statusText, shippingBadge, billingBadge } from './OrderHea
 /* Business Central calls this the External Document No.; it is the customer's own
    reference for the order (SAP's PurchaseOrderByCustomer). */
 const reference = (o) => o.purchaseOrderByCustomer || '—'
-
-/* Each sortable header carries a chevron, which eats about 24px of its width: a
-   column sized to its title alone truncates the title. */
-/* Sold-to now carries an id AND a name, so it takes twice the slack of Reference. */
-/* Lines (a count nobody sorted by) gave way to Shipping and Billing: the two derived
-   states an order's single Status word hides (UI audit §Sales Orders). Eight columns fit
-   a 1,440px window with the rail open. */
-const ORDER_COLUMNS = [
-  { key: 'number', width: 150 },
-  { key: 'date', width: 120 },
-  { key: 'reference', width: '1fr', minWidth: 130 },
-  { key: 'partner', width: '2fr', minWidth: 210 },
-  { key: 'shipping', width: 135 },
-  { key: 'billing', width: 125 },
-  { key: 'total', width: 125 },
-  { key: 'status', width: 130 }
-]
 
 const ORDER_GRID = {
   fields: [(o) => o.number, (o) => reference(o), (o) => o.partnerId, (o) => o.partnerName, (o) => statusText(o.status)],
@@ -76,7 +60,7 @@ const STAGES = [
 ]
 
 export default function Orders ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('orders', ORDER_COLUMNS)
+  const widths = useColumnWidths('orders', GRID_COLUMNS.orders)
   const { rows, error, reload } = useLoad(() => api.orders(), [api])
   const [work, setWork] = useState(() => workKey(query.work))
   const [stage, setStage] = useState('all')

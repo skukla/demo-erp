@@ -7,21 +7,12 @@ import { TableView, TableHeader, Column, TableBody, Row, Cell } from '@adobe/rea
 import Frame from './Frame'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
 import { paymentReferenceText } from './paymentFormat'
-
-const PAYMENT_COLUMNS = [
-  { key: 'number', width: 165 },
-  { key: 'date', width: 130 },
-  { key: 'invoice', width: 150 },
-  { key: 'order', width: 150 },
-  { key: 'partner', width: '2fr', minWidth: 200 },
-  { key: 'reference', width: '1fr', minWidth: 150 },
-  { key: 'amount', width: 150 }
-]
 
 const soldTo = (p) => (p.partnerName ? `${p.partnerId} · ${p.partnerName}` : (p.partnerId || '—'))
 
@@ -40,7 +31,7 @@ const PAYMENT_GRID = {
 }
 
 export default function Payments ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('payments', PAYMENT_COLUMNS)
+  const widths = useColumnWidths('payments', GRID_COLUMNS.payments)
   const { rows, error, reload } = useLoad(() => api.payments(), [api])
   const view = useGridView(rows, PAYMENT_GRID)
   const trail = useTrail('Payments')

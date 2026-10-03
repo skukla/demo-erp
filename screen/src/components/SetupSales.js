@@ -11,15 +11,18 @@ import {
 import SetupCard from './SetupCard'
 import Field from './Field'
 import { CREDIT_WARNING_OPTIONS, creditWarningText, paymentTermsOptions, paymentTermsText } from './setupFormat'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 const COLUMNS = { base: ['1fr'], M: ['1fr', '1fr'] }
 
 function ReasonTable ({ reasons }) {
+  const widths = useColumnWidths('returnReasons', GRID_COLUMNS.returnReasons)
   return (
-    <TableView aria-label='Return reasons' density='compact' overflowMode='wrap'>
+    <TableView {...widths.tableProps} aria-label='Return reasons' density='compact' overflowMode='wrap'>
       <TableHeader>
-        <Column key='code' width={160}>Code</Column>
-        <Column key='description' width='1fr'>Description</Column>
+        <Column key='code' {...widths.columnProps('code')}>Code</Column>
+        <Column key='description' {...widths.columnProps('description')}>Description</Column>
       </TableHeader>
       <TableBody items={reasons.map((r) => ({ ...r, id: r.code }))}>
         {(r) => (

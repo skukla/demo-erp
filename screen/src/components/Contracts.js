@@ -10,20 +10,12 @@ import Frame from './Frame'
 import NewContract from './NewContract'
 import { useLoad } from './useLoad'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import { useGridView, GridSearch } from './GridView'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { toastSaved } from './toast'
 import { appliesToText, contractStatus, termText } from './contractFormat'
 import { todayIso } from './pricingRuleFormat'
-
-const LIST_COLUMNS = [
-  { key: 'number', width: 165 },
-  { key: 'appliesTo', width: '2fr', minWidth: 240 },
-  { key: 'description', width: '2fr', minWidth: 180 },
-  { key: 'term', width: 230 },
-  { key: 'lines', width: 90 },
-  { key: 'status', width: 190 }
-]
 
 const LIST_GRID = {
   fields: [(c) => c.number, (c) => c.partnerId, (c) => c.priceGroup, (c) => c.appliesToText, (c) => c.description],
@@ -41,7 +33,7 @@ const LIST_GRID = {
 const namesOf = (rows, key) => new Map((rows || []).map((r) => [r[key], r.name]))
 
 export default function Contracts ({ api, query = {}, onChanged, onNavigate }) {
-  const widths = useColumnWidths('contracts', LIST_COLUMNS)
+  const widths = useColumnWidths('contracts', GRID_COLUMNS.contracts)
   const { rows, error, reload } = useLoad(() => api.contracts(), [api])
   const { rows: customers } = useLoad(() => api.partners(), [api])
   const { rows: groups } = useLoad(() => api.priceGroups(), [api])

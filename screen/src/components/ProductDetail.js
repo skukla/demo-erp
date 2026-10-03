@@ -28,35 +28,13 @@ import { toastSaved } from './toast'
 import { saveInPlace, savingField } from './saveInPlace'
 import StockStatus from './StockStatus'
 import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 import EditToggle from './EditToggle'
 import { PriceCell, StockCell } from './ProductCells'
 import { kindText, priceText, variantText, withEdit, withVariantTotals } from './productFormat'
 import { moneyOptions } from '../money'
 
 const MONEY = moneyOptions()
-
-const VARIANT_COLUMNS = [
-  { key: 'values' },
-  { key: 'sku', width: 220 },
-  { key: 'price', width: 130 },
-  { key: 'stock', width: 100 },
-  { key: 'status', width: 150 }
-]
-
-const WAREHOUSE_COLUMNS = [
-  { key: 'name' },
-  { key: 'code', width: 180 },
-  { key: 'quantity', width: 180 },
-  { key: 'status', width: 160 }
-]
-
-/* Three columns: the card is half the page wide, and the order's status is one click
-   away on the order itself. */
-const OPEN_ORDER_COLUMNS = [
-  { key: 'number', width: 140 },
-  { key: 'customer' },
-  { key: 'qty', width: 95 }
-]
 
 /** Two cards side by side; a card handed `span` takes the whole row. */
 function Slot ({ span, children }) {
@@ -78,7 +56,7 @@ export function changesOf (saved, draft) {
 }
 
 function VariantsCard ({ product, onOpen, onSaveVariant }) {
-  const widths = useColumnWidths('variants', VARIANT_COLUMNS)
+  const widths = useColumnWidths('variants', GRID_COLUMNS.variants)
   const [editing, setEditing] = useState(false)
   // The table redraws a row only when its item changes, so each row carries the mode.
   const rows = useMemo(() => product.variants.map((v) => ({ ...v, editing })), [product.variants, editing])
@@ -137,7 +115,7 @@ function StockLine ({ stock, committed, available }) {
 }
 
 function InventoryCard ({ draft, saved, total, onQuantity }) {
-  const widths = useColumnWidths('warehouses', WAREHOUSE_COLUMNS)
+  const widths = useColumnWidths('warehouses', GRID_COLUMNS.warehouses)
   // Available follows the draft's on-hand figures, so an edit shows its effect before Save.
   const available = total - (saved.committed ?? 0)
   return (
@@ -183,7 +161,7 @@ function InventoryCard ({ draft, saved, total, onQuantity }) {
 
 /** The orders that hold this product's stock, newest first; a row opens the order. */
 function OpenOrdersCard ({ orders, onNavigate }) {
-  const widths = useColumnWidths('product-open-orders', OPEN_ORDER_COLUMNS)
+  const widths = useColumnWidths('product-open-orders', GRID_COLUMNS['product-open-orders'])
   const rows = orders || []
   return (
     <Card title='Open orders' actions={<Text>{rows.length === 1 ? '1 order' : `${rows.length} orders`}</Text>}>

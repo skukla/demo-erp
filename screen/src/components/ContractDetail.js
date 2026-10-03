@@ -17,12 +17,15 @@ import { toastSaved } from './toast'
 import { appliesToText, contractStatus, lineAmountText, lineDatesText, lineKindText } from './contractFormat'
 import { todayIso } from './pricingRuleFormat'
 import { formatDate } from '../formatStamp'
+import { useColumnWidths } from './columnWidths'
+import { GRID_COLUMNS } from './gridColumns'
 
 /* A list's dates are calendar days (YYYY-MM-DD), read as UTC midnight: printed in the
    browser's own zone they would show the day before anywhere west of Greenwich. */
 const ON_THE_DAY = { timeZone: 'UTC' }
 
 function LinesCard ({ contract, products, busy, onLines }) {
+  const widths = useColumnWidths('contractLines', GRID_COLUMNS.contractLines)
   const draft = contract.status === 'draft'
   const lines = contract.lines || []
   const remove = (at) => onLines(lines.filter((_, i) => i !== at), 'Line removed')
@@ -35,14 +38,14 @@ function LinesCard ({ contract, products, busy, onLines }) {
       {lines.length === 0
         ? <Text>No lines yet. Add a line for each product with an agreed price or a line discount.</Text>
         : (
-          <TableView aria-label='Price list lines' density='compact' overflowMode='wrap'>
+          <TableView {...widths.tableProps} aria-label='Price list lines' density='compact' overflowMode='wrap'>
             <TableHeader>
-              <Column key='sku' width='1fr' minWidth={150}>Product</Column>
-              <Column key='kind' width={150}>Line type</Column>
-              <Column key='amount' width={130} align='end'>Amount</Column>
-              <Column key='minQty' width={130} align='end'>From quantity</Column>
-              <Column key='dates' width={230}>Dates</Column>
-              <Column key='remove' width={100}> </Column>
+              <Column key='sku' {...widths.columnProps('sku')}>Product</Column>
+              <Column key='kind' {...widths.columnProps('kind')}>Line type</Column>
+              <Column key='amount' {...widths.columnProps('amount')} align='end'>Amount</Column>
+              <Column key='minQty' {...widths.columnProps('minQty')} align='end'>From quantity</Column>
+              <Column key='dates' {...widths.columnProps('dates')}>Dates</Column>
+              <Column key='remove' {...widths.columnProps('remove')}> </Column>
             </TableHeader>
             <TableBody items={lines.map((l, i) => ({ ...l, id: `${i}` }))}>
               {(l) => (

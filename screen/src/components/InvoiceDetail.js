@@ -11,8 +11,8 @@
  * part of it, and the page shows that refusal as it stands. Credited, the invoice offers
  * no credit and names the credit memo that credited it.
  */
-import React from 'react'
-import { Grid, StatusLight, TableView, TableHeader, Column, TableBody, Row, Cell, Text, View } from '@adobe/react-spectrum'
+import React, { useMemo } from 'react'
+import { Grid, StatusLight, Text, View } from '@adobe/react-spectrum'
 import DocumentPage from './DocumentPage'
 import Card from './Card'
 import Field from './Field'
@@ -28,17 +28,10 @@ import { formatDate } from '../formatStamp'
 import { money } from '../money'
 import { addressLines } from './setupFormat'
 import { discountTotal, withDiscountColumn } from './lineDiscount'
+import { GRID_COLUMNS } from './gridColumns'
+import LinesTable from './LinesTable'
 
-/* Dynamic columns: Discount is among them only when a line carries one (lineDiscount.js). */
-const LINE_COLUMNS = [
-  { key: 'item', label: 'Item', width: 90 },
-  { key: 'sku', label: 'Product', width: 170 },
-  { key: 'name', label: 'Description', width: '1fr', minWidth: 220 },
-  { key: 'qty', label: 'Qty', width: 110, align: 'end' },
-  { key: 'unit', label: 'Base unit', width: 110 },
-  { key: 'price', label: 'Net price', width: 150, align: 'end' },
-  { key: 'amount', label: 'Net amount', width: 160, align: 'end' }
-]
+/* The line columns that print money; Discount is among them only when a line carries one. */
 const MONEY_KEYS = new Set(['price', 'discount', 'amount'])
 
 /** The invoice's related documents: its sales order and the payments against it (a credit memo is named in the header). */
@@ -72,6 +65,7 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
     return [{ ...found, paymentDocuments: await Promise.all((found.payments || []).map((n) => api.payment(n))) }]
   }, [api, number])
   const invoice = rows && rows[0]
+  const lineColumns = useMemo(() => withDiscountColumn(GRID_COLUMNS.invoiceLines, invoice ? invoice.lines : []), [invoice])
   const credited = invoice && invoice.status === 'credited'
   const { act, busy, error: actionError } = useDocumentAction(reload, onChanged)
   return (
@@ -150,20 +144,10 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
             </Card>
           )}
           <Card>
-            {/* Keyed on the column set: the table builds its column model once, and the
-                Discount column is there only when a line carries one (lineDiscount.js). */}
-            <TableView key={discountTotal(invoice.lines) > 0 ? 'lines-discount' : 'lines'} aria-label='Invoice lines' density='compact' overflowMode='wrap'>
-              <TableHeader columns={withDiscountColumn(LINE_COLUMNS, invoice.lines)}>
-                {(c) => <Column key={c.key} width={c.width} minWidth={c.minWidth} align={c.align}>{c.label}</Column>}
-              </TableHeader>
-              <TableBody items={invoice.lines.map((l) => ({ ...l, id: l.item }))}>
-                {(line) => (
-                  <Row key={line.item}>
-                    {(key) => <Cell>{MONEY_KEYS.has(key) ? money(line[key] || 0, invoice.currency) : line[key]}</Cell>}
-                  </Row>
-                )}
-              </TableBody>
-            </TableView>
+            <LinesTable
+              tableId='invoiceLines' label='Invoice lines' columns={lineColumns} lines={invoice.lines}
+              cell={(line, key) => (MONEY_KEYS.has(key) ? money(line[key] || 0, invoice.currency) : line[key])}
+            />
             <Totals discount={discountTotal(invoice.lines)} net={invoice.net} tax={invoice.tax} total={invoice.total} currency={invoice.currency} />
           </Card>
           <InvoiceDocuments invoice={invoice} payments={invoice.paymentDocuments} onOpen={onOpen} />
