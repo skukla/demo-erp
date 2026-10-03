@@ -922,7 +922,7 @@ test('the journal names a posted payment', async () => {
 
 /* ---- The process flow strip (screen/src/components/ProcessFlow.js, orderFlow.js) ---- */
 
-test('a sales order opens with its process flow: one stage is current, the next move is named, a done stage opens its document', async () => {
+test('a sales order opens with its process flow: one stage is current, the next move links to its document, a done stage opens its document', async () => {
   const { page, context, problems } = await open('orders?open=0000001003')
   try {
     await headed(page, /^Sales Order 0000001003$/, /^Sales Orders$/)
@@ -932,10 +932,19 @@ test('a sales order opens with its process flow: one stage is current, the next 
     const current = flow.locator('[aria-current="step"]')
     assert.equal(await current.count(), 1)
     assert.match(await current.textContent(), /Goods issued.*4 of 6 shipped/)
-    assert.equal((await flow.locator('.erp-flow-next').textContent()).trim(), 'Next: post shipment 8000000004 (goods issue)')
+    // The next move is posting a shipment, made on that shipment: the line is a link to it.
+    const next = flow.locator('.erp-flow-next')
+    assert.equal(await next.count(), 1)
+    const link = next.getByRole('button')
+    assert.equal((await link.textContent()).trim(), 'Next: post shipment 8000000004 (goods issue)')
     // The strip sits between the title line and the header fields.
     const [title, strip, header] = await Promise.all(['.erp-page-header', '.erp-flow', '.erp-card'].map((s) => page.locator(s).first().boundingBox()))
     assert.ok(title.y < strip.y && strip.y < header.y, 'title line, then the strip, then the header card')
+    await link.click()
+    await settled(page)
+    assert.match((await page.textContent('.erp-content h1')).trim(), /^Shipment 8000000004$/)
+    await page.getByRole('button', { name: /Sales Order 0000001003/ }).click()
+    await headed(page, /^Sales Order 0000001003$/, /^Sales Orders$/)
     await flow.getByRole('button', { name: /Delivery created/ }).click()
     await settled(page)
     assert.match((await page.textContent('.erp-content h1')).trim(), /^Shipment 8000000003$/)
@@ -945,7 +954,7 @@ test('a sales order opens with its process flow: one stage is current, the next 
   }
 })
 
-test('an order on credit hold stands at its credit check; releasing it moves the strip on', async () => {
+test('an order on credit hold stands at its credit check with no line under the strip (Release and Reject are on the page); releasing it moves the strip on', async () => {
   const { page, context, problems } = await open('orders?open=0000001007')
   try {
     await headed(page, /^Sales Order 0000001007$/, /^Sales Orders$/)
@@ -954,25 +963,28 @@ test('an order on credit hold stands at its credit check; releasing it moves the
     assert.equal(await current.count(), 1)
     assert.match(await current.textContent(), /Credit check.*On hold/)
     assert.match(await current.getAttribute('class'), /erp-flow-attention/)
-    assert.equal((await flow.locator('.erp-flow-next').textContent()).trim(), 'On credit hold: release or reject')
+    assert.equal(await flow.locator('.erp-flow-next').count(), 0)
+    // The strip is the whole band (its 1px border above and below): no empty line where a hint would be.
+    const [band, stages] = await Promise.all([flow.boundingBox(), flow.locator('ol').boundingBox()])
+    assert.equal(Math.round(band.height - stages.height), 2, `band ${band.height} vs stages ${stages.height}`)
     await page.getByRole('button', { name: 'Release' }).click()
-    await flow.getByText('Next: confirm the order').waitFor({ timeout: 5000 })
-    assert.match(await flow.locator('[aria-current="step"]').textContent(), /Confirmed/)
+    await flow.locator('[aria-current="step"]', { hasText: 'Confirmed' }).waitFor({ timeout: 5000 })
     assert.match(await flow.textContent(), /Credit check.*Released/)
+    assert.equal(await flow.locator('.erp-flow-next').count(), 0)
     assert.deepEqual(problems, [], 'held order flow console')
   } finally {
     await context.close()
   }
 })
 
-test('a canceled order ends at Canceled, with no stage current and nothing more to do', async () => {
+test('a canceled order ends at Canceled, with no stage current and no line under the strip', async () => {
   const { page, context, problems } = await open('orders?open=0000001004')
   try {
     await headed(page, /^Sales Order 0000001004$/, /^Sales Orders$/)
     const flow = page.locator('.erp-flow')
     assert.deepEqual(await flow.locator('ol > li .erp-flow-label').allTextContents(), ['Received', 'Canceled'])
     assert.equal(await flow.locator('[aria-current="step"]').count(), 0)
-    assert.equal((await flow.locator('.erp-flow-next').textContent()).trim(), 'Nothing more to do')
+    assert.equal(await flow.locator('.erp-flow-next').count(), 0)
     assert.deepEqual(problems, [], 'canceled order flow console')
   } finally {
     await context.close()
@@ -986,7 +998,8 @@ test('a return order has its own strip: created, goods received, credited', asyn
     const flow = page.locator('.erp-flow')
     assert.deepEqual(await flow.locator('ol > li .erp-flow-label').allTextContents(), ['Return created', 'Goods received', 'Credited'])
     assert.match(await flow.locator('[aria-current="step"]').textContent(), /Credited/)
-    assert.equal((await flow.locator('.erp-flow-next').textContent()).trim(), 'Next: post the credit memo')
+    // Post credit memo is a button on this page, so the strip carries no line.
+    assert.equal(await flow.locator('.erp-flow-next').count(), 0)
     assert.deepEqual(problems, [], 'return flow console')
   } finally {
     await context.close()

@@ -15,15 +15,18 @@
  *
  * A stage is `done`, `current` (where the order stands; the first stage not done),
  * `upcoming`, `attention` (it stands at a credit hold) or `stopped` (the credit check that
- * rejected it, and Canceled). The hint under the strip belongs to the stage the order
- * stands at, and is offered only when the ERP says that move is open (`order.can`,
- * lib/return-moves) — the same rule the buttons on the title line read.
+ * rejected it, and Canceled).
+ *
+ * The line under the strip is a link to the next move only when that move is made on
+ * ANOTHER document — post this shipment, pay this invoice, receive or credit this return
+ * order — and is offered only when the ERP says the move is open (lib/return-moves, the
+ * invoice's open item). A move made by a button on this page (Confirm, Create shipment,
+ * Release, Reject, Create invoice, Cancel; Receive and Post credit memo on a return order)
+ * gets no line: the button is right above it. Nor does an order with nothing left to do:
+ * a strip of ticks says it.
  */
 import { money } from '../money.js'
 import { returnMoves, canPayInvoice } from '../../../lib/return-moves.js'
-
-const NOTHING_NEXT = 'Nothing more to do'
-const SHIP_NEXT = 'Next: create a shipment for the open quantity'
 
 /** The row with the greatest `key` (an ISO time), or null. */
 const latest = (rows, key) => rows.reduce((best, r) => (r[key] && (!best || r[key] > best[key]) ? r : best), null)
@@ -33,6 +36,9 @@ const lastMove = (order, status) => [...(order.history || [])].reverse().find((h
 
 /** What `onOpen(kind, number)` needs to open a document, when the row is one. */
 const docOf = (kind, row) => (row && row.number ? { kind, number: row.number } : undefined)
+
+/** The line under the strip: the next move, made on the document it opens. */
+const link = (text, doc) => ({ text, doc })
 
 /** What has shipped, and what has to ship: ordered less the quantities given up on. */
 function quantities (order) {
@@ -46,41 +52,34 @@ function creditCheck (order) {
   const stage = { key: 'creditCheck', label: 'Credit check' }
   if (credit.status === 'released') return { ...stage, done: true, detail: 'Released', date: credit.decidedAt }
   if (credit.status !== 'held') return null
-  if (order.header !== 'canceled') return { ...stage, attention: true, detail: 'On hold', hint: 'On credit hold: release or reject' }
+  if (order.header !== 'canceled') return { ...stage, attention: true, detail: 'On hold' }
   return order.cancelReason === 'Credit rejected' ? { ...stage, stopped: true, detail: 'Rejected' } : null
 }
 
-function confirmed (order, can) {
+function confirmed (order) {
   const move = lastMove(order, 'confirmed')
-  return {
-    key: 'confirmed',
-    label: 'Confirmed',
-    done: order.header === 'confirmed' || Boolean(move),
-    date: move && move.at,
-    hint: can.confirm && 'Next: confirm the order'
-  }
+  return { key: 'confirmed', label: 'Confirmed', done: order.header === 'confirmed' || Boolean(move), date: move && move.at }
 }
 
 /** Done once the order has a shipment: the first delivery document exists. */
-function delivery (order, can) {
+function delivery (order) {
   const shipments = order.shipments || []
-  const { shipped, needed } = quantities(order)
   const first = shipments[0]
-  // Every line closed and nothing shipped: no delivery will ever follow.
-  const nothingToShip = needed === 0 && can.cancel && 'Nothing left to ship: cancel the order'
   return {
     key: 'delivery',
     label: 'Delivery created',
-    done: shipments.length > 0 || shipped > 0,
+    done: shipments.length > 0 || quantities(order).shipped > 0,
     detail: shipments.length > 1 ? `${shipments.length} shipments` : undefined,
     date: first && first.createdAt,
-    doc: docOf('shipment', first),
-    hint: can.ship ? SHIP_NEXT : nothingToShip
+    doc: docOf('shipment', first)
   }
 }
 
-/** Done when everything that has to ship has been posted; until then it says how much has. */
-function goodsIssue (order, can) {
+/**
+ * Done when everything that has to ship has been posted; until then it says how much has.
+ * A shipment created and not posted is posted on its own document, so the line links there.
+ */
+function goodsIssue (order) {
   const shipments = order.shipments || []
   const { shipped, needed } = quantities(order)
   const done = shipped > 0 && shipped >= needed
@@ -93,20 +92,13 @@ function goodsIssue (order, can) {
     detail: !done && shipped > 0 ? `${shipped} of ${needed} shipped` : undefined,
     date: done && posted ? posted.postedAt : undefined,
     doc: docOf('shipment', done ? posted : waiting),
-    hint: waiting ? `Next: post shipment ${waiting.number} (goods issue)` : (can.ship && SHIP_NEXT)
+    hint: waiting && link(`Next: post shipment ${waiting.number} (goods issue)`, docOf('shipment', waiting))
   }
 }
 
-function invoiced (order, can) {
+function invoiced (order) {
   const invoice = order.invoice
-  return {
-    key: 'invoiced',
-    label: 'Invoiced',
-    done: Boolean(invoice),
-    date: invoice && invoice.createdAt,
-    doc: docOf('invoice', invoice),
-    hint: can.invoice && 'Next: create the invoice'
-  }
+  return { key: 'invoiced', label: 'Invoiced', done: Boolean(invoice), date: invoice && invoice.createdAt, doc: docOf('invoice', invoice) }
 }
 
 /**
@@ -127,7 +119,7 @@ function paid (order) {
   return {
     ...stage,
     detail: status === 'partly paid' ? `Partly paid · ${open}` : open,
-    hint: `Next: post the incoming payment on invoice ${invoice.number}`
+    hint: link(`Next: post the incoming payment on invoice ${invoice.number}`, docOf('invoice', invoice))
   }
 }
 
@@ -145,7 +137,7 @@ function returned (order) {
     detail: waiting && returns.length > 1 ? `${back.length} of ${returns.length} received` : undefined,
     date: !waiting && last ? last.receivedAt : undefined,
     doc: docOf('return', waiting || last),
-    hint: waiting && returnMoves(waiting).receive && `Next: receive return order ${waiting.number}`
+    hint: waiting && returnMoves(waiting).receive ? link(`Next: receive return order ${waiting.number}`, docOf('return', waiting)) : undefined
   }
 }
 
@@ -166,7 +158,7 @@ function credited (order) {
     ...stage,
     detail: returns.length > 1 ? `${settled.length} of ${returns.length} credited` : undefined,
     doc: docOf('return', waiting),
-    hint: waiting && `Next: post the credit memo for return order ${waiting.number}`
+    hint: waiting && link(`Next: post the credit memo for return order ${waiting.number}`, docOf('return', waiting))
   }
 }
 
@@ -177,7 +169,7 @@ function shown (stage, state) {
   return out
 }
 
-/** Give each stage its state: the first one not done is where the document stands, and its hint is the next move. */
+/** Give each stage its state: the first one not done is where the document stands, and its hint (if any) is the line. */
 function finish (stages) {
   let standing = null
   const out = stages.map((stage) => {
@@ -187,25 +179,25 @@ function finish (stages) {
     standing = stage
     return shown(stage, stage.attention ? 'attention' : 'current')
   })
-  return { stages: out, nextHint: (standing && standing.hint) || NOTHING_NEXT }
+  return { stages: out, nextHint: (standing && standing.hint) || null }
 }
 
 /**
  * A sales order's process flow.
  *
  * @param {object} order the order as its document loads it (`api.order(number)`)
- * @returns {{ stages: { key: string, label: string, state: 'done'|'current'|'upcoming'|'attention'|'stopped', detail?: string, date?: string, doc?: { kind: string, number: string } }[], nextHint: string }}
- *   `date` is the stored ISO time; `doc` is what `onOpen(kind, number)` opens
+ * @returns {{ stages: { key: string, label: string, state: 'done'|'current'|'upcoming'|'attention'|'stopped', detail?: string, date?: string, doc?: { kind: string, number: string } }[], nextHint: { text: string, doc: { kind: string, number: string } } | null }}
+ *   `date` is the stored ISO time; `doc` is what `onOpen(kind, number)` opens; `nextHint`
+ *   is the next move when it is made on another document, else null
  */
 export function flowOf (order) {
-  const can = order.can || {}
   const stages = [
     { key: 'received', label: 'Received', done: true, date: order.createdAt },
     creditCheck(order),
-    confirmed(order, can),
-    delivery(order, can),
-    goodsIssue(order, can),
-    invoiced(order, can),
+    confirmed(order),
+    delivery(order),
+    goodsIssue(order),
+    invoiced(order),
     paid(order),
     returned(order),
     credited(order)
@@ -218,17 +210,17 @@ export function flowOf (order) {
 }
 
 /**
- * A return order's process flow: created, the goods received, credited.
+ * A return order's process flow: created, the goods received, credited. Both moves are
+ * buttons on the return order's own page, so it never has a line under the strip.
  *
  * @param {object} returnOrder the return order as its document loads it
- * @returns {{ stages: object[], nextHint: string }} the shape `flowOf` answers
+ * @returns {{ stages: object[], nextHint: null }} the shape `flowOf` answers
  */
 export function returnFlowOf (returnOrder) {
-  const can = returnMoves(returnOrder)
   const memo = returnOrder.creditMemo
   return finish([
     { key: 'created', label: 'Return created', done: true, date: returnOrder.createdAt },
-    { key: 'received', label: 'Goods received', done: returnOrder.status !== 'open', date: returnOrder.receivedAt, hint: can.receive && 'Next: receive the goods' },
-    { key: 'credited', label: 'Credited', done: returnOrder.status === 'credited', date: memo && memo.createdAt, doc: docOf('creditMemo', memo), hint: can.credit && 'Next: post the credit memo' }
+    { key: 'received', label: 'Goods received', done: returnOrder.status !== 'open', date: returnOrder.receivedAt },
+    { key: 'credited', label: 'Credited', done: returnOrder.status === 'credited', date: memo && memo.createdAt, doc: docOf('creditMemo', memo) }
   ])
 }

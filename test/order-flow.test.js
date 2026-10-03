@@ -1,7 +1,9 @@
 /*
  * The process flow strip at the top of a sales order and of a return order: which stages
- * the document shows, where it stands in them, and the one line saying what comes next
- * (screen/src/components/orderFlow.js).
+ * the document shows, where it stands in them, and the one line that links to the next
+ * move when it happens on another document (screen/src/components/orderFlow.js). When the
+ * next move is a button on this page, or there is none, the line is null: the buttons and
+ * the strip already say it.
  *
  * Each order here is the order as its own document loads it (lib/orders describeOrder):
  * the header word, the lines with their quantities, `can`, the shipments, the invoice with
@@ -68,32 +70,32 @@ const states = (flow) => flow.stages.map((s) => s.state)
 const stage = (flow, key) => flow.stages.find((s) => s.key === key)
 const MAIN = ['received', 'confirmed', 'delivery', 'goodsIssue', 'invoiced', 'paid']
 
-test('a new order: received, and waiting to be confirmed', async () => {
+test('a new order: received, and waiting to be confirmed; no hint, Confirm is on this page', async () => {
   const { flowOf } = await load()
   const flow = flowOf(order())
   assert.deepEqual(keys(flow), MAIN)
   assert.deepEqual(flow.stages.map((s) => s.label), ['Received', 'Confirmed', 'Delivery created', 'Goods issued', 'Invoiced', 'Paid'])
   assert.deepEqual(states(flow), ['done', 'current', 'upcoming', 'upcoming', 'upcoming', 'upcoming'])
   assert.equal(stage(flow, 'received').date, at(1))
-  assert.equal(flow.nextHint, 'Next: confirm the order')
+  assert.equal(flow.nextHint, null)
 })
 
-test('a confirmed order: confirmed on its date, and waiting for a shipment', async () => {
+test('a confirmed order: confirmed on its date, and waiting for a shipment; no hint, Create shipment is on this page', async () => {
   const { flowOf } = await load()
   const flow = flowOf(confirmed())
   assert.deepEqual(states(flow), ['done', 'done', 'current', 'upcoming', 'upcoming', 'upcoming'])
   assert.equal(stage(flow, 'confirmed').date, at(2))
-  assert.equal(flow.nextHint, 'Next: create a shipment for the open quantity')
+  assert.equal(flow.nextHint, null)
 })
 
-test('a shipment created and not posted: the delivery is done and opens; the goods issue is next', async () => {
+test('a shipment created and not posted: the delivery is done and opens; the hint links to the shipment to post', async () => {
   const { flowOf } = await load()
   const flow = flowOf(confirmed({ shipments: [shipment('8000000012', 2)] }))
   assert.deepEqual(states(flow), ['done', 'done', 'done', 'current', 'upcoming', 'upcoming'])
   assert.equal(stage(flow, 'delivery').date, at(3))
   assert.deepEqual(stage(flow, 'delivery').doc, { kind: 'shipment', number: '8000000012' })
   assert.deepEqual(stage(flow, 'goodsIssue').doc, { kind: 'shipment', number: '8000000012' })
-  assert.equal(flow.nextHint, 'Next: post shipment 8000000012 (goods issue)')
+  assert.deepEqual(flow.nextHint, { text: 'Next: post shipment 8000000012 (goods issue)', doc: { kind: 'shipment', number: '8000000012' } })
 })
 
 test('a partly shipped order says how much has shipped, and asks for the rest', async () => {
@@ -104,7 +106,7 @@ test('a partly shipped order says how much has shipped, and asks for the rest', 
   }))
   assert.deepEqual(states(flow), ['done', 'done', 'done', 'current', 'upcoming', 'upcoming'])
   assert.equal(stage(flow, 'goodsIssue').detail, '1 of 2 shipped')
-  assert.equal(flow.nextHint, 'Next: create a shipment for the open quantity')
+  assert.equal(flow.nextHint, null)
 })
 
 test('a closed quantity is not waited for: what was not closed has shipped, so the goods issue is done', async () => {
@@ -117,23 +119,23 @@ test('a closed quantity is not waited for: what was not closed has shipped, so t
   assert.equal(stage(flow, 'goodsIssue').detail, undefined)
 })
 
-test('a fully shipped order: goods issued on the posting date, and the invoice is next', async () => {
+test('a fully shipped order: goods issued on the posting date; no hint, Create invoice is on this page', async () => {
   const { flowOf } = await load()
   const flow = flowOf(shipped())
   assert.deepEqual(states(flow), ['done', 'done', 'done', 'done', 'current', 'upcoming'])
   assert.equal(stage(flow, 'goodsIssue').date, at(4))
   assert.deepEqual(stage(flow, 'goodsIssue').doc, { kind: 'shipment', number: '8000000012' })
-  assert.equal(flow.nextHint, 'Next: create the invoice')
+  assert.equal(flow.nextHint, null)
 })
 
-test('an invoiced order: the invoice opens, and the payment is next with what is open', async () => {
+test('an invoiced order: the invoice opens, Paid says what is open, and the hint links to the invoice to pay', async () => {
   const { flowOf } = await load()
   const flow = flowOf(invoiced())
   assert.deepEqual(states(flow), ['done', 'done', 'done', 'done', 'done', 'current'])
   assert.equal(stage(flow, 'invoiced').date, at(5))
   assert.deepEqual(stage(flow, 'invoiced').doc, { kind: 'invoice', number: '9000000011' })
   assert.equal(stage(flow, 'paid').detail, `USD${NB}274.86 open`)
-  assert.equal(flow.nextHint, 'Next: post the incoming payment on invoice 9000000011')
+  assert.deepEqual(flow.nextHint, { text: 'Next: post the incoming payment on invoice 9000000011', doc: { kind: 'invoice', number: '9000000011' } })
 })
 
 test('a partly paid invoice says so with the open amount, and still waits for payment', async () => {
@@ -141,19 +143,19 @@ test('a partly paid invoice says so with the open amount, and still waits for pa
   const flow = flowOf(invoiced({ openAmount: 174.86, paidAmount: 100, paymentStatus: 'partly paid' }, { payments: [payment('7000000004', 100, 6)] }))
   assert.equal(stage(flow, 'paid').state, 'current')
   assert.equal(stage(flow, 'paid').detail, `Partly paid · USD${NB}174.86 open`)
-  assert.equal(flow.nextHint, 'Next: post the incoming payment on invoice 9000000011')
+  assert.deepEqual(flow.nextHint, { text: 'Next: post the incoming payment on invoice 9000000011', doc: { kind: 'invoice', number: '9000000011' } })
 })
 
-test('a paid order: every stage done, the last payment opens, nothing more to do', async () => {
+test('a paid order: every stage done, the last payment opens, no hint', async () => {
   const { flowOf } = await load()
   const flow = flowOf(paid({ payments: [payment('7000000004', 100, 6), payment('7000000005', 174.86, 7)] }))
   assert.deepEqual(states(flow), ['done', 'done', 'done', 'done', 'done', 'done'])
   assert.equal(stage(flow, 'paid').date, at(7))
   assert.deepEqual(stage(flow, 'paid').doc, { kind: 'payment', number: '7000000005' })
-  assert.equal(flow.nextHint, 'Nothing more to do')
+  assert.equal(flow.nextHint, null)
 })
 
-test('an order on credit hold shows a credit check that needs attention, before Confirmed', async () => {
+test('an order on credit hold shows a credit check that needs attention, before Confirmed; no hint, Release and Reject are on this page', async () => {
   const { flowOf } = await load()
   const flow = flowOf(order({
     credit: { status: 'held', reason: 'Credit limit 80,000.00 exceeded by 1,240.00', decidedAt: null },
@@ -164,7 +166,7 @@ test('an order on credit hold shows a credit check that needs attention, before 
   assert.deepEqual(states(flow), ['done', 'attention', 'upcoming', 'upcoming', 'upcoming', 'upcoming', 'upcoming'])
   assert.equal(stage(flow, 'creditCheck').label, 'Credit check')
   assert.equal(stage(flow, 'creditCheck').detail, 'On hold')
-  assert.equal(flow.nextHint, 'On credit hold: release or reject')
+  assert.equal(flow.nextHint, null)
 })
 
 test('a released order keeps its credit check, done on the day it was released', async () => {
@@ -173,7 +175,7 @@ test('a released order keeps its credit check, done on the day it was released',
   assert.deepEqual(states(flow).slice(0, 3), ['done', 'done', 'current'])
   assert.equal(stage(flow, 'creditCheck').detail, 'Released')
   assert.equal(stage(flow, 'creditCheck').date, at(2))
-  assert.equal(flow.nextHint, 'Next: confirm the order')
+  assert.equal(flow.nextHint, null)
 })
 
 test('an order with no credit hold shows no credit check', async () => {
@@ -196,7 +198,7 @@ test('a rejected order: the credit check stopped it, and Canceled replaces every
   assert.equal(stage(flow, 'creditCheck').detail, 'Rejected')
   assert.equal(stage(flow, 'canceled').label, 'Canceled')
   assert.equal(stage(flow, 'canceled').date, at(2))
-  assert.equal(flow.nextHint, 'Nothing more to do')
+  assert.equal(flow.nextHint, null)
 })
 
 test('an order canceled after it was confirmed keeps Confirmed, then ends at Canceled', async () => {
@@ -209,7 +211,7 @@ test('an order canceled after it was confirmed keeps Confirmed, then ends at Can
   }))
   assert.deepEqual(keys(flow), ['received', 'confirmed', 'canceled'])
   assert.deepEqual(states(flow), ['done', 'done', 'stopped'])
-  assert.equal(flow.nextHint, 'Nothing more to do')
+  assert.equal(flow.nextHint, null)
 })
 
 const returnOrder = (number, status, over = {}) => ({ number, status, createdAt: at(8), receivedAt: status === 'open' ? null : at(9), creditMemo: null, lines: [{ item: 10, sku: 'P1', qty: 1 }], ...over })
@@ -220,23 +222,23 @@ test('an order with no returns and no credit memos shows neither Returned nor Cr
   assert.deepEqual(keys(flowOf(paid())), MAIN)
 })
 
-test('an open return order: Returned waits for the goods and opens that return', async () => {
+test('an open return order: Returned waits for the goods, and the hint links to that return', async () => {
   const { flowOf } = await load()
   const flow = flowOf(paid({ returnOrders: [returnOrder('6000000007', 'open')] }))
   assert.deepEqual(keys(flow), [...MAIN, 'returned', 'credited'])
   assert.deepEqual(states(flow).slice(-2), ['current', 'upcoming'])
   assert.deepEqual(stage(flow, 'returned').doc, { kind: 'return', number: '6000000007' })
-  assert.equal(flow.nextHint, 'Next: receive return order 6000000007')
+  assert.deepEqual(flow.nextHint, { text: 'Next: receive return order 6000000007', doc: { kind: 'return', number: '6000000007' } })
 })
 
-test('a received return: Returned is done on the day the goods came back; its credit memo is next', async () => {
+test('a received return: Returned is done on the day the goods came back; the hint links to the return to credit', async () => {
   const { flowOf } = await load()
   const flow = flowOf(paid({ returnOrders: [returnOrder('6000000007', 'received')] }))
   assert.deepEqual(states(flow).slice(-2), ['done', 'current'])
   assert.equal(stage(flow, 'returned').date, at(9))
   assert.deepEqual(stage(flow, 'returned').doc, { kind: 'return', number: '6000000007' })
   assert.deepEqual(stage(flow, 'credited').doc, { kind: 'return', number: '6000000007' })
-  assert.equal(flow.nextHint, 'Next: post the credit memo for return order 6000000007')
+  assert.deepEqual(flow.nextHint, { text: 'Next: post the credit memo for return order 6000000007', doc: { kind: 'return', number: '6000000007' } })
 })
 
 test('a credited return: Credited is done, shows the amount and opens the credit memo', async () => {
@@ -247,7 +249,7 @@ test('a credited return: Credited is done, shows the amount and opens the credit
   assert.equal(stage(flow, 'credited').date, at(10))
   assert.equal(stage(flow, 'credited').detail, `USD${NB}96.34`)
   assert.deepEqual(stage(flow, 'credited').doc, { kind: 'creditMemo', number: '9500000004' })
-  assert.equal(flow.nextHint, 'Nothing more to do')
+  assert.equal(flow.nextHint, null)
 })
 
 test('several returns in different states are counted in words under each stage', async () => {
@@ -259,7 +261,7 @@ test('several returns in different states are counted in words under each stage'
   }))
   assert.equal(stage(flow, 'returned').detail, '2 of 3 received')
   assert.equal(stage(flow, 'credited').detail, '1 of 3 credited')
-  assert.equal(flow.nextHint, 'Next: receive return order 6000000009')
+  assert.deepEqual(flow.nextHint, { text: 'Next: receive return order 6000000009', doc: { kind: 'return', number: '6000000009' } })
 })
 
 test('an invoice credited in full with nothing paid: Credited follows Invoiced, and no payment is waited for', async () => {
@@ -268,7 +270,7 @@ test('an invoice credited in full with nothing paid: Credited follows Invoiced, 
   const flow = flowOf(invoiced({ status: 'credited', creditMemo: credit.number, openAmount: 0, paymentStatus: 'credited' }, { creditMemos: [credit] }))
   assert.deepEqual(keys(flow), ['received', 'confirmed', 'delivery', 'goodsIssue', 'invoiced', 'credited'])
   assert.deepEqual(states(flow), ['done', 'done', 'done', 'done', 'done', 'done'])
-  assert.equal(flow.nextHint, 'Nothing more to do')
+  assert.equal(flow.nextHint, null)
 })
 
 test('an invoice from before invoice documents were kept: Invoiced with no document to open, and no Paid stage', async () => {
@@ -277,16 +279,23 @@ test('an invoice from before invoice documents were kept: Invoiced with no docum
   assert.deepEqual(keys(flow), ['received', 'confirmed', 'delivery', 'goodsIssue', 'invoiced'])
   assert.equal(stage(flow, 'invoiced').doc, undefined)
   assert.equal(stage(flow, 'delivery').state, 'done')
-  assert.equal(flow.nextHint, 'Nothing more to do')
+  assert.equal(flow.nextHint, null)
 })
 
 test('at most one stage is where the order stands, whatever its state', async () => {
   const { flowOf } = await load()
-  const some = [order(), confirmed(), shipped(), invoiced(), paid(), paid({ returnOrders: [returnOrder('6000000009', 'open')] })]
-  for (const o of some) {
-    const standing = flowOf(o).stages.filter((s) => s.state === 'current' || s.state === 'attention')
-    assert.equal(standing.length, flowOf(o).nextHint === 'Nothing more to do' ? 0 : 1)
-  }
+  const standing = (o) => flowOf(o).stages.filter((s) => s.state === 'current' || s.state === 'attention').length
+  for (const o of [order(), confirmed(), shipped(), invoiced(), paid({ returnOrders: [returnOrder('6000000009', 'open')] })]) assert.equal(standing(o), 1)
+  for (const o of [paid(), confirmed({ header: 'canceled', can: { ...NO_MOVES } })]) assert.equal(standing(o), 0)
+})
+
+test('a hint is offered only for a move made on another document, and names that document', async () => {
+  const { flowOf, returnFlowOf } = await load()
+  for (const o of [order(), confirmed(), shipped(), paid()]) assert.equal(flowOf(o).nextHint, null)
+  assert.equal(returnFlowOf(returnOrder('6000000007', 'open')).nextHint, null)
+  const hint = flowOf(invoiced()).nextHint
+  assert.match(hint.text, /^Next: /)
+  assert.deepEqual(Object.keys(hint).sort(), ['doc', 'text'])
 })
 
 test('the strip speaks as an ERP: no word of a web shop, even when the cancellation reason has one', async () => {
@@ -300,32 +309,32 @@ test('the strip speaks as an ERP: no word of a web shop, even when the cancellat
   assert.doesNotMatch(JSON.stringify(flow), /shop|commerce|storefront/i)
 })
 
-test('a return order has its own three stages: created, goods received, credited', async () => {
+test('a return order has its own three stages: created, goods received, credited; its moves are on its page, so no hint', async () => {
   const { returnFlowOf } = await load()
   const open = returnFlowOf(returnOrder('6000000007', 'open'))
   assert.deepEqual(open.stages.map((s) => s.label), ['Return created', 'Goods received', 'Credited'])
   assert.deepEqual(states(open), ['done', 'current', 'upcoming'])
   assert.equal(open.stages[0].date, at(8))
-  assert.equal(open.nextHint, 'Next: receive the goods')
+  assert.equal(open.nextHint, null)
 
   const received = returnFlowOf(returnOrder('6000000007', 'received'))
   assert.deepEqual(states(received), ['done', 'done', 'current'])
   assert.equal(received.stages[1].date, at(9))
-  assert.equal(received.nextHint, 'Next: post the credit memo')
+  assert.equal(received.nextHint, null)
 
   const credited = returnFlowOf(returnOrder('6000000007', 'credited', { creditMemo: memo('9500000004', 96.34, 10) }))
   assert.deepEqual(states(credited), ['done', 'done', 'done'])
   assert.equal(credited.stages[2].date, at(10))
   assert.deepEqual(credited.stages[2].doc, { kind: 'creditMemo', number: '9500000004' })
-  assert.equal(credited.nextHint, 'Nothing more to do')
+  assert.equal(credited.nextHint, null)
 })
 
-test('every line closed with nothing shipped: no delivery can follow, and the strip says so', async () => {
+test('every line closed with nothing shipped: no delivery can follow; Delivery stands, and no hint since Cancel is on this page', async () => {
   const { flowOf } = await load()
   const flow = flowOf(confirmed({
     lines: [{ item: 10, sku: 'P1', qty: 2, shippedQty: 0, closedQty: 2 }],
     can: { ...NO_MOVES, cancel: true }
   }))
   assert.equal(stage(flow, 'delivery').state, 'current')
-  assert.equal(flow.nextHint, 'Nothing left to ship: cancel the order')
+  assert.equal(flow.nextHint, null)
 })

@@ -579,13 +579,17 @@ body,
   white-space: pre;
 }
 
+/* The line under the strip is only ever a link to the document the next move is made on. */
 .erp-flow-next {
   padding: var(--space-2) var(--space-5);
   margin: 0;
   font-size: var(--type-body-size);
-  color: var(--ink);
   background: var(--surface-head);
   border-block-start: 1px solid var(--line);
+}
+
+.erp-flow-next .erp-link {
+  color: var(--accent);
 }
 
 /* A list of sentences with no bullets: the price test's "did not apply" lines. */
