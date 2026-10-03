@@ -100,3 +100,15 @@ test('the products action lists committed and available, and a product answers i
   assert.equal(one.body.available, 38)
   assert.deepEqual(one.body.openOrders.map((x) => [x.number, x.qty, x.customer]), [[o.number, 12, 'Walk-in customers']])
 })
+
+test('after a shipment is posted, on hand and committed fall by the same quantity, so available does not move (AB-63)', async () => {
+  const placed = await order('63', [{ sku: 'A1', qty: 12, price: 10 }])
+  await confirmOrder(cols, placed.number)
+  const read = async () => withAvailability(await getProduct(cols, 'A1'), committedBySku(await listOrders(cols)))
+  const before = await read()
+  assert.deepEqual([before.stock, before.committed, before.available], [50, 12, 38])
+  const made = await createShipment(cols, placed.number, { lines: [{ item: 10, qty: 5 }] })
+  await postShipment(cols, placed.number, made.shipments[0].number)
+  const after = await read()
+  assert.deepEqual([after.stock, after.committed, after.available], [45, 7, 38])
+})

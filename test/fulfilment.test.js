@@ -12,7 +12,7 @@ const {
   confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice,
   listShipments, getShipment, listInvoices, getInvoice, CLOSE_REASONS
 } = require('../lib/fulfilment')
-const { importProducts } = require('../lib/products')
+const { importProducts, getProduct } = require('../lib/products')
 const { pending } = require('../lib/events')
 const orders = require('../actions/orders')
 const shipments = require('../actions/shipments')
@@ -206,7 +206,7 @@ test('an order stored before shipments existed reads as shipped and invoiced, wi
 test('shipments and invoices are listed and read across orders, each naming its order', async () => {
   const a = await confirmed()
   const b = await confirmOrder(cols, (await createOrder(cols, { ...input, purchaseOrderByCustomer: '43' })).number)
-  await createShipment(cols, a.number, { lines: [{ item: 10, qty: 12 }, { item: 20, qty: 4 }], warehouse: 'east' })
+  await createShipment(cols, a.number, { lines: [{ item: 10, qty: 12 }, { item: 20, qty: 4 }], warehouse: 'default' })
   await postShipment(cols, a.number, '8000000001')
   await createShipment(cols, b.number, { lines: [{ item: 20, qty: 1 }] })
   await createInvoice(cols, a.number)
@@ -215,7 +215,7 @@ test('shipments and invoices are listed and read across orders, each naming its 
   assert.deepEqual(list.map((s) => [s.number, s.orderNumber, s.status]), [['8000000002', b.number, 'open'], ['8000000001', a.number, 'posted']])
   const one = await getShipment(cols, '8000000001')
   assert.equal(one.orderNumber, a.number)
-  assert.deepEqual(one.warehouse, { code: 'east', name: 'East DC' })
+  assert.deepEqual(one.warehouse, { code: 'default', name: 'Default Source' })
   assert.deepEqual(one.lines.map((l) => [l.item, l.sku, l.name, l.qty, l.unit]), [[10, 'A1', 'Trouser', 12, 'EA'], [20, 'B2', 'Shirt', 4, 'EA']])
   assert.equal(await getShipment(cols, 'nope'), null)
 
@@ -286,4 +286,51 @@ test('the invoice document carries a due date: the billing date plus the payment
   const again = await getInvoice(cols, '9000000001')
   assert.equal(again.paymentDays, null)
   assert.equal(again.dueDate, null)
+})
+
+/* Goods issue (AB-63): posting a shipment takes the shipped quantity out of the plant's stock. */
+const onHand = async (sku) => Object.fromEntries((await getProduct(cols, sku)).warehouses.map((w) => [w.code, w.quantity]))
+
+test('posting a shipment takes the shipped quantity out of the warehouse the shipment names, line by line, and each partial shipment takes its own', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 5 }], warehouse: 'east' })
+  assert.deepEqual(await onHand('A1'), { default: 50, east: 20 }, 'creating a shipment moves nothing')
+  await postShipment(cols, order.number, '8000000001')
+  assert.deepEqual(await onHand('A1'), { default: 50, east: 15 })
+  assert.deepEqual(await onHand('B2'), { default: 9 }, 'a line not on the shipment keeps its stock')
+  // The rest, from the other warehouse.
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 7 }, { item: 20, qty: 4 }], warehouse: 'default' })
+  await postShipment(cols, order.number, '8000000002')
+  assert.deepEqual(await onHand('A1'), { default: 43, east: 15 })
+  assert.deepEqual(await onHand('B2'), { default: 5 })
+})
+
+test('a goods issue raises no ProductStock.Changed: the delivery event is what tells the web shop, which deducts the same units itself', async () => {
+  const order = await confirmed()
+  await setStatus(cols, order.number, 'shipped')
+  assert.deepEqual(await onHand('B2'), { default: 5 })
+  assert.deepEqual((await pending(cols)).map((e) => e.type), ['SalesOrder.Changed', 'OutboundDelivery.GoodsIssueStatusChanged'])
+})
+
+test('a shipment that needs more than the warehouse has on hand is refused in words when posted, and nothing moves', async () => {
+  await importProducts(cols, [{ sku: 'C3', name: 'Belt', listPrice: 8, warehouses: [{ code: 'default', name: 'Default Source', quantity: 40 }, { code: 'east', name: 'East DC', quantity: 3 }] }])
+  const order = await confirmOrder(cols, (await createOrder(cols, { purchaseOrderByCustomer: '000000077', lines: [{ sku: 'C3', qty: 6, price: 8, customerLineReference: '1' }] })).number)
+  const made = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 5 }], warehouse: 'east' })
+  const number = made.shipments[0].number
+  await assert.rejects(postShipment(cols, order.number, number), /^Error: Item 10: 3 EA of C3 are on hand in warehouse east; this shipment needs 5\.$/)
+  const after = await getOrder(cols, order.number)
+  assert.equal(after.shipments[0].status, 'open')
+  assert.equal(after.lines[0].shippedQty, 0)
+  assert.deepEqual(await onHand('C3'), { default: 40, east: 3 })
+  assert.equal((await pending(cols)).some((e) => e.type === 'OutboundDelivery.GoodsIssueStatusChanged'), false)
+  // A warehouse the product is not kept in has none on hand.
+  const order2 = await confirmed()
+  await createShipment(cols, order2.number, { lines: [{ item: 20, qty: 4 }], warehouse: 'east' })
+  await assert.rejects(postShipment(cols, order2.number, (await getOrder(cols, order2.number)).shipments[0].number), /Item 20: 0 EA of B2 are on hand in warehouse east; this shipment needs 4\./)
+})
+
+test('a product the ERP does not keep has no stock to move, and its shipment still posts', async () => {
+  const order = await confirmOrder(cols, (await createOrder(cols, { purchaseOrderByCustomer: '000000078', lines: [{ sku: 'NOT-KEPT', qty: 2, price: 1, customerLineReference: '1' }] })).number)
+  const shipped = await setStatus(cols, order.number, 'shipped')
+  assert.equal(shipped.lines[0].shippedQty, 2)
 })

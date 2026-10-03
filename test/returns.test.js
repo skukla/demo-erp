@@ -125,13 +125,14 @@ test('receiving a return puts the goods back where the order shipped them from a
   assert.equal(res.body.status, 'received')
   assert.ok(res.body.receivedAt)
   assert.deepEqual(res.body.history.map((h) => h.status), ['open', 'received'])
-  // A1 shipped from east (20 → 22), B2 from default (9 → 10); the stock event says so.
+  // A1: 3 shipped from east (20 → 17), 2 come back (→ 19). B2: 2 shipped from default (9 → 7),
+  // 1 comes back (→ 8). The stock event says so; the goods issues raised none (AB-63).
   const stockOf = async (sku) => Object.fromEntries((await getProduct(cols, sku)).warehouses.map((w) => [w.code, w.quantity]))
-  assert.deepEqual(await stockOf('A1'), { default: 50, east: 22 })
-  assert.deepEqual(await stockOf('B2'), { default: 10 })
+  assert.deepEqual(await stockOf('A1'), { default: 50, east: 19 })
+  assert.deepEqual(await stockOf('B2'), { default: 8 })
   const events = await pending(cols)
   const stock = events.filter((e) => e.type === 'ProductStock.Changed').map((e) => e.data)
-  assert.deepEqual(stock, [{ Product: 'A1', Plant: 'east', Quantity: 22, PrevQuantity: 20 }, { Product: 'B2', Plant: 'default', Quantity: 10, PrevQuantity: 9 }])
+  assert.deepEqual(stock, [{ Product: 'A1', Plant: 'east', Quantity: 19, PrevQuantity: 17 }, { Product: 'B2', Plant: 'default', Quantity: 8, PrevQuantity: 7 }])
   const received = events.find((e) => e.type === 'CustomerReturn.Changed')
   assert.deepEqual(received.data, {
     CustomerReturn: '6000000001',

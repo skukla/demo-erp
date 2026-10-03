@@ -10,7 +10,7 @@ const assert = require('node:assert/strict')
 const { memoryCollections, invoke } = require('./helpers/memory-db')
 const { createOrder } = require('../lib/orders')
 const { confirmOrder, receiveExternalShipment, createInvoice, cancelOrder, holdExternal, releaseCredit } = require('../lib/fulfilment')
-const { importProducts } = require('../lib/products')
+const { importProducts, getProduct } = require('../lib/products')
 const { importPartners } = require('../lib/partners')
 const { pending, recent } = require('../lib/events')
 const orders = require('../actions/orders')
@@ -152,4 +152,45 @@ test("the ERP's own shipment, shipped in the web shop by the integration, comes 
   assert.equal(more.shipments.length, 2)
   assert.deepEqual(more.lines.map((l) => l.shippedQty), [12, 4])
   assert.equal((await recent(cols)).find((e) => e.direction === 'in' && /is ERP shipment/.test(e.summary)).summary, `Shipment 900 in ${SYSTEM} is ERP shipment ${posted.shipments[0].number} on sales order ${order.number}; nothing shipped twice`)
+})
+
+/* Goods issue (AB-63): a shipment made in the web shop takes the ERP's stock down once. */
+const onHand = async (sku) => Object.fromEntries((await getProduct(cols, sku)).warehouses.map((w) => [w.code, w.quantity]))
+
+test('a shipment posted in the web shop takes the stock out of the plant it names, once: a redelivery takes nothing more, and no stock event goes back', async () => {
+  const order = await createOrder(cols, input)
+  const body = { externalReference: '501', lines: [{ customerLineReference: '1', qty: 5 }], warehouse: 'east', ...origin(SHIPMENT) }
+  await receiveExternalShipment(cols, order.number, body)
+  assert.deepEqual(await onHand('A1'), { default: 50, east: 15 })
+  await receiveExternalShipment(cols, order.number, body)
+  assert.deepEqual(await onHand('A1'), { default: 50, east: 15 }, 'the same external reference again moves nothing')
+  assert.deepEqual(await outbound(), [])
+})
+
+test("the ERP's own shipment coming back from the web shop takes no stock a second time", async () => {
+  const { createShipment, postShipment } = require('../lib/fulfilment')
+  const order = await confirmOrder(cols, (await createOrder(cols, input)).number)
+  const withOwn = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 5 }], warehouse: 'east' })
+  await postShipment(cols, order.number, withOwn.shipments[0].number)
+  assert.deepEqual(await onHand('A1'), { default: 50, east: 15 })
+  await receiveExternalShipment(cols, order.number, { externalReference: '900', lines: [{ customerLineReference: '1', qty: 5 }], warehouse: 'east', ...origin(SHIPMENT) })
+  assert.deepEqual(await onHand('A1'), { default: 50, east: 15 })
+})
+
+test('a web shop shipment that names no plant, or one the product is not kept in, takes the stock from the default warehouse', async () => {
+  const order = await createOrder(cols, input)
+  await receiveExternalShipment(cols, order.number, { externalReference: '1', lines: [{ customerLineReference: '1', qty: 2 }], ...origin(SHIPMENT) })
+  assert.deepEqual(await onHand('A1'), { default: 48, east: 20 })
+  await receiveExternalShipment(cols, order.number, { externalReference: '2', lines: [{ customerLineReference: '2', qty: 4 }], warehouse: 'east', ...origin(SHIPMENT) })
+  assert.deepEqual(await onHand('B2'), { default: 5 })
+})
+
+test('a web shop shipment of more than the ERP has on hand is still recorded (the goods have left): on hand stops at zero and the journal says how many were missing', async () => {
+  await importProducts(cols, [{ sku: 'C3', name: 'Belt', listPrice: 8, warehouses: [{ code: 'default', name: 'Default Source', quantity: 3 }] }])
+  const order = await createOrder(cols, { purchaseOrderByCustomer: '000000077', partnerId: 'C1', lines: [{ sku: 'C3', qty: 5, price: 8, customerLineReference: '1' }] })
+  const next = await receiveExternalShipment(cols, order.number, { externalReference: '77', lines: [{ customerLineReference: '1', qty: 5 }], warehouse: 'default', ...origin(SHIPMENT) })
+  assert.equal(next.lines[0].shippedQty, 5)
+  assert.deepEqual(await onHand('C3'), { default: 0 })
+  const [entry] = await recent(cols)
+  assert.equal(entry.summary, `Goods issue posted from ${SYSTEM}: shipment ${next.shipments[0].number} for sales order ${order.number} (5 shipped from default). On hand was short: C3 had 3 EA in default, 2 fewer than shipped.`)
 })

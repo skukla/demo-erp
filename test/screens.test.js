@@ -477,6 +477,25 @@ test('a refusal is shown in the ERP\'s words: a section keeps what was typed, a 
   }
 })
 
+test('number series: every editable Next number fits inside its cell, so the table draws no "…" beside it', async () => {
+  // AB-65: a table cell clips what does not fit and marks the cut with an ellipsis. The edit
+  // button overflowed its 140 px column in every row; where the number was narrow enough
+  // (0000001010) the first dot of that ellipsis showed in the gap after the button.
+  const { page, context, problems } = await open('settings')
+  try {
+    const grid = page.getByRole('grid', { name: 'Number series' })
+    await grid.waitFor()
+    const cut = await grid.evaluate((el) => [...el.querySelectorAll('button[aria-label^="Edit next"]')]
+      .map((b) => ({ label: b.getAttribute('aria-label'), over: b.parentElement.scrollWidth - b.parentElement.clientWidth }))
+      .filter((c) => c.over > 0))
+    assert.deepEqual(cut, [])
+    assert.equal(await grid.locator('button[aria-label^="Edit next"]').count(), 7, 'every series was looked at')
+    assert.deepEqual(problems, [], 'settings console')
+  } finally {
+    await context.close()
+  }
+})
+
 test('sales organizations: add one, and a code already there is refused in the dialog', async () => {
   const { page, context, problems } = await open('settings')
   try {
