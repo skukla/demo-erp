@@ -71,18 +71,24 @@ function openText (line) {
    builds its collection from the children it is handed, and a `false` where a Column or
    Cell should be leaves a hole it then reads (`isRowHeader` of undefined) and crashes.
    The Close column is in the list only while a line can still be closed. */
+/* The widths add up to what a 1,440px window gives the table (1,118 px) WITH the Close column:
+   they added up to 34 px more on every order, 204 px with Close, and the table scrolled
+   sideways, its last column reading "NET AMOU…" at the edge (2026-10-03). Each is its heading
+   or its widest cell plus a few px (Item's 75 is Spectrum's own minimum; cells wrap, headings
+   do not), and the Close button is 162 px. A closable order WITH a discount column still does
+   not fit: that needs shorter headings or a narrower Close, not narrower columns. */
 const LINE_COLUMNS = [
-  { key: 'item', label: 'Item', width: 80 },
-  { key: 'sku', label: 'Product', width: 150 },
-  { key: 'name', label: 'Description', width: '1fr', minWidth: 200 },
-  { key: 'qty', label: 'Order qty', width: 110, align: 'end' },
-  { key: 'shipped', label: 'Shipped', width: 110, align: 'end' },
-  { key: 'open', label: 'Open', width: 130, align: 'end' },
-  { key: 'unit', label: 'Base unit', width: 100 },
-  { key: 'price', label: 'Net price', width: 130, align: 'end' },
-  { key: 'amount', label: 'Net amount', width: 140, align: 'end' }
+  { key: 'item', label: 'Item', width: 75 },
+  { key: 'sku', label: 'Product', width: 98 },
+  { key: 'name', label: 'Description', width: '1fr', minWidth: 120 },
+  { key: 'qty', label: 'Order qty', width: 108, align: 'end' },
+  { key: 'shipped', label: 'Shipped', width: 92, align: 'end' },
+  { key: 'open', label: 'Open', width: 108, align: 'end' },
+  { key: 'unit', label: 'Base unit', width: 102 },
+  { key: 'price', label: 'Net price', width: 118, align: 'end' },
+  { key: 'amount', label: 'Net amount', width: 126, align: 'end' }
 ]
-const CLOSE_COLUMN = { key: 'close', label: ' ', width: 170, align: 'end' }
+const CLOSE_COLUMN = { key: 'close', label: ' ', width: 164, align: 'end' }
 
 export default function OrderLines ({ order, onCloseLine, busy, onOpen }) {
   const lines = order.lines || []

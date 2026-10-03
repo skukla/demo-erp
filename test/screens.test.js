@@ -511,6 +511,18 @@ async function sideways (grid) {
     .filter((over) => over > 1))
 }
 
+/* The column headings of a grid that do not fit: a heading's text is cut with "…" (AB-65). */
+async function cutHeaders (grid) {
+  return grid.evaluate((el) => [...el.querySelectorAll('[role="columnheader"]')]
+    .map((h) => ({
+      text: h.innerText.trim(),
+      over: Math.max(0, ...[...h.querySelectorAll('*')]
+        .filter((n) => getComputedStyle(n).textOverflow === 'ellipsis')
+        .map((n) => n.scrollWidth - n.clientWidth))
+    }))
+    .filter((h) => h.over > 0))
+}
+
 test('customers: every credit limit edit button and every amount fits its cell, so none is cut', async () => {
   // AB-65's measure, extended: the credit limit's edit button for USD 120,000.00 was 34 px wider
   // than its 140 px column and showed cut mid-digit; Available read "USD 118,71…".
@@ -519,6 +531,8 @@ test('customers: every credit limit edit button and every amount fits its cell, 
     const grid = page.getByRole('grid', { name: 'Customers' })
     await grid.waitFor()
     assert.deepEqual(await cutCells(grid), [])
+    // The headings too: "CUSTO…", "SALES ORGANI…" and "PAYMEN…" were cut (2026-10-03).
+    assert.deepEqual(await cutHeaders(grid), [], 'every heading fits')
     assert.equal(await grid.locator('button[aria-label^="Edit credit limit"]').count(), 5, 'every customer was looked at')
     assert.deepEqual(await sideways(grid), [], 'the wider columns still fit the table')
     assert.deepEqual(problems, [], 'customers console')
@@ -526,6 +540,30 @@ test('customers: every credit limit edit button and every amount fits its cell, 
     await context.close()
   }
 })
+
+/* Sales order 1001 can still close a line (the Close column shows); 1009 carries a discount
+   (the Discount column shows): the two widest sets of order line columns the preview has. */
+for (const [number, what] of [['0000001001', 'with its Close column'], ['0000001009', 'with its Discount column']]) {
+  test(`order lines ${what}: every heading and cell fits, and the table does not scroll sideways`, async () => {
+    // The columns added up to 34 px more than the table on every order, 204 px with Close: the
+    // last column sat past the edge and read "NET AMOU…" and "USD 245." (2026-10-03).
+    const { page, context, problems } = await open(`orders?open=${number}`)
+    try {
+      const grid = page.getByRole('grid', { name: 'Order lines' })
+      await grid.waitFor()
+      assert.deepEqual(await cutHeaders(grid), [], 'every heading fits')
+      assert.deepEqual(await cutCells(grid), [], 'every cell fits')
+      assert.deepEqual(await sideways(grid), [], 'the columns fit the table')
+      const marker = what.includes('Close')
+        ? grid.getByRole('button', { name: 'Close remaining' })
+        : grid.getByRole('columnheader', { name: 'Discount' })
+      assert.ok(await marker.count() > 0, 'the column set under test is there')
+      assert.deepEqual(problems, [], 'order console')
+    } finally {
+      await context.close()
+    }
+  })
+}
 
 test('sales organizations: every Edit button fits its cell', async () => {
   const { page, context, problems } = await open('settings')

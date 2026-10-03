@@ -38,16 +38,21 @@ const MONEY = moneyOptions()
 /* Credit limit 180 and Available 150, not 140 and 130: a cell is its width less 32 px of
    Spectrum's padding, and a cell clips what does not fit with "…" (AB-65). The credit limit's
    edit button for USD 120,000.00 is 131 px and was cut mid-digit; USD 118,713.60 available
-   read "USD 118,71…". Name gives up the 60 px (its minimum 160, not 180: a long name wraps). */
+   read "USD 118,71…". */
+/* The headings clip too: Customer (sorted, so it carries the chevron) needs 133 px, Sales
+   organizations 177, Payment terms 150, Credit block 137, measured 2026-10-03 when they read
+   "CUSTO…", "SALES ORGANI…", "PAYMEN…". The room came from Name (its minimum 96: a long name
+   wraps), Credit limit (172 still holds the 131 px button) and Credit block's empty slack. A
+   heading only just fits; another column needs a shorter heading, not a narrower one. */
 const PARTNER_COLUMNS = [
-  { key: 'id', width: 120 },
-  { key: 'name', width: '2fr', minWidth: 160 },
-  { key: 'salesOrgs', width: '1fr', minWidth: 140 },
-  { key: 'terms', width: 110 },
-  { key: 'creditLimit', width: 180 },
+  { key: 'id', width: 136 },
+  { key: 'name', width: '2fr', minWidth: 96 },
+  { key: 'salesOrgs', width: '1fr', minWidth: 182 },
+  { key: 'terms', width: 154 },
+  { key: 'creditLimit', width: 172 },
   { key: 'exposure', width: 130 },
   { key: 'available', width: 150 },
-  { key: 'blocking', width: 165 }
+  { key: 'blocking', width: 140 }
 ]
 
 const PARTNER_GRID = {
