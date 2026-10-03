@@ -175,8 +175,8 @@ test('a return on a card-paid invoice is credited as any other, and no payment m
   assert.equal(await exposureOf(cols, 'C1'), 0)
 })
 
-test('the contract is at version 18 and names the payment reference on the order and the payment', () => {
-  assert.equal(contract.contractVersion, 18)
+test('from version 18 the contract names the payment reference on the order and the payment', () => {
+  assert.ok(contract.contractVersion >= 18)
   assert.ok(contract.order.request.includes('payment'))
   assert.ok(contract.order.response.includes('payment'))
   assert.deepEqual(contract.order.payment, ['method', 'reference', 'cardBrand', 'cardLastFour', 'amount'])
@@ -198,4 +198,21 @@ test('on screen, a payment taken in the web shop reads in plain words, with only
   assert.equal(paymentReferenceText({ reference: null }), '—')
   assert.equal(paymentReferenceText({ reference: 'TX1', paidInWebShop: { method: 'm', cardBrand: 'Visa', cardLastFour: '4242' } }), 'Web shop · Visa ending 4242 · TX1')
   assert.equal(paymentReferenceText({ reference: 'TX1', paidInWebShop: { method: 'paypal', cardBrand: null, cardLastFour: null } }), 'Web shop · TX1')
+})
+
+test('canceling an order paid at checkout moves no money in the ERP and says the card payment is refunded in the web shop; an order on account says nothing of the kind', async () => {
+  const paid = await createOrder(cols, body(CARD))
+  const canceled = await setStatus(cols, paid.number, 'canceled', undefined, { reason: 'Customer request' })
+  assert.equal(canceled.status, 'canceled')
+  assert.deepEqual(canceled.history.at(-1), { status: 'canceled', at: canceled.history.at(-1).at, reason: 'Customer request', note: 'Paid by card in the web shop: the card payment is refunded there, not by the ERP.' })
+  assert.deepEqual(await listPayments(cols), [])
+  assert.deepEqual(await eventTypes(), ['SalesOrder.Changed'])
+  const onAccount = await createOrder(cols, body(undefined, '43'))
+  const plain = await setStatus(cols, onAccount.number, 'canceled', undefined, { reason: 'Customer request' })
+  assert.equal(plain.history.at(-1).note, undefined)
+})
+
+test('from version 19 the contract says how a canceled order paid at checkout is refunded', () => {
+  assert.ok(contract.contractVersion >= 19)
+  assert.match(contract.order.cardCancelNote, /refunded in the web shop/)
 })

@@ -74,11 +74,16 @@ export default function SetupSalesOrganizations ({ salesOrganizations, onAdd, on
     <Card title='Sales Organizations' actions={<ActionButton onPress={() => setOpen({})}>Add</ActionButton>}>
       <TableView aria-label='Sales organizations' density='compact' overflowMode='wrap' renderEmptyState={() => 'None yet: the first fill brings them from the websites.'}>
         <TableHeader>
+          {/* The card's table is 520 px at 1,440 px. Edit 96, not 80 (AB-65): the quiet button and
+              its margin are 14 px wider than an 80 px cell less Spectrum's 32 px of padding, so
+              the cell held a cut. The columns added up to 530, so the table also scrolled
+              sideways by 10 px; Website (a short code) gives up 20 and Name's minimum is 130 (a
+              long name wraps), which brings them to 516. */}
           <Column key='code' width={90}>Code</Column>
-          <Column key='name' width='1fr' minWidth={140}>Name</Column>
+          <Column key='name' width='1fr' minWidth={130}>Name</Column>
           <Column key='currency' width={100}>Currency</Column>
-          <Column key='website' width={120}>Website</Column>
-          <Column key='edit' width={80}> </Column>
+          <Column key='website' width={100}>Website</Column>
+          <Column key='edit' width={96}> </Column>
         </TableHeader>
         <TableBody items={rows.map((o) => ({ ...o, id: o.code }))}>
           {(o) => (

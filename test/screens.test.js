@@ -496,6 +496,52 @@ test('number series: every editable Next number fits inside its cell, so the tab
   }
 })
 
+/* What of each body cell of a grid does not fit it: the cells a table would cut with "…" (AB-65). */
+async function cutCells (grid) {
+  return grid.evaluate((el) => [...el.querySelectorAll('[role="gridcell"], [role="rowheader"]')]
+    .map((c) => ({ text: c.innerText.trim(), over: (c.firstElementChild || c).scrollWidth - (c.firstElementChild || c).clientWidth }))
+    .filter((c) => c.over > 0))
+}
+
+/* How far a grid's header or body scrolls sideways: its columns add up to more than the table. */
+async function sideways (grid) {
+  return grid.evaluate((el) => [...el.querySelectorAll('*')]
+    .filter((n) => ['auto', 'scroll'].includes(getComputedStyle(n).overflowX))
+    .map((n) => n.scrollWidth - n.clientWidth)
+    .filter((over) => over > 1))
+}
+
+test('customers: every credit limit edit button and every amount fits its cell, so none is cut', async () => {
+  // AB-65's measure, extended: the credit limit's edit button for USD 120,000.00 was 34 px wider
+  // than its 140 px column and showed cut mid-digit; Available read "USD 118,71…".
+  const { page, context, problems } = await open('partners')
+  try {
+    const grid = page.getByRole('grid', { name: 'Customers' })
+    await grid.waitFor()
+    assert.deepEqual(await cutCells(grid), [])
+    assert.equal(await grid.locator('button[aria-label^="Edit credit limit"]').count(), 5, 'every customer was looked at')
+    assert.deepEqual(await sideways(grid), [], 'the wider columns still fit the table')
+    assert.deepEqual(problems, [], 'customers console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('sales organizations: every Edit button fits its cell', async () => {
+  const { page, context, problems } = await open('settings')
+  try {
+    const grid = page.getByRole('grid', { name: 'Sales organizations' })
+    await grid.waitFor()
+    assert.deepEqual(await cutCells(grid), [])
+    assert.equal(await grid.locator('button[aria-label^="Edit sales organization"]').count(), 2, 'every sales organization was looked at')
+    // The columns added up to 10 px more than the card's table, which scrolled sideways.
+    assert.deepEqual(await sideways(grid), [], 'the columns fit the table')
+    assert.deepEqual(problems, [], 'settings console')
+  } finally {
+    await context.close()
+  }
+})
+
 test('sales organizations: add one, and a code already there is refused in the dialog', async () => {
   const { page, context, problems } = await open('settings')
   try {

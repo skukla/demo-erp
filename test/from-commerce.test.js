@@ -1,9 +1,12 @@
 /*
  * Changes made IN ANOTHER SYSTEM (the customer's web shop admin) reach the ERP (bidirectional
  * review, item 1 and G4): a shipment, an invoice, a cancellation, a hold. Each arrives with
- * `origin: { system, document? }` (contract version 16), is recorded and journaled, and raises
- * NO outbound event — that system already has the change, and the ERP's own event would have
- * made it do it a second time.
+ * `origin: { system, document? }` (contract version 16) and is recorded and journaled.
+ *
+ * Contract version 19 (AB-26y step 5): the ERP raises its outbound event for each, as for a
+ * move made here — a real ERP raises its events for every change, whoever made it. Knowing
+ * that the event echoes a change it sent is the subscriber's business. A move that changes
+ * nothing (a redelivery, the ERP's own shipment coming back) raises nothing.
  */
 const { test, beforeEach } = require('node:test')
 const assert = require('node:assert/strict')
@@ -35,7 +38,7 @@ beforeEach(async () => {
 const input = { purchaseOrderByCustomer: '000000042', partnerId: 'C1', lines: [{ sku: 'A1', qty: 12, price: 10, customerLineReference: '1' }, { sku: 'B2', qty: 4, price: 5, customerLineReference: '2' }] }
 const outbound = async () => (await pending(cols)).map((e) => e.type)
 
-test('a shipment posted in the web shop becomes a posted ERP shipment by customer line reference and plant, confirms a created order, raises no event, and is journaled', async () => {
+test('a shipment posted in the web shop becomes a posted ERP shipment by customer line reference and plant, confirms a created order, raises its goods issue event, and is journaled', async () => {
   const order = await createOrder(cols, input)
   const next = await receiveExternalShipment(cols, order.number, { externalReference: 501, lines: [{ customerLineReference: '1', qty: 5 }, { customerLineReference: '2', qty: 4 }], warehouse: 'east', ...origin(SHIPMENT) })
   assert.equal(next.header, 'confirmed')
@@ -47,8 +50,11 @@ test('a shipment posted in the web shop becomes a posted ERP shipment by custome
   assert.deepEqual(shipment.lines.map((l) => [l.item, l.sku, l.qty]), [[10, 'A1', 5], [20, 'B2', 4]])
   assert.deepEqual(next.lines.map((l) => l.shippedQty), [5, 4])
   assert.equal(next.status, 'shipped')
-  assert.deepEqual(await outbound(), [], 'nothing goes back: the web shop made the shipment')
-  const [entry] = await recent(cols)
+  const [event] = await pending(cols)
+  assert.deepEqual(await outbound(), ['OutboundDelivery.GoodsIssueStatusChanged'], 'raised like any posted shipment')
+  assert.deepEqual([event.data.OutboundDelivery, event.data.Plant, event.data.GoodsMovementStatus, event.data.PrevGoodsMovementStatus], [shipment.number, 'east', 'posted', 'open'])
+  assert.deepEqual(event.data.Items.map((i) => [i.CustomerLineReference, i.Quantity]), [['1', 5], ['2', 4]])
+  const entry = (await recent(cols)).find((e) => e.direction === 'in')
   assert.equal(entry.direction, 'in')
   assert.deepEqual(entry.origin, { system: SYSTEM, document: SHIPMENT })
   assert.equal(entry.eventId, `evt-${SHIPMENT}`)
@@ -61,6 +67,7 @@ test('the same shipment from the web shop delivered twice is recorded once; one 
   await receiveExternalShipment(cols, order.number, body)
   const again = await receiveExternalShipment(cols, order.number, body)
   assert.equal(again.shipments.length, 1)
+  assert.deepEqual(await outbound(), ['OutboundDelivery.GoodsIssueStatusChanged'], 'a redelivery records nothing, so raises nothing')
   assert.deepEqual(again.lines.map((l) => l.shippedQty), [5, 0])
   await assert.rejects(receiveExternalShipment(cols, order.number, { lines: [{ customerLineReference: '1', qty: 1 }], ...origin(SHIPMENT) }), /externalReference/)
   await assert.rejects(receiveExternalShipment(cols, order.number, { externalReference: '9', lines: [{ customerLineReference: '1', qty: 1 }] }), /origin\.system/)
@@ -69,38 +76,42 @@ test('the same shipment from the web shop delivered twice is recorded once; one 
   await assert.rejects(receiveExternalShipment(cols, order.number, { externalReference: '9', lines: [{ customerLineReference: '77', qty: 1 }], ...origin(SHIPMENT) }), /reference 77 is not on this order/)
 })
 
-test('an invoice made in the web shop invoices the ERP order without raising the invoice event, keeps its external reference, and is nothing to do twice', async () => {
+test('an invoice made in the web shop invoices the ERP order and raises the invoice event, keeps its external reference, and is nothing to do twice', async () => {
   const order = await createOrder(cols, input)
   await receiveExternalShipment(cols, order.number, { externalReference: '1', lines: [{ customerLineReference: '1', qty: 12 }, { customerLineReference: '2', qty: 4 }], ...origin(SHIPMENT) })
   const invoiced = await createInvoice(cols, order.number, undefined, { externalReference: 77, ...origin(INVOICE) })
   assert.equal(invoiced.status, 'invoiced')
   assert.equal(invoiced.invoice.externalReference, '77')
-  assert.deepEqual(await outbound(), [])
+  assert.deepEqual(await outbound(), ['OutboundDelivery.GoodsIssueStatusChanged', 'BillingDocument.Created'])
+  assert.equal((await pending(cols))[1].data.BillingDocument, invoiced.invoice.number)
   const again = await createInvoice(cols, order.number, undefined, { ...origin(INVOICE) })
   assert.equal(again.invoice.number, invoiced.invoice.number)
+  assert.equal((await outbound()).length, 2, 'nothing to do twice raises nothing')
   const entries = await recent(cols)
   assert.ok(entries.some((e) => e.summary === `Invoice ${invoiced.invoice.number} for sales order ${order.number} posted from ${SYSTEM}`))
 })
 
-test('an invoice the ERP makes itself still raises its event: the origin is what silences it', async () => {
+test('an invoice the ERP makes itself raises its event, as one from the web shop does', async () => {
   const order = await confirmOrder(cols, (await createOrder(cols, input)).number)
   await receiveExternalShipment(cols, order.number, { externalReference: '1', lines: [{ customerLineReference: '1', qty: 12 }, { customerLineReference: '2', qty: 4 }], ...origin(SHIPMENT) })
   await createInvoice(cols, order.number)
-  assert.deepEqual(await outbound(), ['SalesOrder.Changed', 'BillingDocument.Created'])
+  assert.deepEqual(await outbound(), ['SalesOrder.Changed', 'OutboundDelivery.GoodsIssueStatusChanged', 'BillingDocument.Created'])
 })
 
-test('a cancellation made in the web shop cancels the ERP order with its own reason, raises no event, and is nothing to do twice', async () => {
+test('a cancellation made in the web shop cancels the ERP order with its own reason, raises the cancel with that reason, and is nothing to do twice', async () => {
   const order = await createOrder(cols, input)
   const cancelled = await cancelOrder(cols, order.number, SHOP_CANCEL, undefined, origin(ORDER))
   assert.equal(cancelled.header, 'canceled')
   assert.equal(cancelled.cancelReason, SHOP_CANCEL)
-  assert.deepEqual(await outbound(), [])
+  const [event] = await pending(cols)
+  assert.deepEqual([event.type, event.data.OverallStatus, event.data.PrevOverallStatus, event.data.Reason], ['SalesOrder.Changed', 'canceled', 'created', SHOP_CANCEL])
   const again = await cancelOrder(cols, order.number, SHOP_CANCEL, undefined, origin(ORDER))
   assert.equal(again.header, 'canceled')
+  assert.equal((await outbound()).length, 1, 'nothing to do twice raises nothing')
   assert.equal((await recent(cols)).filter((e) => e.direction === 'in').length, 1, 'journaled once')
 })
 
-test('a hold made in the web shop holds the ERP order with that system as the reason; Confirm then refuses; a release from it clears it without an event; a second hold is nothing to do', async () => {
+test('a hold made in the web shop holds the ERP order with that system as the reason and raises the credit block; Confirm then refuses; a release from it lifts the block; a second hold is nothing to do', async () => {
   const order = await createOrder(cols, input)
   const held = await holdExternal(cols, order.number, undefined, origin(ORDER))
   assert.equal(held.creditStatus, 'held')
@@ -109,21 +120,26 @@ test('a hold made in the web shop holds the ERP order with that system as the re
   assert.equal((await holdExternal(cols, order.number, undefined, origin(ORDER))).history.filter((h) => h.status === 'held').length, 1)
   const released = await releaseCredit(cols, order.number, undefined, origin(ORDER))
   assert.equal(released.creditStatus, 'released')
-  assert.deepEqual(await outbound(), [], 'the web shop did both; nothing goes back')
+  const raised = (await pending(cols)).map((e) => [e.type, e.data.CreditBlock, e.data.PrevCreditBlock, e.data.Reason])
+  assert.deepEqual(raised, [['SalesOrder.Changed', true, false, `Put on hold in ${SYSTEM}`], ['SalesOrder.Changed', false, true, null]], 'one hold, one release: the second hold changed nothing')
   // The shop says released about an order the ERP does not hold: nothing to do, not an error.
   assert.equal((await releaseCredit(cols, order.number, undefined, origin(ORDER))).creditStatus, 'released')
   await assert.rejects(holdExternal(cols, order.number, undefined, {}), /origin\.system/)
 })
 
-test('the routes: external-shipment and external-invoice answer 201, cancel and credit/hold and credit/release take the origin', async () => {
+test('the routes: external-shipment and external-invoice answer 201 for a new document and 200 for one already recorded, cancel and credit/hold and credit/release take the origin', async () => {
   const created = await invoke(orders, cols, { method: 'POST', body: input })
   const number = created.body.number
   const shipped = await invoke(orders, cols, { method: 'POST', path: `/${number}/external-shipment`, body: { externalReference: 5, lines: [{ customerLineReference: '1', qty: 12 }, { customerLineReference: '2', qty: 4 }], warehouse: 'default', ...origin(SHIPMENT) } })
   assert.equal(shipped.statusCode, 201)
   assert.equal(shipped.body.shipments[0].warehouse, 'default')
+  const shippedAgain = await invoke(orders, cols, { method: 'POST', path: `/${number}/external-shipment`, body: { externalReference: 5, lines: [{ customerLineReference: '1', qty: 12 }, { customerLineReference: '2', qty: 4 }], warehouse: 'default', ...origin(SHIPMENT) } })
+  assert.equal(shippedAgain.statusCode, 200, 'already recorded: nothing new')
   const invoiced = await invoke(orders, cols, { method: 'POST', path: `/${number}/external-invoice`, body: { externalReference: 9, ...origin(INVOICE) } })
   assert.equal(invoiced.statusCode, 201)
   assert.equal(invoiced.body.invoice.externalReference, '9')
+  const invoicedAgain = await invoke(orders, cols, { method: 'POST', path: `/${number}/external-invoice`, body: { externalReference: 9, ...origin(INVOICE) } })
+  assert.equal(invoicedAgain.statusCode, 200, 'already invoiced: nothing new')
   const second = await invoke(orders, cols, { method: 'POST', body: { ...input, purchaseOrderByCustomer: '43' } })
   const held = await invoke(orders, cols, { method: 'POST', path: `/${second.body.number}/credit/hold`, body: { reason: 'Payment review', ...origin(ORDER) } })
   assert.equal(held.statusCode, 200)
@@ -132,7 +148,7 @@ test('the routes: external-shipment and external-invoice answer 201, cancel and 
   assert.equal(released.body.credit.status, 'released')
   const cancelled = await invoke(orders, cols, { method: 'POST', path: `/${second.body.number}/cancel`, body: { reason: SHOP_CANCEL, ...origin(ORDER) } })
   assert.equal(cancelled.body.status, 'canceled')
-  assert.deepEqual(await outbound(), [])
+  assert.deepEqual(await outbound(), ['OutboundDelivery.GoodsIssueStatusChanged', 'BillingDocument.Created', 'SalesOrder.Changed', 'SalesOrder.Changed', 'SalesOrder.Changed'])
 })
 
 test("the ERP's own shipment, shipped in the web shop by the integration, comes back as an external shipment and is matched, not shipped twice", async () => {
@@ -147,24 +163,28 @@ test("the ERP's own shipment, shipped in the web shop by the integration, comes 
   assert.equal(matched.shipments[0].number, posted.shipments[0].number)
   assert.equal(matched.shipments[0].externalReference, '900')
   assert.deepEqual(matched.lines.map((l) => l.shippedQty), [5, 0], 'nothing shipped twice')
+  assert.deepEqual(await outbound(), ['SalesOrder.Changed', 'OutboundDelivery.GoodsIssueStatusChanged'], 'nothing new, so nothing raised')
+  const back = await invoke(orders, cols, { method: 'POST', path: `/${order.number}/external-shipment`, body: { externalReference: '900', lines: [{ customerLineReference: '1', qty: 5 }], warehouse: 'east', ...origin(SHIPMENT) } })
+  assert.equal(back.statusCode, 200, 'the route says nothing new was recorded')
   // A genuinely new shipment from the shop for the rest is still recorded.
   const more = await receiveExternalShipment(cols, order.number, { externalReference: '901', lines: [{ customerLineReference: '1', qty: 7 }, { customerLineReference: '2', qty: 4 }], ...origin(SHIPMENT) })
   assert.equal(more.shipments.length, 2)
   assert.deepEqual(more.lines.map((l) => l.shippedQty), [12, 4])
+  assert.equal((await outbound()).length, 3, 'the new one raises its goods issue')
   assert.equal((await recent(cols)).find((e) => e.direction === 'in' && /is ERP shipment/.test(e.summary)).summary, `Shipment 900 in ${SYSTEM} is ERP shipment ${posted.shipments[0].number} on sales order ${order.number}; nothing shipped twice`)
 })
 
 /* Goods issue (AB-63): a shipment made in the web shop takes the ERP's stock down once. */
 const onHand = async (sku) => Object.fromEntries((await getProduct(cols, sku)).warehouses.map((w) => [w.code, w.quantity]))
 
-test('a shipment posted in the web shop takes the stock out of the plant it names, once: a redelivery takes nothing more, and no stock event goes back', async () => {
+test('a shipment posted in the web shop takes the stock out of the plant it names, once: a redelivery takes nothing more, and no stock event goes out (the goods issue says what left)', async () => {
   const order = await createOrder(cols, input)
   const body = { externalReference: '501', lines: [{ customerLineReference: '1', qty: 5 }], warehouse: 'east', ...origin(SHIPMENT) }
   await receiveExternalShipment(cols, order.number, body)
   assert.deepEqual(await onHand('A1'), { default: 50, east: 15 })
   await receiveExternalShipment(cols, order.number, body)
   assert.deepEqual(await onHand('A1'), { default: 50, east: 15 }, 'the same external reference again moves nothing')
-  assert.deepEqual(await outbound(), [])
+  assert.deepEqual(await outbound(), ['OutboundDelivery.GoodsIssueStatusChanged'])
 })
 
 test("the ERP's own shipment coming back from the web shop takes no stock a second time", async () => {
@@ -193,4 +213,12 @@ test('a web shop shipment of more than the ERP has on hand is still recorded (th
   assert.deepEqual(await onHand('C3'), { default: 0 })
   const [entry] = await recent(cols)
   assert.equal(entry.summary, `Goods issue posted from ${SYSTEM}: shipment ${next.shipments[0].number} for sales order ${order.number} (5 shipped from default). On hand was short: C3 had 3 EA in default, 2 fewer than shipped.`)
+})
+
+test('the contract says so from version 19: an external move raises its event, and the two document routes answer 201 or 200', () => {
+  const contract = require('../contract/erp-contract.json')
+  assert.ok(contract.contractVersion >= 19)
+  assert.match(contract.order.external.note, /version 19/)
+  assert.match(contract.order.external.note, /raises its outbound event for such a move exactly as for its own/)
+  assert.match(contract.order.external.note, /201 when they record a new document and 200 when it was already recorded/)
 })

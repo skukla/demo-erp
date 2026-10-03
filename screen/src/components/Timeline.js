@@ -27,7 +27,14 @@ export function momentsOf (order) {
   for (const h of order.history || []) {
     if (!h.at) continue
     const what = MOVES[h.status] || h.status
-    moments.push({ at: h.at, text: h.reason ? `${what} — ${h.reason}` : what })
+    // Repeat order: the move names the other order, which opens.
+    const other = h.order || h.repeatOf
+    if (other) {
+      moments.push({ at: h.at, text: h.order ? `Repeated as sales order ${other}` : `Created — repeat of sales order ${other}`, link: { kind: 'order', number: other } })
+      continue
+    }
+    const said = h.reason ? `${what} — ${h.reason}` : what
+    moments.push({ at: h.at, text: h.note ? `${said}. ${h.note}` : said })
   }
   for (const s of order.shipments || []) {
     moments.push({ at: s.createdAt, text: `Shipment ${s.number} created`, link: { kind: 'shipment', number: s.number } })

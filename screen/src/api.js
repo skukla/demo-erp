@@ -59,6 +59,8 @@ export function makeApi (screenKey, base = screenBase()) {
     order: (number) => call('orders', { path: `/${number}` }),
     confirmOrder: (number) => call('orders', { method: 'POST', path: `/${number}/confirm` }),
     cancelOrder: (number, reason) => call('orders', { method: 'POST', path: `/${number}/cancel`, body: { reason } }),
+    // A canceled order, again: answers the NEW order's document (lib/repeat-order).
+    repeatOrder: (number) => call('orders', { method: 'POST', path: `/${number}/repeat` }),
     createShipment: (number, body) => call('orders', { method: 'POST', path: `/${number}/shipments`, body }),
     postShipment: (number, shipment) => call('orders', { method: 'POST', path: `/${number}/shipments/${shipment}/post` }),
     closeLine: (number, item, reason) => call('orders', { method: 'POST', path: `/${number}/lines/${item}/close`, body: { reason } }),

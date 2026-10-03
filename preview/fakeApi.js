@@ -546,7 +546,8 @@ function abilities (o) {
     invoice: live && open === 0 && shipped > 0,
     cancel: o.header !== 'canceled' && !o.invoice && shipped === 0,
     release: held,
-    reject: held
+    reject: held,
+    repeat: o.header === 'canceled' && !o.repeatedAs
   }
 }
 const productOf = (sku) => products.find((p) => p.sku === sku)
@@ -867,6 +868,18 @@ export const fakeApi = {
     o.cancelReason = reason
     o.history.push({ status: 'canceled', at: new Date().toISOString(), reason })
     return copy(describe(o))
+  },
+  // lib/repeat-order: a new order with the canceled one's lines, no customer reference.
+  repeatOrder: async (number) => {
+    await wait()
+    const o = orderOf(number)
+    if (o.header !== 'canceled' || o.repeatedAs) fail(`Sales order ${number} cannot be repeated.`)
+    const at = new Date().toISOString()
+    const made = { ...o, number: String(1000 + orders.length).padStart(10, '0'), purchaseOrderByCustomer: null, header: 'created', cancelReason: undefined, repeatOf: number, repeatedAs: null, shipments: [], invoice: null, creditMemos: [], lines: o.lines.map((l) => ({ ...l, customerLineReference: null, shippedQty: 0, closedQty: 0 })), history: [{ status: 'created', at, repeatOf: number }], createdAt: at }
+    orders.push(made)
+    o.repeatedAs = made.number
+    o.history.push({ status: 'repeated', at, order: made.number })
+    return copy(describe(made))
   },
   createShipment: async (number, { lines, warehouse }) => {
     await wait()

@@ -63,6 +63,8 @@
     "partnerId",
     "payment",
     "purchaseOrderByCustomer",
+    "repeatOf",
+    "repeatedAs",
     "salesOrg",
     "salesOrgName",
     "shipments",

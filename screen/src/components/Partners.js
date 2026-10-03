@@ -35,14 +35,18 @@ const MONEY = moneyOptions()
 /* A credit limit with no exposure beside it says nothing (UI audit §Customers): Exposure
    and Available joined the list, and the Commerce company id moved to the document, where
    it is one fact among the customer's identity. Eight columns fit a 1,440px window. */
+/* Credit limit 180 and Available 150, not 140 and 130: a cell is its width less 32 px of
+   Spectrum's padding, and a cell clips what does not fit with "…" (AB-65). The credit limit's
+   edit button for USD 120,000.00 is 131 px and was cut mid-digit; USD 118,713.60 available
+   read "USD 118,71…". Name gives up the 60 px (its minimum 160, not 180: a long name wraps). */
 const PARTNER_COLUMNS = [
   { key: 'id', width: 120 },
-  { key: 'name', width: '2fr', minWidth: 180 },
+  { key: 'name', width: '2fr', minWidth: 160 },
   { key: 'salesOrgs', width: '1fr', minWidth: 140 },
   { key: 'terms', width: 110 },
-  { key: 'creditLimit', width: 140 },
+  { key: 'creditLimit', width: 180 },
   { key: 'exposure', width: 130 },
-  { key: 'available', width: 130 },
+  { key: 'available', width: 150 },
   { key: 'blocking', width: 165 }
 ]
 

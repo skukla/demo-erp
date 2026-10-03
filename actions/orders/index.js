@@ -16,10 +16,14 @@
  * POST orders/:number/credit/release            let a held order proceed
  * POST orders/:number/credit/reject             cancel a held order, reason "Credit rejected"
  * POST orders/:number/credit/hold               { reason?, origin }  an order put On Hold in the web shop is held here too
+ * POST orders/:number/repeat                    a canceled order, again: a NEW order with its lines, answered (201;
+ *                                               lib/repeat-order)
  *
  * A move made in another system (the web shop) carries `origin: { system, document?, eventId? }`:
- * the ERP records it, journals it as received, and raises no outbound event for it (that
- * system already has it):
+ * the ERP records it, journals it as received, and raises its outbound event for it as for its
+ * own (contract version 19: telling an echo is the subscriber's). The two that may make a
+ * document answer 201 when they record a new one and 200 when it was already recorded (a
+ * redelivery, or the ERP's own shipment coming back):
  * POST orders/:number/external-shipment         { externalReference, lines:[{ customerLineReference, qty }], warehouse?, origin }
  * POST orders/:number/external-invoice          { externalReference?, origin }
  * POST orders/:number/cancel                    { reason: "Canceled in the web shop", origin }
@@ -33,6 +37,7 @@ const { notFound, badRequest } = require('../../lib/errors')
 const { createOrder, findByReference, listOrders, getOrder, describeOrder, shippingStatus, billingStatus, overallStatus } = require('../../lib/orders')
 const { confirmOrder, cancelOrder, createShipment, postShipment, closeRemaining, createInvoice, setStatus, releaseCredit, rejectCredit, receiveExternalShipment, holdExternal } = require('../../lib/fulfilment')
 const { creditInvoice } = require('../../lib/credit-memos')
+const { repeatOrder } = require('../../lib/repeat-order')
 const { listPartners } = require('../../lib/partners')
 const { journalOrder } = require('../../lib/inbound')
 
@@ -62,6 +67,7 @@ async function move (cols, number, segments, body, params) {
   if (verb === 'cancel') return cancelOrder(cols, number, body.reason, params, origin)
   if (verb === 'invoice') return createInvoice(cols, number, params)
   if (verb === 'credit-memo') return creditInvoice(cols, number, params)
+  if (verb === 'repeat') return repeatOrder(cols, number, params)
   if (verb === 'external-shipment') return receiveExternalShipment(cols, number, body, params)
   if (verb === 'external-invoice') return createInvoice(cols, number, params, { ...origin, externalReference: body.externalReference })
   if (verb === 'shipments' && !id) return createShipment(cols, number, body, params)
@@ -80,7 +86,10 @@ async function move (cols, number, segments, body, params) {
 }
 
 /** The moves that make a document answer 201. */
-const CREATES = new Set(['shipments', 'invoice', 'external-shipment', 'external-invoice', 'credit-memo'])
+const CREATES = new Set(['shipments', 'invoice', 'credit-memo', 'repeat'])
+
+/** The moves from another system that make a document only when it is not recorded yet. */
+const RECORDS = { 'external-shipment': (o) => o.shipments.length, 'external-invoice': (o) => (o.invoice ? 1 : 0) }
 
 async function handler ({ cols, method, segments, body, params }) {
   const number = segments[0] || null
@@ -103,9 +112,13 @@ async function handler ({ cols, method, segments, body, params }) {
     return ok(order, existed ? 200 : 201)
   }
   if (method === 'POST' && segments[1]) {
+    const counted = segments.length === 2 ? RECORDS[segments[1]] : undefined
+    const before = counted ? await getOrder(cols, number) : null
     const order = await move(cols, number, segments, body || {}, params)
     if (order === undefined) return undefined
-    const created = CREATES.has(segments[1]) && segments.length === 2
+    const created = counted
+      ? Boolean(before) && counted(order) > counted(before)
+      : CREATES.has(segments[1]) && segments.length === 2
     return ok(await describeOrder(cols, order), created ? 201 : 200)
   }
 }

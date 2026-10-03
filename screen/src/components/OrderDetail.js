@@ -26,7 +26,7 @@ import { useLoad } from './useLoad'
 import { useDocumentAction } from './useDocumentAction'
 
 /** Cancel: pick a reason, then confirm. The dialog is the only way to reach it. */
-function CancelOrder ({ reasons, onCancel, isDisabled }) {
+function CancelOrder ({ reasons, onCancel, isDisabled, paidByCard }) {
   const [reason, setReason] = useState(reasons[0])
   return (
     <DialogTrigger>
@@ -40,6 +40,8 @@ function CancelOrder ({ reasons, onCancel, isDisabled }) {
               The order stays on record, canceled. It cannot be
               reopened — an order that should run again is placed again.
             </Text>
+            {/* Paid at checkout (AB-26s, flow 1): the web shop owns the gateway and the refund. */}
+            {paidByCard && <Text UNSAFE_className='erp-subtle'> It was paid by card in the web shop: the card payment is refunded there, not by the ERP.</Text>}
             <Picker
               label='Reason'
               items={reasons.map((r) => ({ id: r }))}
@@ -92,8 +94,10 @@ export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', 
           {can.ship && <CreateShipment key={order.shipments.length} order={order} isDisabled={busy} onCreate={(body) => act(() => api.createShipment(number, body), 'Shipment created — post it to ship the goods')} />}
           {can.invoice && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.createInvoice(number), 'Invoice created')}>Create invoice</Button>}
           {can.cancel && (
-            <CancelOrder reasons={order.cancelReasons} isDisabled={busy} onCancel={(reason) => act(() => api.cancelOrder(number, reason), 'Order canceled')} />
+            <CancelOrder reasons={order.cancelReasons} paidByCard={Boolean(order.payment)} isDisabled={busy} onCancel={(reason) => act(() => api.cancelOrder(number, reason), 'Order canceled')} />
           )}
+          {/* A canceled order is terminal (owner O4); the way back is a new order with its lines. */}
+          {can.repeat && <Button variant='accent' isDisabled={busy} onPress={() => act(async () => { const made = await api.repeatOrder(number); if (onOpen) onOpen('order', made.number) }, 'Order repeated')}>Repeat order</Button>}
         </>
       )}
     >

@@ -44,6 +44,10 @@ const OVERALL = { Open: 'neutral', 'In process': 'info', Completed: 'positive', 
 /* SAP's three credit states on a document. Absent for a customer with no credit. */
 const CREDIT = { approved: ['Approved', 'positive'], held: ['On credit hold', 'negative'], released: ['Released', 'info'] }
 
+function orderLink (number, onOpen) {
+  return onOpen ? <button type='button' className='erp-link' onClick={() => onOpen('order', number)}>{number}</button> : number
+}
+
 function Status ({ variant, children }) {
   return <StatusLight variant={variant} marginStart='size-0'>{children}</StatusLight>
 }
@@ -92,6 +96,13 @@ export default function OrderHeader ({ order, onOpen }) {
         {/* Paid at checkout (contract version 18): the web shop's payment reference, never a card number. */}
         {order.payment && <Field label='Payment'>{paidAtCheckoutText(order.payment)}</Field>}
         {order.cancelReason && <Field label='Cancellation reason'>{order.cancelReason}</Field>}
+        {/* Repeat order (contract version 19): each order names the other. */}
+        {order.repeatOf && <Field label='Repeat of'>{orderLink(order.repeatOf, onOpen)}</Field>}
+        {order.status === 'canceled' && (
+          <Field label='Repeated as'>
+            {order.repeatedAs ? orderLink(order.repeatedAs, onOpen) : <Text UNSAFE_className='erp-subtle'>A canceled order cannot be reinstated. Repeat order places it again.</Text>}
+          </Field>
+        )}
       </Grid>
     </Card>
   )
