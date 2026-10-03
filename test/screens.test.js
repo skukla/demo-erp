@@ -511,14 +511,24 @@ async function sideways (grid) {
     .filter((over) => over > 1))
 }
 
-/* The column headings of a grid that do not fit: a heading's text is cut with "…" (AB-65). */
+/* The column headings of a grid that do not fit: a heading's text is cut with "…" (AB-65).
+   Measured in fractions of a pixel too: scrollWidth and clientWidth are whole pixels, and
+   "Sales org" ran 0.45 px past its 69 px box — both read 69, and the screen said "SALES O…"
+   (2026-10-03). The browser cuts a whole run of letters for any overflow at all. */
 async function cutHeaders (grid) {
   return grid.evaluate((el) => [...el.querySelectorAll('[role="columnheader"]')]
     .map((h) => ({
       text: h.innerText.trim(),
       over: Math.max(0, ...[...h.querySelectorAll('*')]
         .filter((n) => getComputedStyle(n).textOverflow === 'ellipsis')
-        .map((n) => n.scrollWidth - n.clientWidth))
+        .map((n) => {
+          const range = document.createRange()
+          range.selectNodeContents(n)
+          const cs = getComputedStyle(n)
+          const room = n.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+          const past = Math.round((range.getBoundingClientRect().width - room) * 100) / 100
+          return Math.max(n.scrollWidth - n.clientWidth, past)
+        }))
     }))
     .filter((h) => h.over > 0))
 }
@@ -648,6 +658,32 @@ test('sales organizations: every Edit button fits its cell', async () => {
     await context.close()
   }
 })
+
+/* The two lists the 2026-10-03 grid audit left over, at the 1,440 px window: Products
+   scrolled 31 px sideways with its shares already at their minimums; Pricing cut its
+   "Sales org" heading by 20 px, "Min. qty" by 3, an amount by 3 and its Remove button by 31. */
+const LIST_GRIDS = [
+  ['products', 'Products', []],
+  ['pricing', 'Pricing rules', ['']]
+]
+for (const [hash, name, fixed] of LIST_GRIDS) {
+  test(`${hash}: every heading and cell fits, and the list does not scroll sideways`, async () => {
+    const { page, context, problems } = await open(hash)
+    try {
+      const grid = page.getByRole('grid', { name })
+      await grid.waitFor()
+      const cells = await grid.locator('[role="gridcell"], [role="rowheader"]').count()
+      assert.ok(cells > 0, `${hash} has cells to look at`)
+      assert.deepEqual(await cutHeaders(grid), [], 'every heading fits')
+      assert.deepEqual(await cutCells(grid), [], 'every cell fits')
+      assert.deepEqual(await sideways(grid), [], 'the columns fit the table')
+      assert.deepEqual(await fixedHeadings(grid), fixed, 'every column but a button can be dragged')
+      assert.deepEqual(problems, [], `${hash} console`)
+    } finally {
+      await context.close()
+    }
+  })
+}
 
 test('sales organizations: add one, and a code already there is refused in the dialog', async () => {
   const { page, context, problems } = await open('settings')

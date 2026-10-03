@@ -82,8 +82,11 @@ export const GRID_COLUMNS = {
     { key: 'sku', width: 150, holds: 'key' },
     // Room for a product name to read whole, even as an edit button.
     { key: 'name', width: '2fr', minWidth: 220, holds: 'text' },
-    // "Configurable · 16 variants" is the longest thing this column holds.
-    { key: 'kind', width: '1fr', minWidth: 175, holds: 'text' },
+    /* "Configurable · 16 variants" is the longest thing this column holds, and it wraps after
+       the "·" (it needed 198 px on one line and wrapped at 175 too). 135 holds "Configurable ·",
+       and is what lets the eight columns fit the 1,164 px a 1,440 px window gives the list: at
+       175 they scrolled 31 px sideways (measured 2026-10-03). */
+    { key: 'kind', width: '1fr', minWidth: 135, holds: 'text' },
     /* Wider than the words need: the headings are set in uppercase with letter-spacing,
        which costs about a quarter again on a short one. "Base unit" was clipping. */
     { key: 'unit', width: 115, holds: 'text' },
@@ -181,19 +184,27 @@ export const GRID_COLUMNS = {
     // The quiet Remove button was cut at 100 (measured 2026-10-03).
     { key: 'remove', width: 122, holds: 'action' }
   ],
-  /* Fixed columns add up to 590px and the three flexible ones need 480px more, so the
-     grid fits the 1,170px content area at a 1,440px window without a horizontal scroll
-     (the Remove column was clipped at 1,220px, measured 2026-09-24). */
+  /* A 1,440px window gives the list 1,164 px. With the resize chevron, "Sales org" was cut
+     by 20 px, "Min. qty" by 3, an agreed price by 3 and the Remove button by 31 (measured
+     2026-10-03), so those four grew by 93 px: 53 of the 59 the shares had above their
+     minimums, and 40 from Rule, Product and Valid (Customer's minimum rose 10 to hold
+     "Northwind Trading" on one line). Each of those was wrapping onto two lines already, and
+     each still breaks where it did: Rule's minimum holds "discount · CD01", Customer's
+     "Northwind Trading", Product's "All products", Valid's 150 "Sep 1, 2026 →". The columns'
+     minimums add up to 1,158 px. */
   pricing: [
-    { key: 'rule', width: '1fr', minWidth: 170, holds: 'text' },
-    { key: 'customer', width: '1fr', minWidth: 150, holds: 'text' },
-    { key: 'product', width: '1fr', minWidth: 130, holds: 'text' },
-    { key: 'scope', width: 95, holds: 'key' },
-    { key: 'amount', width: 100, holds: 'amount' },
-    { key: 'minQty', width: 90, holds: 'quantity' },
-    { key: 'validity', width: 170, holds: 'text' },
+    { key: 'rule', width: '1fr', minWidth: 150, holds: 'text' },
+    { key: 'customer', width: '1fr', minWidth: 160, holds: 'text' },
+    { key: 'product', width: '1fr', minWidth: 120, holds: 'text' },
+    // Its heading and chevron need 115.5; a drag narrower would cut it again.
+    { key: 'scope', width: 118, minWidth: 118, holds: 'key' },
+    // An agreed price of four figures, "USD 1,250.00", on one line.
+    { key: 'amount', width: 134, holds: 'amount' },
+    { key: 'minQty', width: 94, minWidth: 94, holds: 'quantity' },
+    { key: 'validity', width: 150, holds: 'text' },
     { key: 'status', width: 110, holds: 'status' },
-    { key: 'remove', width: 90, holds: 'action' }
+    // The quiet Remove button, as on Price Groups.
+    { key: 'remove', width: 122, holds: 'action' }
   ],
   events: [
     { key: 'at', width: 200, holds: 'date' },
