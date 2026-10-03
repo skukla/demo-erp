@@ -10,6 +10,7 @@ import Field from './Field'
 import { useLoad } from './useLoad'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
+import { paymentReferenceText } from './paymentFormat'
 
 /** A document number that opens it. */
 function documentLink (kind, number, onOpen) {
@@ -38,7 +39,7 @@ export default function PaymentDetail ({ api, number, backLabel = 'Payments', on
             <Field label='Invoice'>{documentLink('invoice', payment.invoiceNumber, onOpen)}</Field>
             <Field label='Sales order'>{documentLink('order', payment.orderNumber, onOpen)}</Field>
             <Field label='Customer'>{documentLink('customer', payment.partnerId, onOpen)}</Field>
-            <Field label='Reference'>{payment.reference || '—'}</Field>
+            <Field label='Reference'>{paymentReferenceText(payment)}</Field>
             <Field label='Currency'>{payment.currency || 'USD'}</Field>
           </Grid>
         </Card>

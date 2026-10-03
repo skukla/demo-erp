@@ -202,7 +202,8 @@ seedInvoice(orders[8], '9000000002', day(14))
   orders[8].history.push({ status: 'invoiced', at: day(14) }, { status: 'credited', at: day(15), creditMemo: memo.number })
 }
 
-/* Order 1009: shipped, invoiced as 9000000003 and paid in full by payment 7000000002. Its
+/* Order 1009: paid by card at checkout (contract version 18), shipped, invoiced as 9000000003
+   and paid in full by payment 7000000002, which the ERP posted with the invoice. Its
    lines are two sellable products (the index would have picked P000010, which is blocked
    for sales and could not have shipped). */
 orders[9].lines = [
@@ -212,14 +213,15 @@ orders[9].lines = [
 ]
 orders[9].total = cents(orders[9].lines.reduce((sum, l) => sum + lineNet(l), 0) * 1.0825)
 seedShipment(orders[9], '8000000007', orders[9].lines.map((l) => ({ item: l.item, qty: l.qty })), 'default', true)
+orders[9].payment = { method: 'Credit card', reference: '8FK21345TX901234A', cardBrand: 'Visa', cardLastFour: '4242', amount: orders[9].total }
 seedInvoice(orders[9], '9000000003', day(16))
 orders[9].history.push({ status: 'invoiced', at: day(16) })
 
 /* Incoming payments (lib/payments): 7000000001 pays part of invoice 9000000001, so it reads
-   partly paid; 7000000002 pays invoice 9000000003 in full. */
+   partly paid; 7000000002 is the card payment of order 1009, posted with invoice 9000000003. */
 const payments = [
-  { number: '7000000001', createdAt: day(17), partnerId: orders[2].partnerId, orderNumber: orders[2].number, invoiceNumber: '9000000001', amount: 100, currency: orders[2].currency, reference: 'Wire 2026-0917' },
-  { number: '7000000002', createdAt: day(18), partnerId: orders[9].partnerId, orderNumber: orders[9].number, invoiceNumber: '9000000003', amount: orders[9].invoice.total, currency: orders[9].currency, reference: 'Check 1042' }
+  { number: '7000000001', createdAt: day(17), partnerId: orders[2].partnerId, orderNumber: orders[2].number, invoiceNumber: '9000000001', amount: 100, currency: orders[2].currency, reference: 'Wire 2026-0917', paidInWebShop: null },
+  { number: '7000000002', createdAt: day(18), partnerId: orders[9].partnerId, orderNumber: orders[9].number, invoiceNumber: '9000000003', amount: orders[9].invoice.total, currency: orders[9].currency, reference: orders[9].payment.reference, paidInWebShop: { method: 'Credit card', cardBrand: 'Visa', cardLastFour: '4242' } }
 ]
 
 /* Return orders (lib/returns), all on sales order 1002: 6000000001 received and credited by
@@ -279,7 +281,7 @@ const events = [
   { _id: 'e5', at: new Date(Date.UTC(2026, 8, 22, 12, 5)).toISOString(), direction: 'in', origin: { system: 'Adobe Commerce', document: 'company 9' }, summary: 'Customer C000103 blocked', value: { blocked: true } },
   { _id: 'e6', at: new Date(Date.UTC(2026, 8, 22, 11, 45)).toISOString(), direction: 'out', type: 'OutboundDelivery.GoodsIssueStatusChanged', data: { OutboundDelivery: '8000000002', SalesOrder: '0000001002', Plant: 'default', Items: [{ Quantity: 3 }, { Quantity: 2 }] }, delivered: true, attempts: 1 },
   { _id: 'e7', at: new Date(Date.UTC(2026, 8, 22, 11, 30)).toISOString(), direction: 'out', type: 'CustomerReturn.Changed', data: { CustomerReturn: '6000000002', SalesOrder: '0000001002', Status: 'received', PrevStatus: 'open', Items: [{ Quantity: 1 }] }, delivered: true, attempts: 1 },
-  { _id: 'e9', at: new Date(Date.UTC(2026, 8, 22, 11, 20)).toISOString(), direction: 'out', type: 'IncomingPayment.Posted', data: { Payment: '7000000002', BillingDocument: '9000000003', SalesOrder: '0000001009', Amount: orders[9].invoice.total, Currency: 'USD', Customer: 'C000102', PaymentReference: 'Check 1042' }, delivered: true, attempts: 1 },
+  { _id: 'e9', at: new Date(Date.UTC(2026, 8, 22, 11, 20)).toISOString(), direction: 'out', type: 'IncomingPayment.Posted', data: { Payment: '7000000001', BillingDocument: '9000000001', SalesOrder: orders[2].number, Amount: 100, Currency: orders[2].currency, Customer: orders[2].partnerId, PaymentReference: 'Wire 2026-0917' }, delivered: true, attempts: 1 },
   { _id: 'e8', at: new Date(Date.UTC(2026, 8, 22, 11, 15)).toISOString(), direction: 'out', type: 'BillingDocument.Created', data: { BillingDocument: '9500000001', BillingDocumentType: 'CreditMemo', SalesOrder: '0000001002', CustomerReturn: '6000000001' }, delivered: true, attempts: 1 }
 ]
 
@@ -622,6 +624,7 @@ function describeInvoice (order, inv) {
   return {
     ...inv,
     ...openItem(order),
+    payment: order.payment ?? null,
     orderNumber: order.number,
     purchaseOrderByCustomer: order.purchaseOrderByCustomer,
     currency: order.currency,
@@ -1038,7 +1041,7 @@ export const fakeApi = {
     const figure = (v) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
     if (amount > item.openAmount) fail(`Invoice ${invoiceNumber} has ${figure(item.openAmount)} open; a payment of ${figure(amount)} is more than that.`)
     const reference = body.reference === undefined || body.reference === null ? null : (String(body.reference).trim() || null)
-    const payment = { number: String(nextPayment++), createdAt: new Date().toISOString(), partnerId: o.partnerId, orderNumber: o.number, invoiceNumber, amount, currency: o.currency || 'USD', reference }
+    const payment = { number: String(nextPayment++), createdAt: new Date().toISOString(), partnerId: o.partnerId, orderNumber: o.number, invoiceNumber, amount, currency: o.currency || 'USD', reference, paidInWebShop: null }
     payments.push(payment)
     return copy(payment)
   },

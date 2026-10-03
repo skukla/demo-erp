@@ -11,6 +11,7 @@ import { useGridView, GridSearch } from './GridView'
 import { useTrail, OpenDocument, useOpenFromQuery } from './Documents'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
+import { paymentReferenceText } from './paymentFormat'
 
 const PAYMENT_COLUMNS = [
   { key: 'number', width: 165 },
@@ -25,7 +26,7 @@ const PAYMENT_COLUMNS = [
 const soldTo = (p) => (p.partnerName ? `${p.partnerId} · ${p.partnerName}` : (p.partnerId || '—'))
 
 const PAYMENT_GRID = {
-  fields: [(p) => p.number, (p) => p.invoiceNumber, (p) => p.orderNumber, (p) => p.partnerId, (p) => p.partnerName, (p) => p.reference],
+  fields: [(p) => p.number, (p) => p.invoiceNumber, (p) => p.orderNumber, (p) => p.partnerId, (p) => p.partnerName, paymentReferenceText],
   values: {
     number: (p) => p.number,
     date: (p) => Date.parse(p.createdAt) || 0,
@@ -73,7 +74,7 @@ export default function Payments ({ api, query = {}, onChanged, onNavigate }) {
               <Cell>{p.invoiceNumber}</Cell>
               <Cell>{p.orderNumber}</Cell>
               <Cell>{soldTo(p)}</Cell>
-              <Cell>{p.reference || '—'}</Cell>
+              <Cell>{paymentReferenceText(p)}</Cell>
               <Cell>{money(p.amount, p.currency)}</Cell>
             </Row>
           )}

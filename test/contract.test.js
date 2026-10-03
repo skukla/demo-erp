@@ -316,8 +316,8 @@ test('from version 16: the ERP speaks its own language — CloudEvents of its ow
   assert.equal(made.body.lines[0].customerLineReference, '7')
 })
 
-test('the contract is at version 17: the ERP has no product delete, and a line may carry the discount the web shop took off it', async () => {
-  assert.equal(contract.contractVersion, 17)
+test('from version 17: the ERP has no product delete, and a line may carry the discount the web shop took off it', async () => {
+  assert.ok(contract.contractVersion >= 17)
   // AB-26y step 5: a product is not deleted because another system dropped it.
   assert.deepEqual(contract.routes.products, ['GET', 'GET /:sku', 'PATCH /:sku', 'POST /availability'])
   assert.match(contract.productsNote, /version 17/)

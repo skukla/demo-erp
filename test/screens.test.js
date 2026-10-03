@@ -860,12 +860,14 @@ test('a paid invoice offers no payment, and its payment opens as a document of i
   try {
     await headed(page, /^Invoice 9000000003$/, /^Invoices$/)
     assert.ok(!(await actionsOf(page)).includes('Post payment'))
+    // Its order was paid by card at checkout (contract version 18): the invoice says so.
+    assert.match(await page.locator('.erp-content').textContent(), /Paid by card · Visa ending 4242 · reference 8FK21345TX901234A/)
     await page.locator('.erp-doc-open', { hasText: 'Payment 7000000002' }).click()
     await settled(page)
     assert.match((await page.textContent('.erp-content h1')).trim(), /^Payment 7000000002$/)
     const text = await page.locator('.erp-content').textContent()
     assert.match(text, /9000000003/)
-    assert.match(text, /Check 1042/)
+    assert.match(text, /Web shop · Visa ending 4242 · 8FK21345TX901234A/)
     assert.match(text, /USD\s*199\.40/)
     assert.deepEqual(problems, [], 'paid invoice → payment console')
   } finally {
@@ -933,7 +935,7 @@ test('the shell search opens a payment by number, and the sales order shows it i
 test('the journal names a posted payment', async () => {
   const { page, context } = await open('events')
   try {
-    assert.match(await page.locator('.erp-rows-open').textContent(), /Payment 7000000002 of USD 199\.40 against invoice 9000000003 for sales order 0000001009/)
+    assert.match(await page.locator('.erp-rows-open').textContent(), /Payment 7000000001 of EUR 100\.00 against invoice 9000000001 for sales order 0000001002/)
   } finally {
     await context.close()
   }

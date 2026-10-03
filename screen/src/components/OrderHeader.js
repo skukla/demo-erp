@@ -12,6 +12,7 @@ import { Grid, StatusLight, Text } from '@adobe/react-spectrum'
 import Card from './Card'
 import Field from './Field'
 import { formatDate } from '../formatStamp'
+import { paidAtCheckoutText } from './paymentFormat'
 
 /* How an order's status reads and what colour it wears — in ONE place, read by the list,
    the document and the customer's order card. */
@@ -88,6 +89,8 @@ export default function OrderHeader ({ order, onOpen }) {
             {order.credit.reason && <Text UNSAFE_className='erp-subtle'>{order.credit.reason}</Text>}
           </Field>
         )}
+        {/* Paid at checkout (contract version 18): the web shop's payment reference, never a card number. */}
+        {order.payment && <Field label='Payment'>{paidAtCheckoutText(order.payment)}</Field>}
         {order.cancelReason && <Field label='Cancellation reason'>{order.cancelReason}</Field>}
       </Grid>
     </Card>

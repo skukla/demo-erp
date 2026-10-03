@@ -22,7 +22,7 @@ import PostPayment from './PostPayment'
 import { Box } from './RelatedDocuments'
 import { useLoad } from './useLoad'
 import { useDocumentAction } from './useDocumentAction'
-import { paymentStatusText, paymentStatusLight } from './paymentFormat'
+import { paymentStatusText, paymentStatusLight, paidAtCheckoutText } from './paymentFormat'
 import { canCreditInvoice, canPayInvoice } from '../../../lib/return-moves'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
@@ -126,6 +126,8 @@ export default function InvoiceDetail ({ api, number, backLabel = 'Invoices', on
                   and ours had both inputs for. Terms naming no days leave it a dash. */}
               <Field label='Due date'>{invoice.dueDate ? `${formatDate(invoice.dueDate)}${invoice.paymentDays ? ` · ${invoice.paymentDays} days` : ''}` : '—'}</Field>
               <Field label='Currency'>{invoice.currency || 'USD'}</Field>
+              {/* Its order was paid at checkout (contract version 18). */}
+              {invoice.payment && <Field label='Payment'>{paidAtCheckoutText(invoice.payment)}</Field>}
             </Grid>
             {credited && invoice.creditMemo && (
               <View marginTop='size-200'>

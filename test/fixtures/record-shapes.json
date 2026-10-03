@@ -61,6 +61,7 @@
     "lines",
     "number",
     "partnerId",
+    "payment",
     "purchaseOrderByCustomer",
     "salesOrg",
     "salesOrgName",
@@ -177,6 +178,7 @@
     "invoiceNumber",
     "number",
     "orderNumber",
+    "paidInWebShop",
     "partnerId",
     "reference"
   ]
