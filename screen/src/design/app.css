@@ -450,7 +450,8 @@ body,
   border-radius: var(--radius-surface);
 }
 
-/* One row, always: more stages than the window holds scroll sideways inside the band. */
+/* One row, always: stages whose words need more than the band scroll sideways inside it.
+   The stages shrink to their words first (see below), so that is a narrow window's case. */
 .erp-flow-stages {
   display: flex;
   padding: var(--space-3);
@@ -462,9 +463,11 @@ body,
 .erp-flow-stage {
   position: relative;
   display: flex;
-  /* Never narrower than its own words (a date or an amount does not break), and no
-     wider than reads as one strip when the stages are few. */
-  flex: 1 0 calc(var(--space-6) * 4);
+  /* Never narrower than its own words (a date or an amount does not break; a stage's name
+     wraps), and no wider than reads as one strip when the stages are few. It shrinks below
+     128 px toward its words: at 128 each, a returned and credited order's eight stages needed
+     1,162 px and scrolled sideways at a 1,280 px window with the side menu (2026-10-04). */
+  flex: 1 1 calc(var(--space-6) * 4);
   flex-direction: column;
   align-items: center;
   box-sizing: border-box;
@@ -890,10 +893,16 @@ body,
  * here is how narrow a COLUMN may get before the setup forms and tables inside it start
  * wrapping badly — not how wide the window is. The rail takes its own width out of that, so a
  * window-width breakpoint would have to guess at it; this measures the real thing and
- * drops to one column by itself. */
+ * drops to one column by itself.
+ *
+ * 560, not 380: a column of 380 to 490 px left the Number Series and Sales Organizations
+ * tables 440 px for the 510 and 516 their columns need, and cut their headings and Edit
+ * buttons (2026-10-04, at a 1,280 px window). Two columns of 560 and the gap need 1,144 px:
+ * the page has 1,168 at a 1,440 px window with the side menu and 1,094 at 1,366, so Settings
+ * is one column below about 1,420 px with the menu (about 1,210 with the top bar). */
 .erp-settings-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
   gap: var(--space-5);
   /* Start, not stretch: a short column should end where its cards end rather than
      growing a tall empty card to match the one beside it. */

@@ -83,7 +83,9 @@ export default function Pricing ({ api, health, onChanged }) {
     >
       <TableView {...widths.tableProps} aria-label='Pricing rules' density='compact' overflowMode='wrap'>
         <TableHeader>
-          <Column key='rule' {...widths.columnProps('rule')}>Rule</Column>
+          {/* The button first, where the edge never reaches (gridColumns.js); Rule names the row. */}
+          <Column key='remove' {...widths.columnProps('remove')}> </Column>
+          <Column key='rule' {...widths.columnProps('rule')} isRowHeader>Rule</Column>
           <Column key='customer' {...widths.columnProps('customer')}>Customer</Column>
           <Column key='product' {...widths.columnProps('product')}>Product</Column>
           <Column key='scope' {...widths.columnProps('scope')}>Sales org</Column>
@@ -91,11 +93,11 @@ export default function Pricing ({ api, health, onChanged }) {
           <Column key='minQty' {...widths.columnProps('minQty')} align='end'>Min. qty</Column>
           <Column key='validity' {...widths.columnProps('validity')}>Valid</Column>
           <Column key='status' {...widths.columnProps('status')}>Status</Column>
-          <Column key='remove' {...widths.columnProps('remove')}> </Column>
         </TableHeader>
         <TableBody items={shown}>
           {(c) => (
             <Row key={c._id}>
+              <Cell><ActionButton isQuiet onPress={() => remove(c._id)}>Remove</ActionButton></Cell>
               <Cell>{ruleText(c.kind)}</Cell>
               <Cell>{customerText(c, customerNames)}</Cell>
               <Cell>{productText(c)}</Cell>
@@ -104,7 +106,6 @@ export default function Pricing ({ api, health, onChanged }) {
               <Cell>{c.minQty || '—'}</Cell>
               <Cell>{validityText(c)}</Cell>
               <Cell><StatusLight variant={statusOf(c, today).variant}>{statusOf(c, today).text}</StatusLight></Cell>
-              <Cell><ActionButton isQuiet onPress={() => remove(c._id)}>Remove</ActionButton></Cell>
             </Row>
           )}
         </TableBody>

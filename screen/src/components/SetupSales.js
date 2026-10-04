@@ -82,10 +82,12 @@ function form (draft, setDraft) {
         <Picker label='Credit warnings' width='100%' items={CREDIT_WARNING_OPTIONS} selectedKey={draft.creditWarnings} onSelectionChange={set('creditWarnings')} description='What holds a new order for credit.'>
           {(o) => <Item key={o.id}>{o.name}</Item>}
         </Picker>
-        <Picker label='Default return reason' width='100%' items={draft.returnReasons.filter((r) => r.code).map((r) => ({ id: r.code, name: `${r.code} · ${r.description}` }))} selectedKey={draft.defaultReturnReason} onSelectionChange={set('defaultReturnReason')} description='For a return line whose reason matches none.'>
-          {(o) => <Item key={o.id}>{o.name}</Item>}
-        </Picker>
       </Grid>
+      {/* A row of its own: a reason reads "RETURN · Customer return", and in half the card it
+          was cut at a 1,280 px window (2026-10-04). */}
+      <Picker label='Default return reason' width='100%' items={draft.returnReasons.filter((r) => r.code).map((r) => ({ id: r.code, name: `${r.code} · ${r.description}` }))} selectedKey={draft.defaultReturnReason} onSelectionChange={set('defaultReturnReason')} description='For a return line whose reason matches none.'>
+        {(o) => <Item key={o.id}>{o.name}</Item>}
+      </Picker>
       <Flex direction='column' gap='size-50'>
         <Text UNSAFE_className='erp-field-label'>Return reasons</Text>
         <ReasonRows reasons={draft.returnReasons} onChange={set('returnReasons')} />

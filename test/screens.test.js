@@ -81,15 +81,15 @@ after(async () => {
  * A page with a pinned locale and clock, collecting everything the console complains about.
  * `search` is the preview's own query (`?maintenance` opens it inside a maintenance window).
  */
-async function open (hash, search = '') {
-  const context = await browser.newContext({ viewport: VIEWPORT, locale: 'en-US', timezoneId: 'UTC' })
+async function open (hash, search = '', viewport = VIEWPORT) {
+  const context = await browser.newContext({ viewport, locale: 'en-US', timezoneId: 'UTC' })
   const page = await context.newPage()
   const problems = []
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console.error: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
   await page.goto(`${preview.url}${search}#${hash}`)
   // Park the pointer on empty canvas: a header cell under the mouse grows its resizer.
-  await page.mouse.move(VIEWPORT.width - 8, VIEWPORT.height - 8)
+  await page.mouse.move(viewport.width - 8, viewport.height - 8)
   await settled(page)
   return { page, context, problems }
 }
@@ -581,8 +581,8 @@ for (const [number, what, has] of ORDER_LINE_SETS) {
       assert.deepEqual(await sideways(grid), [], 'the columns fit the table')
       assert.equal(await grid.getByRole('button', { name: 'Close remaining' }).count() > 0, Boolean(has.close), 'the Close column is there when it should be')
       assert.equal(await grid.getByRole('columnheader', { name: 'Discount' }).count(), has.discount ? 1 : 0, 'the Discount column is there when it should be')
-      // Only the line number and the Close button stay put; the Close heading is blank.
-      assert.deepEqual(await fixedHeadings(grid), has.close ? ['Item', ''] : ['Item'], 'every other column can be dragged')
+      // Only the line number and the Close button stay put; the Close heading is blank, and first.
+      assert.deepEqual(await fixedHeadings(grid), has.close ? ['', 'Item'] : ['Item'], 'every other column can be dragged')
       assert.deepEqual(problems, [], 'order console')
     } finally {
       await context.close()
@@ -684,6 +684,105 @@ for (const [hash, name, fixed] of LIST_GRIDS) {
     }
   })
 }
+
+/* The narrowest window the screen is set for: 1,280 px with the side menu open (gridColumns.js).
+   The 2026-10-04 button audit found most lists there scrolling sideways and cutting their last
+   heading, a Remove button off every Pricing row, Settings' tables cut in half-width columns,
+   and the sales order's flow strip scrolling. Each page here is looked at whole: every grid on it.
+   Not here, because it still does not fit (test/column-resizing.test.js says why): a sales
+   order's lines with both a discount and a line still to close (0000001003). */
+const NARROW = { width: 1280, height: 900 }
+const NARROW_PAGES = [
+  'orders', 'shipments', 'invoices', 'returns', 'creditMemos', 'payments', 'products', 'warehouses',
+  'contracts', 'priceGroups', 'pricing', 'events', 'settings', 'partners',
+  'orders?open=0000001001', 'orders?open=0000001002', 'orders?open=0000001009', 'invoices?open=9000000001',
+  'creditMemos?open=9500000002', 'partners?open=C000103', 'contracts?open=4000000003'
+]
+for (const hash of NARROW_PAGES) {
+  test(`at 1,280 px with the side menu, ${hash}: every grid fits, no heading or cell is cut`, async () => {
+    const { page, context, problems } = await open(hash, '', NARROW)
+    try {
+      await page.waitForTimeout(300)
+      const grids = page.getByRole('grid')
+      const count = await grids.count()
+      assert.ok(count > 0, `${hash} has a grid to look at`)
+      for (let i = 0; i < count; i++) {
+        const grid = grids.nth(i)
+        const name = await grid.getAttribute('aria-label')
+        assert.deepEqual(await sideways(grid), [], `${name}: the columns fit the table`)
+        assert.deepEqual(await cutHeaders(grid), [], `${name}: every heading fits`)
+        assert.deepEqual(await cutCells(grid), [], `${name}: every cell fits`)
+      }
+      assert.deepEqual(problems, [], `${hash} console`)
+    } finally {
+      await context.close()
+    }
+  })
+}
+
+/* Where a button column is: first, so a grid wider than its window still shows it. */
+async function firstColumnButtons (grid) {
+  return grid.evaluate((el) => {
+    const first = [...el.querySelectorAll('[role="row"]')].map((row) => row.querySelector('[role="gridcell"], [role="rowheader"]')).filter(Boolean)
+    const box = el.getBoundingClientRect()
+    return first.map((cell) => cell.querySelector('button')).filter(Boolean)
+      .map((b) => ({ text: b.textContent.trim(), inside: b.getBoundingClientRect().right <= box.right && b.getBoundingClientRect().left >= box.left }))
+  })
+}
+
+test('at 1,280 px, a button column is the first in its row and in sight: Remove, Edit, Close', async () => {
+  for (const [hash, name, button] of [
+    ['pricing', 'Pricing rules', 'Remove'],
+    ['priceGroups', 'Price groups', 'Remove'],
+    ['contracts?open=4000000003', 'Price list lines', 'Remove'],
+    ['settings', 'Sales organizations', 'Edit'],
+    // Its lines still need more than the card (column-resizing.test.js): the button shows anyway.
+    ['orders?open=0000001003', 'Order lines', 'Close']
+  ]) {
+    const { page, context, problems } = await open(hash, '', NARROW)
+    try {
+      const grid = page.getByRole('grid', { name })
+      await grid.waitFor()
+      const buttons = await firstColumnButtons(grid)
+      assert.ok(buttons.length > 0, `${name}: its first column holds buttons`)
+      assert.deepEqual(buttons.filter((b) => b.text !== button || !b.inside), [], `${name}: every ${button} is first and in sight`)
+      assert.deepEqual(problems, [], `${hash} console`)
+    } finally {
+      await context.close()
+    }
+  }
+})
+
+test('settings is one column at 1,280 and 1,366 px with the side menu, two at 1,440', async () => {
+  for (const [width, columns] of [[1280, 1], [1366, 1], [1440, 2]]) {
+    const { page, context } = await open('settings', '', { width, height: 900 })
+    try {
+      const tops = await page.locator('.erp-settings-column').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().left)))
+      assert.equal(new Set(tops).size, columns, `${width} px: ${columns} column(s)`)
+    } finally {
+      await context.close()
+    }
+  }
+})
+
+test('at 1,280 px the default return reason is on a row of its own, and reads whole', async () => {
+  const { page, context, problems } = await open('settings', '', NARROW)
+  try {
+    await page.getByRole('button', { name: 'Edit sales & receivables' }).click()
+    const picker = page.getByRole('button', { name: /Default return reason/ })
+    await picker.waitFor()
+    const measured = await picker.evaluate((b) => {
+      const form = b.closest('.erp-card')
+      const value = [...b.querySelectorAll('span')].find((n) => n.textContent.includes('·'))
+      return { share: b.getBoundingClientRect().width / form.getBoundingClientRect().width, cut: value ? value.scrollWidth - value.clientWidth : -1 }
+    })
+    assert.ok(measured.share > 0.8, `the picker spans the card (${measured.share.toFixed(2)})`)
+    assert.equal(measured.cut, 0, 'the reason is not cut')
+    assert.deepEqual(problems, [], 'settings console')
+  } finally {
+    await context.close()
+  }
+})
 
 test('sales organizations: add one, and a code already there is refused in the dialog', async () => {
   const { page, context, problems } = await open('settings')
@@ -1211,6 +1310,21 @@ test('a return order has its own strip: created, goods received, credited', asyn
     // Post credit memo is a button on this page, so the strip carries no line.
     assert.equal(await flow.locator('.erp-flow-next').count(), 0)
     assert.deepEqual(problems, [], 'return flow console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('at 1,280 px with the side menu, a returned and credited order\'s strip fits its band in one row', async () => {
+  const { page, context } = await open('orders?open=0000001002', '', NARROW)
+  try {
+    await headed(page, /^Sales Order 0000001002$/, /^Sales Orders$/)
+    const measured = await page.evaluate(() => {
+      const strip = document.querySelector('.erp-flow ol')
+      const tops = [...strip.children].map((li) => Math.round(li.getBoundingClientRect().top))
+      return { stages: strip.children.length, rows: new Set(tops).size, stripScrolls: strip.scrollWidth > strip.clientWidth }
+    })
+    assert.deepEqual(measured, { stages: 8, rows: 1, stripScrolls: false })
   } finally {
     await context.close()
   }

@@ -40,22 +40,23 @@ function LinesCard ({ contract, products, busy, onLines }) {
         : (
           <TableView {...widths.tableProps} aria-label='Price list lines' density='compact' overflowMode='wrap'>
             <TableHeader>
-              <Column key='sku' {...widths.columnProps('sku')}>Product</Column>
+              {/* The button first, where the edge never reaches (gridColumns.js); Product names the row. */}
+              <Column key='remove' {...widths.columnProps('remove')}> </Column>
+              <Column key='sku' {...widths.columnProps('sku')} isRowHeader>Product</Column>
               <Column key='kind' {...widths.columnProps('kind')}>Line type</Column>
               <Column key='amount' {...widths.columnProps('amount')} align='end'>Amount</Column>
               <Column key='minQty' {...widths.columnProps('minQty')} align='end'>From quantity</Column>
               <Column key='dates' {...widths.columnProps('dates')}>Dates</Column>
-              <Column key='remove' {...widths.columnProps('remove')}> </Column>
             </TableHeader>
             <TableBody items={lines.map((l, i) => ({ ...l, id: `${i}` }))}>
               {(l) => (
                 <Row key={l.id}>
+                  <Cell>{draft ? <ActionButton isQuiet isDisabled={busy} onPress={() => remove(Number(l.id))}>Remove</ActionButton> : ''}</Cell>
                   <Cell>{l.sku}</Cell>
                   <Cell>{lineKindText(l.kind)}</Cell>
                   <Cell>{lineAmountText(l)}</Cell>
                   <Cell>{l.minQty}</Cell>
                   <Cell>{lineDatesText(l)}</Cell>
-                  <Cell>{draft ? <ActionButton isQuiet isDisabled={busy} onPress={() => remove(Number(l.id))}>Remove</ActionButton> : ''}</Cell>
                 </Row>
               )}
             </TableBody>

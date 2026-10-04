@@ -51,7 +51,7 @@ test('every column says what it holds, and every one that is not fixed-size can 
   const grids = {
     ...GRID_COLUMNS,
     // The two columns a document's lines gain only sometimes, in place.
-    'orderLines+discount+close': [...GRID_COLUMNS.orderLines.slice(0, -1), DISCOUNT_COLUMN, GRID_COLUMNS.orderLines.at(-1), ORDER_LINE_CLOSE]
+    'orderLines+discount+close': [ORDER_LINE_CLOSE, ...GRID_COLUMNS.orderLines.slice(0, -1), DISCOUNT_COLUMN, GRID_COLUMNS.orderLines.at(-1)]
   }
   const wrong = []
   let columns = 0
@@ -82,7 +82,7 @@ const NOT_RESIZABLE = [
 test('exactly the audited columns stay fixed: line numbers, buttons, an input, series bounds, a share at the edge', async () => {
   const { resizes } = await loadWidths()
   const { GRID_COLUMNS, ORDER_LINE_CLOSE } = await loadGrids()
-  const fixed = Object.entries({ ...GRID_COLUMNS, orderLines: [...GRID_COLUMNS.orderLines, ORDER_LINE_CLOSE] })
+  const fixed = Object.entries({ ...GRID_COLUMNS, orderLines: [ORDER_LINE_CLOSE, ...GRID_COLUMNS.orderLines] })
     .flatMap(([grid, set]) => set.filter((c) => !resizes(c, set)).map((c) => `${grid}.${c.key}`))
   assert.deepEqual(fixed.sort(), [...NOT_RESIZABLE].sort())
 })
@@ -91,6 +91,63 @@ test('a grid always has a share column, so it fills its area whatever is dragged
   const { GRID_COLUMNS } = await loadGrids()
   const without = Object.entries(GRID_COLUMNS).filter(([, set]) => !set.some((c) => typeof c.width === 'string')).map(([grid]) => grid)
   assert.deepEqual(without, [])
+})
+
+/* The narrowest a grid can be: its numbers, which hold, and its shares' minimums. */
+const narrowest = (set) => set.reduce((sum, c) => sum + (typeof c.width === 'number' ? c.width : (c.minWidth || 0)), 0)
+
+/* Where each grid is drawn: a list across the page, or a table inside a card (a document's
+   lines, a customer's or a product's tables, a Settings card once Settings is one column). */
+const LISTS = ['orders', 'shipments', 'invoices', 'returns', 'creditMemos', 'payments', 'products', 'contracts', 'priceGroups', 'pricing', 'events', 'warehouseList']
+const IN_CARDS = [
+  'variants', 'warehouses', 'customerOrders', 'customerPricing', 'customerPriceLists', 'openItems',
+  'contractLines', 'orderLines', 'invoiceLines', 'creditMemoLines', 'shipmentLines', 'returnLines',
+  'numberSeries', 'salesOrganizations', 'returnReasons'
+]
+/* What still does not fit a 1,280 px window with the side menu, and why. A sales order's lines
+   with BOTH a discount and a line still to close need 1,054 px: every column is its heading or
+   its widest cell, after the short "Close", "Price" and "Amount" (2026-10-04). Fitting them takes
+   a column fewer, which is the owner's call. A grid leaving this list is a fix, and the list
+   must shrink with it. */
+const TOO_WIDE = {
+  'orderLines+discount+close': 'CARD'
+}
+
+test('every grid fits a 1,280 px window with the side menu: its numbers and its shares\' minimums add up to no more than its table', async () => {
+  const { GRID_COLUMNS, ORDER_LINE_CLOSE, LIST_WIDTH, CARD_TABLE_WIDTH } = await loadGrids()
+  const { withDiscountColumn } = await loadDiscount()
+  const discounted = [{ discount: 1 }]
+  const room = { LIST: LIST_WIDTH, CARD: CARD_TABLE_WIDTH }
+  const grids = [
+    ...LISTS.map((grid) => [grid, GRID_COLUMNS[grid], 'LIST']),
+    ...IN_CARDS.map((grid) => [grid, GRID_COLUMNS[grid], 'CARD']),
+    // A document's lines with the columns they gain only sometimes.
+    ...['orderLines', 'invoiceLines', 'creditMemoLines'].map((grid) => [`${grid}+discount`, withDiscountColumn(GRID_COLUMNS[grid], discounted), 'CARD']),
+    ['partners', GRID_COLUMNS.partners, 'LIST'],
+    ['orderLines+close', [ORDER_LINE_CLOSE, ...GRID_COLUMNS.orderLines], 'CARD'],
+    ['orderLines+discount+close', [ORDER_LINE_CLOSE, ...withDiscountColumn(GRID_COLUMNS.orderLines, discounted)], 'CARD']
+  ]
+  const tooWide = Object.fromEntries(grids
+    .filter(([, set, where]) => narrowest(set) > room[where])
+    .map(([grid, set, where]) => [grid, `${where}: ${narrowest(set)} > ${room[where]}`]))
+  assert.deepEqual(Object.keys(tooWide).sort(), Object.keys(TOO_WIDE).sort(), JSON.stringify(tooWide))
+  // Every grid on the screen was placed in one list or the other (linesToShip is a dialog's,
+  // product-open-orders a half-page card's; both are far below either width).
+  const placed = new Set([...LISTS, ...IN_CARDS, 'partners', 'linesToShip', 'product-open-orders'])
+  assert.deepEqual(Object.keys(GRID_COLUMNS).filter((grid) => !placed.has(grid)), [])
+})
+
+test('a button column is the first in its row, so a grid too wide for the window never hides it', async () => {
+  const { GRID_COLUMNS, ORDER_LINE_CLOSE } = await loadGrids()
+  const misplaced = Object.entries(GRID_COLUMNS)
+    .flatMap(([grid, set]) => set.filter((c, at) => c.holds === 'action' && at !== 0).map((c) => `${grid}.${c.key}`))
+  assert.deepEqual(misplaced, [])
+  const buttons = Object.values(GRID_COLUMNS).flat().filter((c) => c.holds === 'action').length
+  assert.equal(buttons, 4, 'Pricing, Price Groups, a price list\'s lines and Sales Organizations each have one')
+  assert.equal(ORDER_LINE_CLOSE.holds, 'action')
+  // OrderLines.js puts Close remaining before the lines' own columns.
+  const source = fs.readFileSync(path.join(COMPONENTS, 'OrderLines.js'), 'utf8')
+  assert.match(source, /\[ORDER_LINE_CLOSE, \.\.\.priced\]/)
 })
 
 /* The drag itself (useColumnWidths' onResize, without React). */

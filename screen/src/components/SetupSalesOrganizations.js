@@ -77,20 +77,21 @@ export default function SetupSalesOrganizations ({ salesOrganizations, onAdd, on
     <Card title='Sales Organizations' actions={<ActionButton onPress={() => setOpen({})}>Add</ActionButton>}>
       <TableView {...widths.tableProps} aria-label='Sales organizations' density='compact' overflowMode='wrap' renderEmptyState={() => 'None yet: the first fill brings them from the websites.'}>
         <TableHeader>
-          <Column key='code' {...widths.columnProps('code')}>Code</Column>
+          {/* The button first, where the edge never reaches (gridColumns.js); Code names the row. */}
+          <Column key='edit' {...widths.columnProps('edit')}> </Column>
+          <Column key='code' {...widths.columnProps('code')} isRowHeader>Code</Column>
           <Column key='name' {...widths.columnProps('name')}>Name</Column>
           <Column key='currency' {...widths.columnProps('currency')}>Currency</Column>
           <Column key='website' {...widths.columnProps('website')}>Website</Column>
-          <Column key='edit' {...widths.columnProps('edit')}> </Column>
         </TableHeader>
         <TableBody items={rows.map((o) => ({ ...o, id: o.code }))}>
           {(o) => (
             <Row key={o.code}>
+              <Cell><ActionButton isQuiet onPress={() => setOpen(o)} aria-label={`Edit sales organization ${o.code}`}>Edit</ActionButton></Cell>
               <Cell><span className='erp-key'>{o.code}</span></Cell>
               <Cell>{o.name}</Cell>
               <Cell>{o.currency || '—'}</Cell>
               <Cell>{o.websiteCode || '—'}</Cell>
-              <Cell><ActionButton isQuiet onPress={() => setOpen(o)} aria-label={`Edit sales organization ${o.code}`}>Edit</ActionButton></Cell>
             </Row>
           )}
         </TableBody>

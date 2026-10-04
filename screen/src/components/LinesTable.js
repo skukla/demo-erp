@@ -26,6 +26,8 @@ export default function LinesTable ({ tableId, label, columns, lines, cell }) {
   // drag that changes a width hands it new items; the same items kept every column where
   // it started (found 2026-10-03, driving a drag in the preview).
   const header = useMemo(() => columns.map((c) => ({ ...c })), [columns, widths.columnProps])
+  // A button column comes first (gridColumns.js); the row is named by the column after it.
+  const rowHeader = (columns.find((c) => c.holds !== 'action') || columns[0]).key
   return (
     <TableView
       key={columns.map((c) => c.key).join(',')}
@@ -35,7 +37,7 @@ export default function LinesTable ({ tableId, label, columns, lines, cell }) {
       overflowMode='wrap'
     >
       <TableHeader columns={header}>
-        {(c) => <Column key={c.key} {...widths.columnProps(c.key)} align={c.align}>{c.label}</Column>}
+        {(c) => <Column key={c.key} {...widths.columnProps(c.key)} align={c.align} isRowHeader={c.key === rowHeader}>{c.label}</Column>}
       </TableHeader>
       <TableBody items={lines.map((l) => ({ ...l, id: l.item }))}>
         {(line) => (

@@ -29,7 +29,8 @@ function CloseRemaining ({ line, reasons, onClose, isDisabled }) {
   const [reason, setReason] = useState(reasons[0])
   return (
     <DialogTrigger>
-      <ActionButton isQuiet isDisabled={isDisabled}>Close remaining</ActionButton>
+      {/* "Close", short so the lines fit a 1,280 px window (owner, 2026-10-04); the label says what it closes. */}
+      <ActionButton isQuiet isDisabled={isDisabled} aria-label={`Close remaining quantity on line ${line.item}`}>Close</ActionButton>
       {(close) => (
         <Dialog>
           <Heading>Close {line.openQty} {line.unit} on Item {line.item}?</Heading>
@@ -74,7 +75,8 @@ export default function OrderLines ({ order, onCloseLine, busy, onOpen }) {
   const discount = discountTotal(lines)
   const columns = useMemo(() => {
     const priced = withDiscountColumn(GRID_COLUMNS.orderLines, order.lines || [])
-    return canClose ? [...priced, ORDER_LINE_CLOSE] : priced
+    // First, where the edge never reaches: a line too wide for the window still shows it.
+    return canClose ? [ORDER_LINE_CLOSE, ...priced] : priced
   }, [order.lines, canClose])
 
   function cell (line, key) {

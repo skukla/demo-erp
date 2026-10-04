@@ -71,18 +71,19 @@ export default function PriceGroups ({ api, onChanged }) {
     >
       <TableView {...widths.tableProps} aria-label='Price groups' density='compact' overflowMode='wrap'>
         <TableHeader>
-          <Column key='code' {...widths.columnProps('code')}>Code</Column>
+          {/* The button first, where the edge never reaches (gridColumns.js); Code names the row. */}
+          <Column key='remove' {...widths.columnProps('remove')}> </Column>
+          <Column key='code' {...widths.columnProps('code')} isRowHeader>Code</Column>
           <Column key='name' {...widths.columnProps('name')}>Name</Column>
           <Column key='customers' {...widths.columnProps('customers')} align='end'>Customers</Column>
-          <Column key='remove' {...widths.columnProps('remove')}> </Column>
         </TableHeader>
         <TableBody items={(rows || []).map((g) => ({ ...g, id: g.code }))}>
           {(g) => (
             <Row key={g.code}>
+              <Cell><ActionButton isQuiet onPress={() => act(() => api.deletePriceGroup(g.code), 'Price group removed')}>Remove</ActionButton></Cell>
               <Cell><span className='erp-key'>{g.code}</span></Cell>
               <Cell>{g.name}</Cell>
               <Cell>{members.get(g.code) || 0}</Cell>
-              <Cell><ActionButton isQuiet onPress={() => act(() => api.deletePriceGroup(g.code), 'Price group removed')}>Remove</ActionButton></Cell>
             </Row>
           )}
         </TableBody>

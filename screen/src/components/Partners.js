@@ -89,12 +89,12 @@ export default function Partners ({ api, query = {}, onChanged, onNavigate }) {
         <TableHeader>
           <Column key='id' {...widths.columnProps('id')} allowsSorting>Customer</Column>
           <Column key='name' {...widths.columnProps('name')} allowsSorting>Name</Column>
-          <Column key='salesOrgs' {...widths.columnProps('salesOrgs')} allowsSorting>Sales organizations</Column>
-          <Column key='terms' {...widths.columnProps('terms')} allowsSorting>Payment terms</Column>
+          <Column key='salesOrgs' {...widths.columnProps('salesOrgs')} allowsSorting>Sales orgs</Column>
+          <Column key='terms' {...widths.columnProps('terms')} allowsSorting>Terms</Column>
           <Column key='creditLimit' {...widths.columnProps('creditLimit')} align='end' allowsSorting>Credit limit</Column>
           <Column key='exposure' {...widths.columnProps('exposure')} align='end' allowsSorting>Exposure</Column>
           <Column key='available' {...widths.columnProps('available')} align='end' allowsSorting>Available</Column>
-          <Column key='blocking' {...widths.columnProps('blocking')} allowsSorting>Credit block</Column>
+          <Column key='blocking' {...widths.columnProps('blocking')} allowsSorting>Block</Column>
         </TableHeader>
         <TableBody items={view.items}>
           {(p) => (
