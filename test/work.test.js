@@ -99,3 +99,17 @@ test('"Invoices to collect" counts the invoices with something open, the ones Po
   assert.deepEqual(cue, { key: 'invoicesToCollect', label: 'Invoices to collect', list: 'invoices', filter: 'toCollect' })
   assert.deepEqual(RAIL_COUNTS.invoices, ['invoicesToCollect'])
 })
+
+test('"Orders to ship" counts an order whose goods wait on a shipment to post: that is shipping work too', async () => {
+  const { ORDER_CUE_ABILITIES } = require('../lib/cues')
+  const { listOrders } = require('../lib/orders')
+  // The one rule the Orders list's "To ship" filter and this count both read.
+  assert.deepEqual(ORDER_CUE_ABILITIES, { toConfirm: ['confirm'], onHold: ['release'], toShip: ['ship', 'post'], toInvoice: ['invoice'] })
+  const waiting = await confirmOrder(cols, (await order('1')).number)
+  await createShipment(cols, waiting.number, { lines: [{ item: 10, qty: 2 }] }) // every unit on an open shipment
+  const row = (await listOrders(cols)).find((o) => o.number === waiting.number)
+  assert.deepEqual([row.can.ship, row.can.post], [false, '8000000001'])
+  const { counts } = await workList(cols)
+  assert.equal(counts.toShip, 1)
+  assert.equal(counts.toPost, 1)
+})

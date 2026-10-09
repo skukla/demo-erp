@@ -9,6 +9,13 @@
  * order's own document: you look at what you are about to change before you change it.
  * Which actions are open is the ERP's call (`can`), not the screen's — Create invoice
  * appears only when every line has shipped or been closed, because that is the rule.
+ *
+ * The main button is always the next step, even when that step is made on another document
+ * (owner 2026-10-09). A created shipment ships nothing until it is posted, so while one waits
+ * the button is Post shipment for it (`can.post` names it, the oldest first) — the same call
+ * the shipment's own page makes — and Create shipment steps aside until it is posted, then
+ * returns for any quantity no shipment covers. Invoiced with money open, it is Post payment
+ * (`can.pay`), the invoice page's dialog and call.
  * Cancelling asks why, from the ERP's own list of reasons (lib/orders CANCEL_REASONS,
  * sent with the document so the screen keeps no second copy of it).
  */
@@ -19,6 +26,7 @@ import OrderHeader from './OrderHeader'
 import OrderLines from './OrderLines'
 import RelatedDocuments from './RelatedDocuments'
 import CreateShipment from './CreateShipment'
+import PostPayment from './PostPayment'
 import Timeline from './Timeline'
 import ProcessFlow from './ProcessFlow'
 import { flowOf } from './orderFlow'
@@ -91,8 +99,13 @@ export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', 
           {can.release && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.releaseCredit(number), 'Credit hold released')}>Release</Button>}
           {can.reject && <Button variant='negative' isDisabled={busy} onPress={() => act(() => api.rejectCredit(number), 'Order rejected — Credit rejected')}>Reject</Button>}
           {can.confirm && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.confirmOrder(number), 'Order confirmed')}>Confirm</Button>}
-          {can.ship && <CreateShipment key={order.shipments.length} order={order} isDisabled={busy} onCreate={(body) => act(() => api.createShipment(number, body), 'Shipment created — post it to ship the goods')} />}
+          {can.post && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.postShipment(number, can.post), `Shipment ${can.post} posted`)}>{`Post shipment ${can.post}`}</Button>}
+          {/* A shipment waiting to be posted is the next step; Create shipment waits behind it. */}
+          {can.ship && !can.post && <CreateShipment key={order.shipments.length} order={order} isDisabled={busy} onCreate={(body) => act(() => api.createShipment(number, body), 'Shipment created — post it to ship the goods')} />}
           {can.invoice && <Button variant='accent' isDisabled={busy} onPress={() => act(() => api.createInvoice(number), 'Invoice created')}>Create invoice</Button>}
+          {can.pay && (
+            <PostPayment openAmount={order.invoice.openAmount} currency={order.currency} isDisabled={busy} onPost={(body) => act(() => api.postPayment(order.invoice.number, body), 'Payment posted')} />
+          )}
           {can.cancel && (
             <CancelOrder reasons={order.cancelReasons} paidByCard={Boolean(order.payment)} isDisabled={busy} onCancel={(reason) => act(() => api.cancelOrder(number, reason), 'Order canceled')} />
           )}

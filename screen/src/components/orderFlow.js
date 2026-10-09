@@ -18,12 +18,14 @@
  * rejected it, and Canceled).
  *
  * The line under the strip is a link to the next move only when that move is made on
- * ANOTHER document — post this shipment, pay this invoice, receive or credit this return
- * order — and is offered only when the ERP says the move is open (lib/return-moves, the
- * invoice's open item). A move made by a button on this page (Confirm, Create shipment,
- * Release, Reject, Create invoice, Cancel; Receive and Post credit memo on a return order)
- * gets no line: the button is right above it. Nor does an order with nothing left to do:
- * a strip of ticks says it.
+ * ANOTHER document and the page has no button for it — receive or credit this return order —
+ * and is offered only when the ERP says the move is open (lib/return-moves). A move made by a
+ * button on this page gets no line: the button is right above it. That includes Post shipment
+ * and Post payment, which the order page offers itself although the shipment and the invoice
+ * are where they happen (owner 2026-10-09: the order's main button is always the next step);
+ * and Confirm, Create shipment, Release, Reject, Create invoice, Cancel, and on a return order
+ * Receive and Post credit memo. Nor does an order with nothing left to do: a strip of ticks
+ * says it.
  */
 import { money } from '../money.js'
 import { returnMoves, canPayInvoice } from '../../../lib/return-moves.js'
@@ -77,7 +79,8 @@ function delivery (order) {
 
 /**
  * Done when everything that has to ship has been posted; until then it says how much has.
- * A shipment created and not posted is posted on its own document, so the line links there.
+ * A shipment created and not posted opens from the stage; posting it is the order page's
+ * Post shipment button, so there is no line.
  */
 function goodsIssue (order) {
   const shipments = order.shipments || []
@@ -91,8 +94,7 @@ function goodsIssue (order) {
     done,
     detail: !done && shipped > 0 ? `${shipped} of ${needed} shipped` : undefined,
     date: done && posted ? posted.postedAt : undefined,
-    doc: docOf('shipment', done ? posted : waiting),
-    hint: waiting && link(`Next: post shipment ${waiting.number} (goods issue)`, docOf('shipment', waiting))
+    doc: docOf('shipment', done ? posted : waiting)
   }
 }
 
@@ -103,7 +105,8 @@ function invoiced (order) {
 
 /**
  * Absent where no payment can follow: an invoice from before invoice documents were kept
- * (no number to pay against), and an invoice credited in full with nothing paid.
+ * (no number to pay against), and an invoice credited in full with nothing paid. Posting the
+ * payment is the order page's Post payment button, so there is no line.
  */
 function paid (order) {
   const invoice = order.invoice
@@ -116,11 +119,7 @@ function paid (order) {
   if (status === 'paid' || status === 'credited') return { ...stage, done: true, date: last && last.createdAt, doc: docOf('payment', last) }
   if (!canPayInvoice(invoice)) return stage
   const open = `${money(invoice.openAmount, order.currency)} open`
-  return {
-    ...stage,
-    detail: status === 'partly paid' ? `Partly paid · ${open}` : open,
-    hint: link(`Next: post the incoming payment on invoice ${invoice.number}`, docOf('invoice', invoice))
-  }
+  return { ...stage, detail: status === 'partly paid' ? `Partly paid · ${open}` : open }
 }
 
 /** Present when the order has return orders; done when the goods of every one are back. */
@@ -188,7 +187,8 @@ function finish (stages) {
  * @param {object} order the order as its document loads it (`api.order(number)`)
  * @returns {{ stages: { key: string, label: string, state: 'done'|'current'|'upcoming'|'attention'|'stopped', detail?: string, date?: string, doc?: { kind: string, number: string } }[], nextHint: { text: string, doc: { kind: string, number: string } } | null }}
  *   `date` is the stored ISO time; `doc` is what `onOpen(kind, number)` opens; `nextHint`
- *   is the next move when it is made on another document, else null
+ *   is the next move when it is made on another document the page has no button for (a
+ *   return order's), else null
  */
 export function flowOf (order) {
   const stages = [

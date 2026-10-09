@@ -1,9 +1,10 @@
 /*
- * Post payment: an incoming payment against this invoice (contract version 14). The amount
+ * Post payment: an incoming payment against an invoice (contract version 14), offered on the
+ * invoice and on its order, whose next step it is while money is open. The amount
  * starts as everything open and can be lowered for a partial payment; a reference (a check
  * number, a bank reference) is optional. A payment cannot be undone in the ERP, so it asks
  * first, as Post credit memo does. The ERP's refusal of an amount, in its own words, shows
- * on the invoice.
+ * on the page it was posted from.
  */
 import React, { useState } from 'react'
 import { Button, ButtonGroup, Content, Dialog, DialogTrigger, Divider, Form, Heading, NumberField, Text, TextField } from '@adobe/react-spectrum'

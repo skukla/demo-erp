@@ -1,7 +1,7 @@
 /*
  * The process flow strip at the top of a document: its stages in order, a marker for each
- * joined by a line, and — only when the next move is made on another document — one link
- * underneath that opens it. SAP Fiori calls it the process flow; it is how an ERP shows
+ * joined by a line, and — only when the next move is made on another document and has no
+ * button on this page (orderFlow.js says which) — one link underneath that opens it. SAP Fiori calls it the process flow; it is how an ERP shows
  * that an order goes through more steps than its one status word says.
  *
  * Which stages, and where the document stands, is orderFlow.js (pure, tested without a

@@ -14,6 +14,7 @@ import { describeEvent } from '../lib/journal.js'
 import { maintenanceOf } from '../lib/maintenance.js'
 import { returnMoves, canPayInvoice } from '../lib/return-moves.js'
 import { openItemOf } from '../lib/open-items.js'
+import { ORDER_CUE_ABILITIES } from '../lib/cues.js'
 import { describeSetup, updateSetup } from '../lib/setup.js'
 import { addSalesOrganization, updateSalesOrganization } from '../lib/sales-organizations.js'
 import { updateSettings } from '../lib/settings.js'
@@ -373,11 +374,8 @@ function workList () {
   const recent = []
   for (const o of orders) {
     const can = abilities(o)
-    if (can.confirm) counts.toConfirm += 1
-    if (can.release) counts.onHold += 1
-    if (can.ship) counts.toShip += 1
-    if (can.invoice) counts.toInvoice += 1
-    if (o.invoice && canPayInvoice({ ...o.invoice, ...openItem(o) })) counts.invoicesToCollect += 1
+    for (const [key, moves] of Object.entries(ORDER_CUE_ABILITIES)) if (moves.some((m) => can[m])) counts[key] += 1
+    if (can.pay) counts.invoicesToCollect += 1
     counts.toPost += o.shipments.filter((s) => s.status !== 'posted').length
     if (o.header !== 'canceled' && !o.invoice) amount += o.lines.reduce((sum, l) => sum + lineNet(l), 0)
     const last = o.history.reduce((at, h) => (h.at > at ? h.at : at), o.createdAt)
@@ -522,6 +520,11 @@ const copy = (value) => JSON.parse(JSON.stringify(value))
 const CANCEL_REASONS = ['Customer request', 'Credit rejected', 'Out of stock', 'Pricing error', 'Duplicate order']
 const CLOSE_REASONS = ['Customer request', 'Out of stock', 'Product discontinued']
 const openQty = (l) => Math.max(0, l.qty - l.shippedQty - l.closedQty)
+/* Quantity on shipments waiting to be posted is reserved for them (lib/orders reservedQty,
+   uncoveredQty; contract version 21): a new shipment may take only what none covers. */
+const waitingOf = (o) => o.shipments.filter((s) => s.status !== 'posted')
+const reservedQty = (o, l) => waitingOf(o).reduce((sum, s) => sum + s.lines.filter((x) => x.item === l.item).reduce((t, x) => t + x.qty, 0), 0)
+const uncoveredQty = (o, l) => Math.max(0, openQty(l) - reservedQty(o, l))
 const totalsOf = (o) => ({
   shipped: o.lines.reduce((s, l) => s + l.shippedQty, 0),
   open: o.lines.reduce((s, l) => s + openQty(l), 0)
@@ -543,11 +546,14 @@ function abilities (o) {
   const { shipped, open } = totalsOf(o)
   const live = o.header === 'confirmed' && !o.invoice
   const held = o.creditStatus === 'held' && o.header !== 'canceled'
+  const waiting = live ? waitingOf(o)[0] : undefined
   return {
     confirm: o.header === 'created' && !held,
-    ship: live && open > 0,
+    ship: live && o.lines.some((l) => uncoveredQty(o, l) > 0),
+    post: waiting ? waiting.number : false,
     close: live && open > 0,
     invoice: live && open === 0 && shipped > 0,
+    pay: canPayInvoice(o.invoice && { ...o.invoice, ...openItem(o) }),
     cancel: o.header !== 'canceled' && !o.invoice && shipped === 0,
     release: held,
     reject: held,
@@ -895,6 +901,14 @@ export const fakeApi = {
     for (const a of asked) {
       const line = lineOf(a.item)
       if (a.qty > openQty(line)) fail(`Item ${line.item}: ${openQty(line)} EA remain of ${line.qty}.`)
+      const reserved = reservedQty(o, line)
+      const uncovered = uncoveredQty(o, line)
+      if (reserved > 0 && a.qty > uncovered) {
+        const on = waitingOf(o).filter((s) => s.lines.some((x) => x.item === line.item)).map((s) => s.number)
+        const shipments = `${on.length > 1 ? 'shipments' : 'shipment'} ${on.join(', ')}`
+        if (uncovered === 0) fail(`Item ${line.item}: the ${openQty(line)} EA still open are on ${shipments}, waiting to be posted. Post that shipment instead of creating another.`)
+        fail(`Item ${line.item}: ${reserved} EA are on ${shipments}, waiting to be posted; ${uncovered} EA of ${line.qty} remain for a new shipment.`)
+      }
     }
     o.shipments.push({
       number: String(nextShipment++),

@@ -1231,7 +1231,7 @@ test('the journal names a posted payment', async () => {
 
 /* ---- The process flow strip (screen/src/components/ProcessFlow.js, orderFlow.js) ---- */
 
-test('a sales order opens with its process flow: one stage is current, the next move links to its document, a done stage opens its document', async () => {
+test('a sales order opens with its process flow: one stage is current, a done stage opens its document', async () => {
   const { page, context, problems } = await open('orders?open=0000001003')
   try {
     await headed(page, /^Sales Order 0000001003$/, /^Sales Orders$/)
@@ -1241,23 +1241,58 @@ test('a sales order opens with its process flow: one stage is current, the next 
     const current = flow.locator('[aria-current="step"]')
     assert.equal(await current.count(), 1)
     assert.match(await current.textContent(), /Goods issued.*4 of 6 shipped/)
-    // The next move is posting a shipment, made on that shipment: the line is a link to it.
-    const next = flow.locator('.erp-flow-next')
-    assert.equal(await next.count(), 1)
-    const link = next.getByRole('button')
-    assert.equal((await link.textContent()).trim(), 'Next: post shipment 8000000004 (goods issue)')
+    // The next move, posting shipment 8000000004, is the page's own button now: no line under the strip.
+    assert.equal(await flow.locator('.erp-flow-next').count(), 0)
     // The strip sits between the title line and the header fields.
     const [title, strip, header] = await Promise.all(['.erp-page-header', '.erp-flow', '.erp-card'].map((s) => page.locator(s).first().boundingBox()))
     assert.ok(title.y < strip.y && strip.y < header.y, 'title line, then the strip, then the header card')
-    await link.click()
-    await settled(page)
-    assert.match((await page.textContent('.erp-content h1')).trim(), /^Shipment 8000000004$/)
-    await page.getByRole('button', { name: /Sales Order 0000001003/ }).click()
-    await headed(page, /^Sales Order 0000001003$/, /^Sales Orders$/)
     await flow.getByRole('button', { name: /Delivery created/ }).click()
     await settled(page)
     assert.match((await page.textContent('.erp-content h1')).trim(), /^Shipment 8000000003$/)
     assert.deepEqual(problems, [], 'order flow console')
+  } finally {
+    await context.close()
+  }
+})
+
+/* The order page's main button is the next step, even when that step is made on another
+   document (owner 2026-10-09): Post shipment for the shipment waiting to be posted, Post
+   payment for an invoice with money open. Sales order 0000001003 has shipment 8000000004 open
+   for 1 of item 20's 2; 0000001002's invoice 9000000001 has EUR 144.00 open. */
+
+test('an order with a shipment waiting offers Post shipment, not Create shipment; posting it offers Create shipment for the rest', async () => {
+  const { page, context, problems } = await open('orders?open=0000001003', '', { width: 1280, height: 900 })
+  try {
+    await headed(page, /^Sales Order 0000001003$/, /^Sales Orders$/)
+    assert.deepEqual(await actionsOf(page), ['Post shipment 8000000004'])
+    // The new button sits inside the window at 1,280 px, not pushed past its edge.
+    const box = await page.getByRole('button', { name: 'Post shipment 8000000004' }).boundingBox()
+    assert.ok(box.x >= 0 && box.x + box.width <= 1280, `button at ${box.x}+${box.width}`)
+    await page.getByRole('button', { name: 'Post shipment 8000000004' }).click()
+    const flow = page.locator('.erp-flow')
+    await flow.locator('[aria-current="step"]', { hasText: '5 of 6 shipped' }).waitFor({ timeout: 5000 })
+    // One unit of item 20 is on no shipment: creating one for it is the next step.
+    assert.deepEqual(await actionsOf(page), ['Create shipment'])
+    assert.equal(await flow.locator('.erp-flow-next').count(), 0)
+    assert.deepEqual(problems, [], 'post shipment from the order console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('an invoiced order with money open offers Post payment, prefilled with the open amount, and posts it on the invoice', async () => {
+  const { page, context, problems } = await open('orders?open=0000001002', '', { width: 1280, height: 900 })
+  try {
+    await headed(page, /^Sales Order 0000001002$/, /^Sales Orders$/)
+    assert.deepEqual(await actionsOf(page), ['Post payment'])
+    assert.equal(await page.locator('.erp-flow-next').count(), 0)
+    await page.getByRole('button', { name: 'Post payment' }).click()
+    const dialog = page.getByRole('dialog')
+    assert.match(await dialog.getByRole('textbox', { name: 'Amount' }).inputValue(), /144\.00/)
+    await dialog.getByRole('button', { name: 'Post payment' }).click()
+    await page.waitForFunction(() => !Array.from(document.querySelectorAll('.erp-page-actions button')).some((b) => b.textContent === 'Post payment'), null, { timeout: 5000 })
+    assert.deepEqual(await actionsOf(page), [])
+    assert.deepEqual(problems, [], 'post payment from the order console')
   } finally {
     await context.close()
   }

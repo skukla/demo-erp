@@ -17,7 +17,7 @@ const load = () => import('../screen/src/components/orderFlow.js')
 const NB = '\u00a0' // the non-breaking space Intl puts between a currency code and its figure
 const at = (day, hour = 9) => `2026-09-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:00:00.000Z`
 
-const NO_MOVES = { confirm: false, ship: false, close: false, invoice: false, cancel: false, release: false, reject: false }
+const NO_MOVES = { confirm: false, ship: false, post: false, close: false, invoice: false, pay: false, cancel: false, release: false, reject: false }
 
 /** A new order of two of one product, as the document loads it; `over` changes what a test is about. */
 function order (over = {}) {
@@ -58,12 +58,12 @@ const shipped = (over = {}) => confirmed({
 
 const invoiced = (openItem = {}, over = {}) => shipped({
   invoice: { number: '9000000011', createdAt: at(5), status: 'open', total: 274.86, openAmount: 274.86, paidAmount: 0, paymentStatus: 'open', ...openItem },
-  can: { ...NO_MOVES },
+  can: { ...NO_MOVES, pay: true },
   ...over
 })
 
 const payment = (number, amount, day) => ({ number, createdAt: at(day), amount, currency: 'USD' })
-const paid = (over = {}) => invoiced({ openAmount: 0, paidAmount: 274.86, paymentStatus: 'paid' }, { payments: [payment('7000000005', 274.86, 6)], ...over })
+const paid = (over = {}) => invoiced({ openAmount: 0, paidAmount: 274.86, paymentStatus: 'paid' }, { payments: [payment('7000000005', 274.86, 6)], can: { ...NO_MOVES }, ...over })
 
 const keys = (flow) => flow.stages.map((s) => s.key)
 const states = (flow) => flow.stages.map((s) => s.state)
@@ -88,14 +88,15 @@ test('a confirmed order: confirmed on its date, and waiting for a shipment; no h
   assert.equal(flow.nextHint, null)
 })
 
-test('a shipment created and not posted: the delivery is done and opens; the hint links to the shipment to post', async () => {
+test('a shipment created and not posted: the delivery is done and opens; no hint, Post shipment is on this page', async () => {
   const { flowOf } = await load()
-  const flow = flowOf(confirmed({ shipments: [shipment('8000000012', 2)] }))
+  const flow = flowOf(confirmed({ shipments: [shipment('8000000012', 2)], can: { ...NO_MOVES, post: '8000000012', close: true } }))
   assert.deepEqual(states(flow), ['done', 'done', 'done', 'current', 'upcoming', 'upcoming'])
   assert.equal(stage(flow, 'delivery').date, at(3))
   assert.deepEqual(stage(flow, 'delivery').doc, { kind: 'shipment', number: '8000000012' })
   assert.deepEqual(stage(flow, 'goodsIssue').doc, { kind: 'shipment', number: '8000000012' })
-  assert.deepEqual(flow.nextHint, { text: 'Next: post shipment 8000000012 (goods issue)', doc: { kind: 'shipment', number: '8000000012' } })
+  // The order page's main button posts it (owner 2026-10-09): the line would say it twice.
+  assert.equal(flow.nextHint, null)
 })
 
 test('a partly shipped order says how much has shipped, and asks for the rest', async () => {
@@ -128,14 +129,14 @@ test('a fully shipped order: goods issued on the posting date; no hint, Create i
   assert.equal(flow.nextHint, null)
 })
 
-test('an invoiced order: the invoice opens, Paid says what is open, and the hint links to the invoice to pay', async () => {
+test('an invoiced order: the invoice opens, Paid says what is open; no hint, Post payment is on this page', async () => {
   const { flowOf } = await load()
   const flow = flowOf(invoiced())
   assert.deepEqual(states(flow), ['done', 'done', 'done', 'done', 'done', 'current'])
   assert.equal(stage(flow, 'invoiced').date, at(5))
   assert.deepEqual(stage(flow, 'invoiced').doc, { kind: 'invoice', number: '9000000011' })
   assert.equal(stage(flow, 'paid').detail, `USD${NB}274.86 open`)
-  assert.deepEqual(flow.nextHint, { text: 'Next: post the incoming payment on invoice 9000000011', doc: { kind: 'invoice', number: '9000000011' } })
+  assert.equal(flow.nextHint, null)
 })
 
 test('a partly paid invoice says so with the open amount, and still waits for payment', async () => {
@@ -143,7 +144,7 @@ test('a partly paid invoice says so with the open amount, and still waits for pa
   const flow = flowOf(invoiced({ openAmount: 174.86, paidAmount: 100, paymentStatus: 'partly paid' }, { payments: [payment('7000000004', 100, 6)] }))
   assert.equal(stage(flow, 'paid').state, 'current')
   assert.equal(stage(flow, 'paid').detail, `Partly paid · USD${NB}174.86 open`)
-  assert.deepEqual(flow.nextHint, { text: 'Next: post the incoming payment on invoice 9000000011', doc: { kind: 'invoice', number: '9000000011' } })
+  assert.equal(flow.nextHint, null)
 })
 
 test('a paid order: every stage done, the last payment opens, no hint', async () => {
@@ -291,9 +292,10 @@ test('at most one stage is where the order stands, whatever its state', async ()
 
 test('a hint is offered only for a move made on another document, and names that document', async () => {
   const { flowOf, returnFlowOf } = await load()
-  for (const o of [order(), confirmed(), shipped(), paid()]) assert.equal(flowOf(o).nextHint, null)
+  // Posting a shipment and posting a payment are buttons on the order page too (owner 2026-10-09).
+  for (const o of [order(), confirmed(), confirmed({ shipments: [shipment('8000000012', 2)] }), shipped(), invoiced(), paid()]) assert.equal(flowOf(o).nextHint, null)
   assert.equal(returnFlowOf(returnOrder('6000000007', 'open')).nextHint, null)
-  const hint = flowOf(invoiced()).nextHint
+  const hint = flowOf(paid({ returnOrders: [returnOrder('6000000007', 'open')] })).nextHint
   assert.match(hint.text, /^Next: /)
   assert.deepEqual(Object.keys(hint).sort(), ['doc', 'text'])
 })

@@ -4,8 +4,10 @@
  * and can only be edited DOWN; the ERP refuses anything else anyway, and a form that
  * offers more than it will accept reads as a prototype.
  *
- * The shipment is created open. Posting it, on the shipment's own document, is what
- * moves the goods and tells Commerce.
+ * The shipment is created open. Posting it — the order's Post shipment, or the shipment's
+ * own document — is what moves the goods and tells Commerce. The dialog is offered only
+ * while no shipment waits to be posted (OrderDetail), so what is open is what no shipment
+ * covers; the ERP refuses quantity an open shipment already carries (contract version 21).
  */
 import React, { useState } from 'react'
 import {

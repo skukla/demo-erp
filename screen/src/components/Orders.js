@@ -18,6 +18,7 @@ import { useGridView, GridSearch } from './GridView'
 import { formatDate } from '../formatStamp'
 import { money } from '../money'
 import { statusLight, statusText, shippingBadge, billingBadge } from './OrderHeader'
+import { ORDER_CUE_ABILITIES } from '../../../lib/cues'
 
 /* Business Central calls this the External Document No.; it is the customer's own
    reference for the order (SAP's PurchaseOrderByCustomer). */
@@ -38,16 +39,18 @@ const ORDER_GRID = {
   sort: { column: 'number', direction: 'descending' }
 }
 
-/* The work a cue on Home counted, as a filter here. Each key names the ability the
-   ERP put on the row (lib/work orderCues reads the same abilities), so the list and
-   the count cannot disagree. */
+/* The work a cue on Home counted, as a filter here. Each key is a cue, and a row is in it
+   when the ERP put any of that cue's abilities on the row (lib/cues ORDER_CUE_ABILITIES,
+   which lib/work orderCues counts by), so the list and the count cannot disagree. To ship
+   includes an order whose goods wait on a shipment to post. */
 const WORK = [
   { key: 'all', label: 'All orders' },
-  { key: 'toConfirm', label: 'To confirm', can: 'confirm' },
-  { key: 'onHold', label: 'On credit hold', can: 'release' },
-  { key: 'toShip', label: 'To ship', can: 'ship' },
-  { key: 'toInvoice', label: 'To invoice', can: 'invoice' }
+  { key: 'toConfirm', label: 'To confirm' },
+  { key: 'onHold', label: 'On credit hold' },
+  { key: 'toShip', label: 'To ship' },
+  { key: 'toInvoice', label: 'To invoice' }
 ]
+const isWork = (order, key) => Boolean(order.can) && ORDER_CUE_ABILITIES[key].some((move) => Boolean(order.can[move]))
 const workKey = (asked) => (WORK.some((w) => w.key === asked) ? asked : 'all')
 
 /* Where the order stands, in the one word its header shows (lib/orders overallStatus). */
@@ -65,8 +68,7 @@ export default function Orders ({ api, query = {}, onChanged, onNavigate }) {
   const [work, setWork] = useState(() => workKey(query.work))
   const [stage, setStage] = useState('all')
   const shown = useMemo(() => {
-    const chosen = WORK.find((w) => w.key === work)
-    const byWork = !rows || !chosen || !chosen.can ? rows : rows.filter((o) => o.can && o.can[chosen.can])
+    const byWork = !rows || !ORDER_CUE_ABILITIES[work] ? rows : rows.filter((o) => isWork(o, work))
     if (!byWork || stage === 'all') return byWork
     return byWork.filter((o) => o.overall === stage)
   }, [rows, work, stage])

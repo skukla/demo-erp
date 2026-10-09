@@ -2,9 +2,10 @@
  * One shipment's document. Shipping creates a thing, not a word: this is the thing — its
  * number, when, from where, what it carries, and whether the goods have left.
  *
- * Post is the one action. It is here and not on the order because posting IS the
- * shipment's event: what SAP calls the goods issue. Posted, the shipment cannot be
- * changed; the ERP says so, with the date, when asked twice.
+ * Post is the one action, because posting IS the shipment's event: what SAP calls the goods
+ * issue. Its order offers the same Post shipment as its next step (OrderDetail, owner
+ * 2026-10-09), with the same call. Posted, the shipment cannot be changed; the ERP says so,
+ * with the date, when asked twice.
  */
 import React from 'react'
 import { Button, Grid, StatusLight, TableView, TableHeader, Column, TableBody, Row, Cell, Text, View } from '@adobe/react-spectrum'

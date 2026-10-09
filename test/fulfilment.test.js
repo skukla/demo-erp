@@ -343,3 +343,124 @@ test('a product the ERP does not keep has no stock to move, and its shipment sti
   const shipped = await setStatus(cols, order.number, 'shipped')
   assert.equal(shipped.lines[0].shippedQty, 2)
 })
+
+/* ---- The next step on the order page (owner 2026-10-09; contract version 21) ----
+   A created shipment is not shipped until it is posted, so the order kept reading every line
+   open and offered Create shipment again: a second open shipment for the same goods. Now
+   quantity on an OPEN shipment is reserved for it: the order offers Post shipment (the oldest
+   waiting first), offers Create shipment only for what no shipment covers, and the ERP refuses
+   a shipment for reserved quantity in words, so the API and an agent cannot make the duplicate
+   either. Once invoiced with money open, the order offers Post payment. */
+
+const canOf = async (number) => (await describeOrder(cols, await getOrder(cols, number))).can
+
+test('an open shipment for everything: the order offers Post shipment for it, and no Create shipment', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 12 }, { item: 20, qty: 4 }] })
+  const can = await canOf(order.number)
+  assert.equal(can.post, '8000000001')
+  assert.equal(can.ship, false, 'the open shipment covers every unit still open')
+  // Listed orders carry the same abilities as the document.
+  assert.deepEqual((await listOrders(cols))[0].can, can)
+})
+
+test('an open shipment for part: Post shipment is offered, and Create shipment for the uncovered rest', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }] })
+  const can = await canOf(order.number)
+  assert.equal(can.post, '8000000001')
+  assert.equal(can.ship, true, '8 of item 10 and all 4 of item 20 are on no shipment')
+})
+
+test('with several shipments waiting, the oldest is posted first', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }] })
+  await createShipment(cols, order.number, { lines: [{ item: 20, qty: 4 }] })
+  assert.equal((await canOf(order.number)).post, '8000000001')
+  await postShipment(cols, order.number, '8000000001')
+  assert.equal((await canOf(order.number)).post, '8000000002')
+  await postShipment(cols, order.number, '8000000002')
+  assert.equal((await canOf(order.number)).post, false)
+})
+
+test('nothing waiting to post: post is false, and a new order offers neither post nor pay', async () => {
+  const order = await confirmed()
+  const can = await canOf(order.number)
+  assert.equal(can.post, false)
+  assert.equal(can.pay, false)
+  assert.equal(can.ship, true)
+})
+
+test('a shipment for quantity already on an open shipment is refused, naming the shipment waiting to be posted', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 12 }] })
+  await assert.rejects(
+    createShipment(cols, order.number, { lines: [{ item: 10, qty: 1 }] }),
+    /Item 10: the 12 EA still open are on shipment 8000000001, waiting to be posted\. Post that shipment instead of creating another\./
+  )
+  // The refusal is the API's too: the route answers 400 with the same words.
+  const res = await invoke(orders, cols, { method: 'POST', path: `/${order.number}/shipments`, body: { lines: [{ item: 10, qty: 12 }] } })
+  assert.equal(res.statusCode, 400)
+  assert.match(JSON.stringify(res.body), /shipment 8000000001, waiting to be posted/)
+  assert.equal((await getOrder(cols, order.number)).shipments.length, 1, 'no second shipment was made')
+})
+
+test('an open shipment for 4 of 12 leaves 8 creatable, and 9 is refused with what remains', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }] })
+  await assert.rejects(
+    createShipment(cols, order.number, { lines: [{ item: 10, qty: 9 }] }),
+    /Item 10: 4 EA are on shipment 8000000001, waiting to be posted; 8 EA of 12 remain for a new shipment\./
+  )
+  const next = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 8 }] })
+  assert.deepEqual(next.shipments.map((s) => [s.number, s.status, s.lines[0].qty]), [['8000000001', 'open', 4], ['8000000002', 'open', 8]])
+  const can = await canOf(order.number)
+  assert.equal(can.post, '8000000001')
+  assert.equal(can.ship, true, 'item 20 is on no shipment yet')
+})
+
+test('a posted shipment is subtracted once: as shipped, not also as reserved', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }] })
+  await postShipment(cols, order.number, '8000000001')
+  // 4 shipped, 8 open, none reserved: the whole 8 may go on a new shipment.
+  const next = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 8 }, { item: 20, qty: 4 }] })
+  assert.equal(next.shipments.length, 2)
+  let can = await canOf(order.number)
+  assert.deepEqual([can.post, can.ship, can.invoice], ['8000000002', false, false])
+  await postShipment(cols, order.number, '8000000002')
+  can = await canOf(order.number)
+  assert.deepEqual([can.post, can.ship, can.invoice], [false, false, true])
+})
+
+test('the whole-order route ships through a waiting shipment rather than around it', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }] })
+  const shipped = await setStatus(cols, order.number, 'shipped')
+  assert.deepEqual(shipped.shipments.map((s) => [s.number, s.status]), [['8000000001', 'posted'], ['8000000002', 'posted']])
+  assert.deepEqual(shipped.lines.map((l) => l.shippedQty), [12, 4])
+})
+
+test('invoiced with money open, the order offers Post payment; paid, or credited, it does not', async () => {
+  const { postPayment } = require('../lib/payments')
+  const { creditInvoice } = require('../lib/credit-memos')
+  let placed = 0
+  const invoicedOrder = async () => {
+    const order = await createOrder(cols, { ...input, purchaseOrderByCustomer: `PO-${++placed}` })
+    await confirmOrder(cols, order.number)
+    await createShipment(cols, order.number, { lines: [{ item: 10, qty: 12 }, { item: 20, qty: 4 }] })
+    await postShipment(cols, order.number, (await getOrder(cols, order.number)).shipments[0].number)
+    return createInvoice(cols, order.number)
+  }
+  const open = await invoicedOrder()
+  assert.equal((await canOf(open.number)).pay, true)
+  assert.equal((await listOrders(cols)).find((o) => o.number === open.number).can.pay, true)
+  await postPayment(cols, open.invoice.number, { amount: 40 })
+  assert.equal((await canOf(open.number)).pay, true, 'partly paid: 100 still open')
+  await postPayment(cols, open.invoice.number, { amount: 100 })
+  assert.equal((await canOf(open.number)).pay, false, 'paid')
+  assert.equal((await listOrders(cols)).find((o) => o.number === open.number).can.pay, false)
+  const credited = await invoicedOrder()
+  await creditInvoice(cols, credited.number)
+  assert.equal((await canOf(credited.number)).pay, false, 'credited in full')
+})
