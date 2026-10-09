@@ -1,13 +1,14 @@
 /*
  * Creating a shipment: which lines, how many of each, and — when the store has more than
- * one warehouse — which one it ships from. Every quantity defaults to what is still open
- * and can only be edited DOWN; the ERP refuses anything else anyway, and a form that
- * offers more than it will accept reads as a prototype.
+ * one warehouse — which one it ships from. Every quantity defaults to what no shipment
+ * covers yet (the line's `uncoveredQty`, the ERP's number) and can only be edited DOWN;
+ * the ERP refuses anything else anyway, and a form that offers more than it will accept
+ * reads as a prototype.
  *
  * The shipment is created open. Posting it — the order's Post shipment, or the shipment's
  * own document — is what moves the goods and tells Commerce. The dialog is offered only
- * while no shipment waits to be posted (OrderDetail), so what is open is what no shipment
- * covers; the ERP refuses quantity an open shipment already carries (contract version 21).
+ * while no shipment waits to be posted (OrderDetail); the ERP refuses quantity a waiting
+ * shipment already carries anyway (contract version 21).
  */
 import React, { useState } from 'react'
 import {
@@ -19,11 +20,11 @@ import { GRID_COLUMNS } from './gridColumns'
 
 export default function CreateShipment ({ order, onCreate, isDisabled }) {
   const widths = useColumnWidths('linesToShip', GRID_COLUMNS.linesToShip)
-  const open = (order.lines || []).filter((l) => l.openQty > 0)
+  const open = (order.lines || []).filter((l) => l.uncoveredQty > 0)
   const warehouses = order.warehouses || []
   const [qty, setQty] = useState({})
   const [warehouse, setWarehouse] = useState(warehouses[0] ? warehouses[0].code : null)
-  const quantityOf = (line) => (qty[line.item] === undefined ? line.openQty : qty[line.item])
+  const quantityOf = (line) => (qty[line.item] === undefined ? line.uncoveredQty : qty[line.item])
   const lines = open.map((l) => ({ item: l.item, qty: quantityOf(l) })).filter((l) => l.qty > 0)
   const total = lines.reduce((sum, l) => sum + l.qty, 0)
 
@@ -49,17 +50,17 @@ export default function CreateShipment ({ order, onCreate, isDisabled }) {
                     <Row key={line.item}>
                       <Cell>{line.item}</Cell>
                       <Cell>{`${line.sku} · ${line.name}`}</Cell>
-                      <Cell>{`${line.openQty} ${line.unit}`}</Cell>
+                      <Cell>{`${line.uncoveredQty} ${line.unit}`}</Cell>
                       <Cell>
                         <NumberField
                           aria-label={`Quantity for item ${line.item}`}
                           value={quantityOf(line)}
                           minValue={0}
-                          maxValue={line.openQty}
+                          maxValue={line.uncoveredQty}
                           step={1}
                           isQuiet
                           width='size-1250'
-                          onChange={(v) => setQty((q) => ({ ...q, [line.item]: Number.isFinite(v) ? Math.max(0, Math.min(line.openQty, Math.round(v))) : 0 }))}
+                          onChange={(v) => setQty((q) => ({ ...q, [line.item]: Number.isFinite(v) ? Math.max(0, Math.min(line.uncoveredQty, Math.round(v))) : 0 }))}
                         />
                       </Cell>
                     </Row>

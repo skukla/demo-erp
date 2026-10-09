@@ -7,7 +7,9 @@
  * story turns on; they are the ERP's own numbers, never typed here.
  *
  * Close remaining sits on the line it closes: giving up on 3 of 4 EA is a decision about
- * that line, and the reason is recorded on it.
+ * that line, and the reason is recorded on it. It closes only what no shipment covers (the
+ * line's `uncoveredQty`, the ERP's number; contract version 21): what a shipment waiting to be
+ * posted carries stays for it, and a line with nothing uncovered offers no Close.
  */
 import React, { useMemo, useState } from 'react'
 import {
@@ -24,7 +26,7 @@ import { discountTotal, withDiscountColumn } from './lineDiscount'
    column sorts. Every column but Item and Close can be dragged wider or narrower
    (./gridColumns.js has the widths and the rule). */
 
-/** Close what is still open on one line: pick a reason, then confirm. */
+/** Close what no shipment covers on one line: pick a reason, then confirm. */
 function CloseRemaining ({ line, reasons, onClose, isDisabled }) {
   const [reason, setReason] = useState(reasons[0])
   return (
@@ -33,13 +35,15 @@ function CloseRemaining ({ line, reasons, onClose, isDisabled }) {
       <ActionButton isQuiet isDisabled={isDisabled} aria-label={`Close remaining quantity on line ${line.item}`}>Close</ActionButton>
       {(close) => (
         <Dialog>
-          <Heading>Close {line.openQty} {line.unit} on Item {line.item}?</Heading>
+          <Heading>Close {line.uncoveredQty} {line.unit} on Item {line.item}?</Heading>
           <Divider />
           <Content>
             <Text>
-              The {line.openQty} {line.unit} of {line.name} still open will not ship. The order can then be
+              The {line.uncoveredQty} {line.unit} of {line.name} on no shipment will not ship. The order can then be
               invoiced once every other line has shipped.
             </Text>
+            {/* What a waiting shipment carries is posted, not closed. */}
+            {line.openQty > line.uncoveredQty && <Text UNSAFE_className='erp-subtle'> The other {line.openQty - line.uncoveredQty} {line.unit} wait on a shipment to post.</Text>}
             <Picker
               label='Reason'
               items={reasons.map((r) => ({ id: r }))}
@@ -88,7 +92,7 @@ export default function OrderLines ({ order, onCloseLine, busy, onOpen }) {
     // Master data is one click from the document: the SKU opens the product on the trail.
     if (key === 'sku' && onOpen) return <button type='button' className='erp-link' onClick={() => onOpen('product', line.sku)}>{line.sku}</button>
     if (key === 'close') {
-      return line.openQty > 0
+      return line.uncoveredQty > 0
         ? <CloseRemaining line={line} reasons={order.closeReasons || []} isDisabled={busy} onClose={(reason) => onCloseLine(line.item, reason)} />
         : null
     }

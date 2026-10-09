@@ -34,7 +34,12 @@ export function momentsOf (order) {
       continue
     }
     const said = h.reason ? `${what} — ${h.reason}` : what
-    moments.push({ at: h.at, text: h.note ? `${said}. ${h.note}` : said })
+    // A cancel removes the shipments waiting to be posted (contract version 21); the order no longer lists them, so this names them.
+    const removed = h.removedShipments && h.removedShipments.length
+      ? `${h.removedShipments.length > 1 ? 'Shipments' : 'Shipment'} ${h.removedShipments.join(', ')} removed: nothing had left.`
+      : ''
+    const told = [h.note, removed].filter(Boolean).join(' ')
+    moments.push({ at: h.at, text: told ? `${said}. ${told}` : said })
   }
   for (const s of order.shipments || []) {
     moments.push({ at: s.createdAt, text: `Shipment ${s.number} created`, link: { kind: 'shipment', number: s.number } })

@@ -15,7 +15,8 @@
  * the button is Post shipment for it (`can.post` names it, the oldest first) — the same call
  * the shipment's own page makes — and Create shipment steps aside until it is posted, then
  * returns for any quantity no shipment covers. Invoiced with money open, it is Post payment
- * (`can.pay`), the invoice page's dialog and call.
+ * (`can.pay`), the invoice page's dialog and call. Cancel removes any shipment still waiting
+ * to be posted (nothing on it has left), and its dialog and toast say which.
  * Cancelling asks why, from the ERP's own list of reasons (lib/orders CANCEL_REASONS,
  * sent with the document so the screen keeps no second copy of it).
  */
@@ -34,7 +35,7 @@ import { useLoad } from './useLoad'
 import { useDocumentAction } from './useDocumentAction'
 
 /** Cancel: pick a reason, then confirm. The dialog is the only way to reach it. */
-function CancelOrder ({ reasons, onCancel, isDisabled, paidByCard }) {
+function CancelOrder ({ reasons, onCancel, isDisabled, paidByCard, waiting }) {
   const [reason, setReason] = useState(reasons[0])
   return (
     <DialogTrigger>
@@ -50,6 +51,8 @@ function CancelOrder ({ reasons, onCancel, isDisabled, paidByCard }) {
             </Text>
             {/* Paid at checkout (AB-26s, flow 1): the web shop owns the gateway and the refund. */}
             {paidByCard && <Text UNSAFE_className='erp-subtle'> It was paid by card in the web shop: the card payment is refunded there, not by the ERP.</Text>}
+            {/* A shipment waiting to be posted goes with the order (contract version 21): nothing on it has left. */}
+            {waiting.length > 0 && <Text UNSAFE_className='erp-subtle'> {waitingText(waiting)}</Text>}
             <Picker
               label='Reason'
               items={reasons.map((r) => ({ id: r }))}
@@ -73,6 +76,19 @@ function CancelOrder ({ reasons, onCancel, isDisabled, paidByCard }) {
   )
 }
 
+/** What the cancel dialog says of the shipments waiting to be posted, which the cancel removes. */
+function waitingText (numbers) {
+  return numbers.length > 1
+    ? `Shipments ${numbers.join(', ')} are waiting to be posted; they are removed too, since nothing has left.`
+    : `Shipment ${numbers[0]} is waiting to be posted; it is removed too, since nothing has left.`
+}
+
+/** The toast after a cancel, naming any waiting shipment it removed. */
+function canceledText (numbers) {
+  if (numbers.length === 0) return 'Order canceled'
+  return `Order canceled — ${numbers.length > 1 ? 'shipments' : 'shipment'} ${numbers.join(', ')} removed`
+}
+
 /**
  * @param {object} props `backLabel` names where Back goes; `onOpen(kind, number)` opens
  *   a related document (a shipment, the invoice, the customer) on the same trail.
@@ -84,6 +100,8 @@ export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', 
   const { act, busy, error: actionError } = useDocumentAction(reload, onChanged)
 
   const can = (order && order.can) || {}
+  // The shipments a cancel would remove: the ones waiting to be posted (lib/fulfilment cancelOrder).
+  const waiting = order ? (order.shipments || []).filter((s) => s.status !== 'posted').map((s) => s.number) : []
   return (
     <DocumentPage
       backLabel={backLabel}
@@ -107,7 +125,7 @@ export default function OrderDetail ({ api, number, backLabel = 'Sales Orders', 
             <PostPayment openAmount={order.invoice.openAmount} currency={order.currency} isDisabled={busy} onPost={(body) => act(() => api.postPayment(order.invoice.number, body), 'Payment posted')} />
           )}
           {can.cancel && (
-            <CancelOrder reasons={order.cancelReasons} paidByCard={Boolean(order.payment)} isDisabled={busy} onCancel={(reason) => act(() => api.cancelOrder(number, reason), 'Order canceled')} />
+            <CancelOrder reasons={order.cancelReasons} paidByCard={Boolean(order.payment)} waiting={waiting} isDisabled={busy} onCancel={(reason) => act(() => api.cancelOrder(number, reason), canceledText(waiting))} />
           )}
           {/* A canceled order is terminal (owner O4); the way back is a new order with its lines. */}
           {can.repeat && <Button variant='accent' isDisabled={busy} onPress={() => act(async () => { const made = await api.repeatOrder(number); if (onOpen) onOpen('order', made.number) }, 'Order repeated')}>Repeat order</Button>}

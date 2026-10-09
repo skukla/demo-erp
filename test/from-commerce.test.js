@@ -222,3 +222,39 @@ test('the contract says so from version 19: an external move raises its event, a
   assert.match(contract.order.external.note, /raises its outbound event for such a move exactly as for its own/)
   assert.match(contract.order.external.note, /201 when they record a new document and 200 when it was already recorded/)
 })
+
+/* Contract version 21: a shipment posted in the web shop while an ERP shipment waits to be
+   posted for the same goods. The web shop's goods have left, so it is recorded, never refused;
+   the waiting ERP shipment would then carry goods no longer open and could never post, so the
+   ERP takes the difference off it (the newest waiting first), removes it when nothing is left on
+   it, and says so in the journal entry. Nothing on a waiting shipment had moved stock. */
+
+test('a web shop shipment for goods on a waiting ERP shipment is recorded, and the waiting shipment is removed', async () => {
+  const { createShipment, postShipment } = require('../lib/fulfilment')
+  const order = await confirmOrder(cols, (await createOrder(cols, input)).number)
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 12 }] })
+  const next = await receiveExternalShipment(cols, order.number, { externalReference: 'S-1', lines: [{ customerLineReference: '1', qty: 12 }], ...origin(SHIPMENT) })
+  assert.deepEqual(next.shipments.map((s) => [s.number, s.status, s.externalReference ?? null]), [['8000000002', 'posted', 'S-1']])
+  assert.equal(next.lines[0].shippedQty, 12)
+  const entry = (await recent(cols)).find((e) => e.direction === 'in')
+  assert.match(entry.summary, /shipment 8000000001, waiting to be posted, removed: its goods left in Adobe Commerce/)
+  // Nothing is stuck: the order has no shipment to post and item 20 can still ship.
+  const { describeOrder, getOrder } = require('../lib/orders')
+  const can = (await describeOrder(cols, await getOrder(cols, order.number))).can
+  assert.deepEqual([can.post, can.ship], [false, true])
+  void postShipment
+})
+
+test('a web shop shipment for part of a waiting ERP shipment\'s goods reduces it, and the rest still posts', async () => {
+  const { createShipment, postShipment } = require('../lib/fulfilment')
+  const order = await confirmOrder(cols, (await createOrder(cols, input)).number)
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 10 }] }) // 2 of 12 on no shipment
+  const next = await receiveExternalShipment(cols, order.number, { externalReference: 'S-2', lines: [{ customerLineReference: '1', qty: 5 }], ...origin(SHIPMENT) })
+  // 5 left in the web shop: 2 were on no shipment, 3 come off 8000000001, which keeps 7.
+  const waiting = next.shipments.find((s) => s.number === '8000000001')
+  assert.deepEqual([waiting.status, waiting.lines[0].qty], ['open', 7])
+  const entry = (await recent(cols)).find((e) => e.direction === 'in')
+  assert.match(entry.summary, /shipment 8000000001, waiting to be posted, reduced by 3: its goods left in Adobe Commerce/)
+  const posted = await postShipment(cols, order.number, '8000000001')
+  assert.equal(posted.lines[0].shippedQty, 12)
+})

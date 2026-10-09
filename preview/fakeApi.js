@@ -551,7 +551,7 @@ function abilities (o) {
     confirm: o.header === 'created' && !held,
     ship: live && o.lines.some((l) => uncoveredQty(o, l) > 0),
     post: waiting ? waiting.number : false,
-    close: live && open > 0,
+    close: live && o.lines.some((l) => uncoveredQty(o, l) > 0),
     invoice: live && open === 0 && shipped > 0,
     pay: canPayInvoice(o.invoice && { ...o.invoice, ...openItem(o) }),
     cancel: o.header !== 'canceled' && !o.invoice && shipped === 0,
@@ -569,7 +569,7 @@ const partnerOf = (id) => partners.find((p) => p.id === id) || null
 
 function describe (order) {
   const partner = partnerOf(order.partnerId)
-  const lines = order.lines.map((line) => ({ ...named(line), openQty: openQty(line), amount: lineNet(line) }))
+  const lines = order.lines.map((line) => ({ ...named(line), openQty: openQty(line), uncoveredQty: uncoveredQty(order, line), amount: lineNet(line) }))
   const net = cents(lines.reduce((sum, l) => sum + l.amount, 0))
   const total = cents(Number(order.total ?? net))
   const can = abilities(order)
@@ -874,9 +874,12 @@ export const fakeApi = {
     const o = orderOf(number)
     if (!CANCEL_REASONS.includes(reason)) fail(`a cancellation needs one of these reasons: ${CANCEL_REASONS.join(', ')}`)
     if (totalsOf(o).shipped > 0) fail('This order has shipped; Commerce cannot cancel a shipped order.')
+    // Shipments waiting to be posted go with the order, named in its history (lib/fulfilment cancelOrder).
+    const removed = waitingOf(o).map((s) => s.number)
+    o.shipments = o.shipments.filter((s) => s.status === 'posted')
     o.header = 'canceled'
     o.cancelReason = reason
-    o.history.push({ status: 'canceled', at: new Date().toISOString(), reason })
+    o.history.push({ status: 'canceled', at: new Date().toISOString(), reason, ...(removed.length ? { removedShipments: removed } : {}) })
     return copy(describe(o))
   },
   // lib/repeat-order: a new order with the canceled one's lines, no customer reference.
@@ -937,7 +940,12 @@ export const fakeApi = {
     if (!CLOSE_REASONS.includes(reason)) fail(`closing a line needs one of these reasons: ${CLOSE_REASONS.join(', ')}`)
     const line = o.lines.find((l) => l.item === Number(item)) || fail(`Item ${item} is not on this order.`)
     if (openQty(line) === 0) fail(`Item ${item} has nothing open.`)
-    line.closedQty += openQty(line)
+    // Only what no waiting shipment covers (lib/fulfilment closeRemaining).
+    if (uncoveredQty(o, line) === 0) {
+      const on = waitingOf(o).filter((s) => s.lines.some((x) => x.item === line.item)).map((s) => s.number)
+      fail(`Item ${line.item}: the ${openQty(line)} EA still open are on ${on.length > 1 ? 'shipments' : 'shipment'} ${on.join(', ')}, waiting to be posted; nothing is left to close.`)
+    }
+    line.closedQty += uncoveredQty(o, line)
     line.closeReason = reason
     return copy(describe(o))
   },

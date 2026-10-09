@@ -464,3 +464,73 @@ test('invoiced with money open, the order offers Post payment; paid, or credited
   await creditInvoice(cols, credited.number)
   assert.equal((await canOf(credited.number)).pay, false, 'credited in full')
 })
+
+/* ---- Close and cancel with a shipment waiting (owner 2026-10-09; contract version 21) ----
+   Close remaining used to close quantity a waiting shipment carried, and that shipment could
+   then never be posted. Cancel used to leave a waiting shipment behind on a canceled order: an
+   open document for goods that will never leave. Close now takes only what no shipment covers;
+   cancel removes the waiting shipments, since nothing moved. */
+
+test('close remaining closes only what no waiting shipment covers, and the shipment still posts', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }] })
+  const closed = await closeRemaining(cols, order.number, 10, 'Customer request')
+  assert.equal(closed.lines[0].closedQty, 8, 'the 8 on no shipment are closed; the 4 on 8000000001 are not')
+  const posted = await postShipment(cols, order.number, '8000000001')
+  assert.equal(posted.lines[0].shippedQty, 4)
+})
+
+test('closing a line whose open quantity is all on a waiting shipment is refused, naming the shipment', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 12 }] })
+  await assert.rejects(
+    closeRemaining(cols, order.number, 10, 'Customer request'),
+    /Item 10: the 12 EA still open are on shipment 8000000001, waiting to be posted; nothing is left to close\./
+  )
+  // The route answers the same words.
+  const res = await invoke(orders, cols, { method: 'POST', path: `/${order.number}/lines/10/close`, body: { reason: 'Customer request' } })
+  assert.equal(res.statusCode, 400)
+})
+
+test('the document says per line what no shipment covers, and offers Close only while some is', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }, { item: 20, qty: 4 }] })
+  let doc = await describeOrder(cols, await getOrder(cols, order.number))
+  assert.deepEqual(doc.lines.map((l) => [l.item, l.openQty, l.uncoveredQty]), [[10, 12, 8], [20, 4, 0]])
+  assert.equal(doc.can.close, true)
+  await closeRemaining(cols, order.number, 10, 'Out of stock')
+  doc = await describeOrder(cols, await getOrder(cols, order.number))
+  assert.equal(doc.can.close, false, 'everything still open is on the waiting shipment')
+  assert.deepEqual(doc.closeReasons, [])
+})
+
+test('canceling an order with a shipment waiting removes the shipment and says so in its history', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }] })
+  await createShipment(cols, order.number, { lines: [{ item: 20, qty: 4 }] })
+  const canceled = await cancelOrder(cols, order.number, 'Customer request')
+  assert.equal(canceled.header, 'canceled')
+  assert.deepEqual(canceled.shipments, [])
+  const entry = canceled.history.at(-1)
+  assert.deepEqual([entry.status, entry.reason, entry.removedShipments], ['canceled', 'Customer request', ['8000000001', '8000000002']])
+  assert.deepEqual((await listShipments(cols)).map((s) => s.number), [], 'no open shipment is left on a canceled order')
+  const doc = await describeOrder(cols, await getOrder(cols, order.number))
+  assert.equal(doc.can.post, false)
+})
+
+test('a cancel from the web shop removes a waiting shipment the same way', async () => {
+  const order = await confirmed()
+  await createShipment(cols, order.number, { lines: [{ item: 10, qty: 4 }] })
+  const res = await invoke(orders, cols, { method: 'POST', path: `/${order.number}/cancel`, body: { reason: 'Canceled in the web shop', origin: { system: 'Commerce' } } })
+  assert.equal(res.statusCode, 200)
+  const stored = await getOrder(cols, order.number)
+  assert.equal(stored.header, 'canceled')
+  assert.deepEqual(stored.shipments, [])
+  assert.deepEqual(stored.history.at(-1).removedShipments, ['8000000001'])
+})
+
+test('a cancel with no shipment waiting records no removed shipments', async () => {
+  const order = await confirmed()
+  const canceled = await cancelOrder(cols, order.number, 'Customer request')
+  assert.equal(canceled.history.at(-1).removedShipments, undefined)
+})

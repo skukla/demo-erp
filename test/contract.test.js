@@ -353,6 +353,10 @@ test('from version 21: quantity on an open shipment is reserved for it, and the 
   assert.match(contract.order.nextStepNote, /^version 21/)
   assert.match(contract.order.nextStepNote, /can\.post/)
   assert.match(contract.order.nextStepNote, /can\.pay/)
+  // Close and cancel respect a waiting shipment too: close takes what no shipment covers, cancel removes it.
+  assert.match(contract.order.nextStepNote, /uncoveredQty/)
+  assert.match(contract.order.nextStepNote, /removedShipments/)
+  assert.match(contract.order.nextStepNote, /external-shipment\) is still recorded/)
   const { invoke } = require('./helpers/memory-db')
   const { confirmOrder, createShipment } = require('../lib/fulfilment')
   await importProducts(cols, [{ sku: 'A1', name: 'A', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 20 }] }])

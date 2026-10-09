@@ -1280,6 +1280,47 @@ test('an order with a shipment waiting offers Post shipment, not Create shipment
   }
 })
 
+test('Close on a line offers only what no shipment covers: 1 of item 20, since its other unit waits on shipment 8000000004', async () => {
+  const { page, context, problems } = await open('orders?open=0000001003')
+  try {
+    await headed(page, /^Sales Order 0000001003$/, /^Sales Orders$/)
+    // Item 10 has shipped whole: no Close on it.
+    assert.equal(await page.getByRole('button', { name: 'Close remaining quantity on line 10' }).count(), 0)
+    await page.getByRole('button', { name: 'Close remaining quantity on line 20' }).click()
+    const dialog = page.getByRole('dialog')
+    assert.match(await dialog.getByRole('heading').first().textContent(), /^Close 1 EA on Item 20\?$/)
+    await dialog.getByRole('button', { name: 'Close remaining' }).click()
+    await page.getByRole('button', { name: 'Close remaining quantity on line 20' }).waitFor({ state: 'detached', timeout: 5000 })
+    // The waiting shipment still carries its unit, and is still the next step.
+    assert.deepEqual(await actionsOf(page), ['Post shipment 8000000004'])
+    assert.deepEqual(problems, [], 'close with a shipment waiting console')
+  } finally {
+    await context.close()
+  }
+})
+
+test('canceling an order with a shipment waiting says the shipment is removed, and removes it', async () => {
+  const { page, context, problems } = await open('orders?open=0000001001')
+  try {
+    await headed(page, /^Sales Order 0000001001$/, /^Sales Orders$/)
+    await page.getByRole('button', { name: 'Create shipment' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: /^Create shipment/ }).click()
+    await page.getByRole('button', { name: /^Post shipment \d{10}$/ }).waitFor({ timeout: 5000 })
+    const waiting = (await page.getByRole('button', { name: /^Post shipment \d{10}$/ }).textContent()).replace('Post shipment ', '')
+    await page.getByRole('button', { name: 'Cancel order' }).click()
+    const dialog = page.getByRole('dialog')
+    assert.match(await dialog.textContent(), new RegExp(`Shipment ${waiting} is waiting to be posted; it is removed too, since nothing has left\\.`))
+    await dialog.getByRole('button', { name: 'Cancel order' }).click()
+    await page.getByText(`Order canceled — shipment ${waiting} removed`).waitFor({ timeout: 5000 })
+    const timeline = await page.locator('.erp-content').textContent()
+    assert.match(timeline, new RegExp(`Canceled — Customer request\\. Shipment ${waiting} removed: nothing had left\\.`))
+    assert.deepEqual(await actionsOf(page), ['Repeat order'])
+    assert.deepEqual(problems, [], 'cancel with a shipment waiting console')
+  } finally {
+    await context.close()
+  }
+})
+
 test('an invoiced order with money open offers Post payment, prefilled with the open amount, and posts it on the invoice', async () => {
   const { page, context, problems } = await open('orders?open=0000001002', '', { width: 1280, height: 900 })
   try {
