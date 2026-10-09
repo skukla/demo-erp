@@ -266,6 +266,15 @@ test('a product blocked for sales is refused in words when a shipment is created
   assert.equal(posted.lines[1].shippedQty, 2)
 })
 
+test('a discontinued product ships nothing either, in its own words', async () => {
+  const { patchProduct } = require('../lib/products')
+  const order = await confirmed()
+  await patchProduct(cols, 'B2', { salesStatus: 'discontinued' })
+  await assert.rejects(createShipment(cols, order.number, { lines: [{ item: 20, qty: 1 }] }), /Product B2 is discontinued\./)
+  const next = await createShipment(cols, order.number, { lines: [{ item: 10, qty: 1 }] })
+  assert.equal(next.shipments.length, 1)
+})
+
 test('the invoice document carries a due date: the billing date plus the payment terms, and none when the terms name no days', async () => {
   const { importPartners } = require('../lib/partners')
   const { patchPartner } = require('../lib/partners')

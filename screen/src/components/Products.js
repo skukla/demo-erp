@@ -31,8 +31,8 @@ const PRODUCT_GRID = {
     listPrice: priceOf,
     stock: (p) => p.stock || 0,
     available: (p) => p.available ?? p.stock ?? 0,
-    // Blocked sorts below every stock figure: it is the status a person looks for first.
-    status: (p) => (p.salesStatus === 'blocked' ? Number.NEGATIVE_INFINITY : (p.available ?? p.stock ?? 0))
+    // Blocked and discontinued sort below every stock figure: the status a person looks for first.
+    status: (p) => (p.salesStatus === 'blocked' || p.salesStatus === 'discontinued' ? Number.NEGATIVE_INFINITY : (p.available ?? p.stock ?? 0))
   },
   sort: { column: 'sku', direction: 'ascending' }
 }

@@ -45,7 +45,7 @@ const products = NAMES.map(([name, price], i) => {
     description: `${name} — mirrored from Commerce`,
     unit: i % 7 === 0 ? 'PC' : 'EA',
     // One product blocked for sales, so the refusal and its status have something to show.
-    ...(i === 3 ? {} : { salesStatus: i === 9 ? 'blocked' : 'sellable' }),
+    ...(i === 3 ? {} : { salesStatus: i === 9 ? 'blocked' : i === 7 ? 'discontinued' : 'sellable' }),
     listPrice: price,
     warehouses,
     stock: i === 3 ? 120 : warehouses.reduce((sum, w) => sum + w.quantity, 0),

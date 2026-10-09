@@ -214,13 +214,20 @@ function BasicDataCard ({ saved, draft, isParent, onEdit }) {
                 Blocked for sales
               </Switch>
               <Text UNSAFE_className='erp-subtle'>
-                {draft.salesStatus === 'blocked' ? 'No shipment of this product can be created or posted until it is sellable again.' : 'Sellable. Block it and every shipment of it is refused in the ERP; Commerce is not told.'}
+                {statusLine(draft.salesStatus)}
               </Text>
             </Field>
             )}
       </Flex>
     </Card>
   )
+}
+
+/** What the sales status means here: the switch's own two words, and discontinued, which the switch cannot set. */
+function statusLine (salesStatus) {
+  if (salesStatus === 'blocked') return 'No shipment of this product can be created or posted until it is sellable again.'
+  if (salesStatus === 'discontinued') return 'Discontinued: this ERP no longer carries it (another ERP owns it). It ships nothing. Switch Blocked on and off to make it sellable again.'
+  return 'Sellable. Block it and every shipment of it is refused in the ERP; Commerce is not told.'
 }
 
 export default function ProductDetail ({ api, sku, backLabel = 'Products', onBack, onOpen, onChanged, onNavigate }) {

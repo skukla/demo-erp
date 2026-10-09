@@ -113,9 +113,12 @@ export const GRID_COLUMNS = {
     { key: 'unit', width: 115, holds: 'text' },
     // 150, not less: at 130 the price's edit button ran 3 px past its cell (2026-10-04).
     { key: 'listPrice', width: 150, holds: 'amount' },
-    { key: 'stock', width: 105, holds: 'quantity' },
-    { key: 'available', width: 115, holds: 'quantity' },
-    { key: 'status', width: 115, holds: 'status' }
+    /* 99 and 105, not 105 and 115: the 16 px "Discontinued" needs below came from the two
+       quantities, whose headings and six-figure cells still fit (measured 2026-10-09). */
+    { key: 'stock', width: 99, holds: 'quantity' },
+    { key: 'available', width: 105, holds: 'quantity' },
+    // "Discontinued" (version 20) is one word of 135 px with its light; "Blocked for sales" wraps.
+    { key: 'status', width: 135, holds: 'status' }
   ],
   variants: [
     { key: 'values', width: '1fr', minWidth: 120, holds: 'text' },

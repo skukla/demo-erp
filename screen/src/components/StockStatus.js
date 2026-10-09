@@ -20,6 +20,7 @@ const TINTS = {
  */
 export default function StockStatus ({ available, quantity, salesStatus }) {
   if (salesStatus === 'blocked') return <StatusLight variant='negative'>Blocked for sales</StatusLight>
+  if (salesStatus === 'discontinued') return <StatusLight variant='neutral'>Discontinued</StatusLight>
   const [variant, text] = TINTS[stockStatus(available !== undefined ? available : quantity)]
   return <StatusLight variant={variant}>{text}</StatusLight>
 }

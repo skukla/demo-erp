@@ -332,9 +332,22 @@ test('a product is sellable until blocked for sales; the block is the ERP\'s own
   await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 12, stock: 7 }])
   assert.equal((await getProduct(cols, 'A1')).salesStatus, 'blocked')
   assert.equal((await getProduct(cols, 'A1')).listPrice, 12)
-  await assert.rejects(patchProduct(cols, 'A1', { salesStatus: 'maybe' }), /salesStatus must be sellable or blocked/)
+  await assert.rejects(patchProduct(cols, 'A1', { salesStatus: 'maybe' }), /salesStatus must be sellable, blocked or discontinued/)
   const back = await patchProduct(cols, 'A1', { salesStatus: 'sellable' })
   assert.equal(back.salesStatus, 'sellable')
+})
+
+test('a product this ERP no longer carries is discontinued (version 20): the record stays, an import never resets it, and it is announced like any edit', async () => {
+  await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
+  const gone = await patchProduct(cols, 'A1', { salesStatus: 'discontinued' })
+  assert.equal(gone.salesStatus, 'discontinued')
+  assert.deepEqual((await pending(cols)).map((e) => e.data.ChangedFields), [['SalesStatus']])
+  await importProducts(cols, [{ sku: 'A1', name: 'Trouser', listPrice: 12, stock: 7 }])
+  assert.equal((await getProduct(cols, 'A1')).salesStatus, 'discontinued')
+  assert.equal((await getProduct(cols, 'A1')).listPrice, 12)
+  // Setting it discontinued again changes nothing and announces nothing.
+  await patchProduct(cols, 'A1', { salesStatus: 'discontinued' })
+  assert.equal((await pending(cols)).length, 1)
 })
 
 test('a configurable parent has no sales status of its own; its variants do', async () => {

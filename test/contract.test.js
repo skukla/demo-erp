@@ -334,3 +334,16 @@ test('from version 17: the ERP has no product delete, and a line may carry the d
   assert.equal(made.body.lines[0].discount, 3)
   assert.equal(made.body.total, 17)
 })
+
+test('from version 20: a product this ERP no longer carries is discontinued, and ships nothing', async () => {
+  assert.ok(contract.contractVersion >= 20)
+  assert.match(contract.salesStatusNote, /version 20/)
+  assert.match(contract.salesStatusNote, /discontinued/)
+  const { invoke } = require('./helpers/memory-db')
+  await importProducts(cols, [{ sku: 'A1', name: 'A', listPrice: 10, warehouses: [{ code: 'default', name: 'Default Source', quantity: 5 }] }])
+  const patched = await invoke(require('../actions/products'), cols, { method: 'PATCH', path: '/A1', body: { salesStatus: 'discontinued' } })
+  assert.equal(patched.statusCode, 200)
+  assert.equal(patched.body.salesStatus, 'discontinued')
+  const listed = await invoke(require('../actions/products'), cols, { method: 'GET' })
+  assert.equal(listed.body.items.find((p) => p.sku === 'A1').salesStatus, 'discontinued')
+})
