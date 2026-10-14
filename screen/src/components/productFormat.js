@@ -1,12 +1,17 @@
 /* How products read on screen: price ranges, variant values, kinds. */
 import { money } from '../money'
 
-/** "USD 799.99" or "USD 799.99 – USD 1,099.00"; a parent with no variants has no price. */
+/**
+ * "USD 799.99" or "USD 799.99 – 1,099.00"; a parent with no variants has no price. The
+ * range names its currency once: the second code cost the Products grid's price column
+ * its one line (2026-10-13), and both ends are always in the same currency.
+ */
 export function priceText (product) {
   if (product.type !== 'configurable') return money(product.listPrice)
   const range = product.priceRange
   if (!range) return '—'
-  return range.min === range.max ? money(range.min) : `${money(range.min)} – ${money(range.max)}`
+  if (range.min === range.max) return money(range.min)
+  return `${money(range.min)} – ${money(range.max).replace(/^[A-Z]{3}\s*/, '')}`
 }
 
 /** "Silver · 128GB" */

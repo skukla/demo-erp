@@ -45,12 +45,18 @@ export function amountText (rule) {
   return `${rule.percent}%`
 }
 
-/* Validity reads as a date range with open ends left open: "1 Oct 2026 → 31 Dec 2026",
-   "from 1 Oct 2026", "until 31 Dec 2026", or "always". */
-const day = (iso) => new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`))
+/* Validity reads as a date range with open ends left open: "Oct 1 – Dec 31, 2026"
+   (the year once when both ends share it; the locale decides the order), "from Oct 1,
+   2026", "until Dec 31, 2026", or "always". The range used to name the year twice with an
+   arrow between, which wrapped in the Pricing grid at a 1,700 px window (2026-10-13). */
+const DAY = { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }
+const date = (iso) => new Date(`${iso}T00:00:00Z`)
+const day = (iso) => new Intl.DateTimeFormat(undefined, DAY).format(date(iso))
 
 export function validityText (rule) {
-  if (rule.validFrom && rule.validTo) return `${day(rule.validFrom)} → ${day(rule.validTo)}`
+  if (rule.validFrom && rule.validTo) {
+    return new Intl.DateTimeFormat(undefined, DAY).formatRange(date(rule.validFrom), date(rule.validTo))
+  }
   if (rule.validFrom) return `from ${day(rule.validFrom)}`
   if (rule.validTo) return `until ${day(rule.validTo)}`
   return 'always'

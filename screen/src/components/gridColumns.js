@@ -46,9 +46,10 @@ export const GRID_COLUMNS = {
     { key: 'reference', width: '1fr', minWidth: 120, holds: 'text' },
     // A customer's name wraps; "Sold-to" and its chevrons need 102.
     { key: 'partner', width: '2fr', minWidth: 110, holds: 'text' },
-    // The statuses' headings and badges, measured 2026-10-04, plus a few px.
-    { key: 'shipping', width: 115, holds: 'status' },
-    { key: 'billing', width: 108, holds: 'status' },
+    // The statuses' headings and badges, measured 2026-10-04, plus a few px. "Fully
+    // shipped" and "Not invoiced" wrapped at 115 and 108 (measured 2026-10-13).
+    { key: 'shipping', width: 134, holds: 'status' },
+    { key: 'billing', width: 124, holds: 'status' },
     { key: 'total', width: 125, holds: 'amount' },
     { key: 'status', width: 116, holds: 'status' }
   ],
@@ -80,7 +81,8 @@ export const GRID_COLUMNS = {
   ],
   creditMemos: [
     { key: 'number', width: 155, holds: 'key' },
-    { key: 'date', width: 110, holds: 'date' },
+    // "Sep 15, 2026" wrapped at 110 (measured 2026-10-13).
+    { key: 'date', width: 124, holds: 'date' },
     { key: 'order', width: 150, holds: 'key' },
     { key: 'invoice', width: 150, holds: 'key' },
     { key: 'return', width: 160, holds: 'key' },
@@ -89,7 +91,8 @@ export const GRID_COLUMNS = {
   ],
   payments: [
     { key: 'number', width: 140, holds: 'key' },
-    { key: 'date', width: 110, holds: 'date' },
+    // "Sep 18, 2026" wrapped at 110 (measured 2026-10-13).
+    { key: 'date', width: 124, holds: 'date' },
     { key: 'invoice', width: 150, holds: 'key' },
     { key: 'order', width: 150, holds: 'key' },
     { key: 'partner', width: '2fr', minWidth: 110, holds: 'text' },
@@ -107,18 +110,24 @@ export const GRID_COLUMNS = {
        the "·" (it needed 198 px on one line and wrapped at 175 too). 135 holds "Configurable ·",
        and is what lets the eight columns fit the 1,164 px a 1,440 px window gives the list: at
        175 they scrolled 31 px sideways (measured 2026-10-03). */
-    { key: 'kind', width: '1fr', minWidth: 135, holds: 'text' },
+    // 130 since 2026-10-13, so Status could have the 5 px "Blocked for sales" needed.
+    { key: 'kind', width: '1fr', minWidth: 130, holds: 'text' },
     /* Wider than the words need: the headings are set in uppercase with letter-spacing,
        which costs about a quarter again on a short one. "Base unit" was clipping. */
     { key: 'unit', width: 115, holds: 'text' },
-    // 150, not less: at 130 the price's edit button ran 3 px past its cell (2026-10-04).
-    { key: 'listPrice', width: 150, holds: 'amount' },
+    /* A share of at least 150, not a fixed 150: a configurable product's range,
+       "USD 119.00 – 149.00", needs about 170 on one line, which the 1,280 px budget does not
+       have. As a share it keeps 150 there and grows on a wider window (2026-10-13). 150,
+       not less: at 130 the price's edit button ran 3 px past its cell (2026-10-04). */
+    { key: 'listPrice', width: '1fr', minWidth: 150, holds: 'amount' },
     /* 99 and 105, not 105 and 115: the 16 px "Discontinued" needs below came from the two
        quantities, whose headings and six-figure cells still fit (measured 2026-10-09). */
     { key: 'stock', width: 99, holds: 'quantity' },
     { key: 'available', width: 105, holds: 'quantity' },
-    // "Discontinued" (version 20) is one word of 135 px with its light; "Blocked for sales" wraps.
-    { key: 'status', width: 135, holds: 'status' }
+    /* "Discontinued" (version 20) is one word of 135 px with its light; "Blocked for sales"
+       needs 140, taken from Type's minimum (2026-10-13). A number, not a share: every
+       column but a button can be dragged (test/screens.test.js). */
+    { key: 'status', width: 140, holds: 'status' }
   ],
   variants: [
     { key: 'values', width: '1fr', minWidth: 120, holds: 'text' },

@@ -311,7 +311,16 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
         <>
           <Flex justifyContent='space-between' alignItems='start' wrap gap='size-200' marginBottom='size-300'>
             <View>
-              <Heading level={1} marginY={0}>{saved.name}</Heading>
+              {/* The status beside the title, where the eye already is: at the far
+                  right of the page it was easy to miss entirely (2026-10-13). */}
+              <Flex alignItems='center' gap='size-150' wrap>
+                <Heading level={1} marginY={0}>{saved.name}</Heading>
+                <StockStatus
+                  available={total - (saved.committed ?? 0)}
+                  salesStatus={isParent ? undefined : saved.salesStatus}
+                  prominent
+                />
+              </Flex>
               <Text UNSAFE_className='erp-subtle'>
                 SKU {saved.sku} · {kindText(saved)}{saved.updatedAt ? ` · Updated ${new Date(saved.updatedAt).toLocaleString()}` : ''}
               </Text>
@@ -321,7 +330,6 @@ export default function ProductDetail ({ api, sku, backLabel = 'Products', onBac
                 </View>
               )}
             </View>
-            <StockStatus available={total - (saved.committed ?? 0)} salesStatus={isParent ? undefined : saved.salesStatus} />
           </Flex>
 
           <Grid columns={['1fr', '1fr']} gap='size-300' UNSAFE_style={{ maxWidth: 960 }}>

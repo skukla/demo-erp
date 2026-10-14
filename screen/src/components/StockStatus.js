@@ -15,12 +15,18 @@ const TINTS = {
 }
 
 /**
- * @param {{ available?: number, quantity?: number, salesStatus?: string }} props
- *   `available` when the caller has it; `quantity` for a single warehouse row
+ * @param {{ available?: number, quantity?: number, salesStatus?: string, prominent?: boolean }} props
+ *   `available` when the caller has it; `quantity` for a single warehouse row;
+ *   `prominent` for the record's own status beside its title
  */
-export default function StockStatus ({ available, quantity, salesStatus }) {
-  if (salesStatus === 'blocked') return <StatusLight variant='negative'>Blocked for sales</StatusLight>
-  if (salesStatus === 'discontinued') return <StatusLight variant='neutral'>Discontinued</StatusLight>
+export default function StockStatus ({ available, quantity, salesStatus, prominent }) {
+  const className = prominent ? 'erp-status-title' : undefined
+  if (salesStatus === 'blocked') {
+    return <StatusLight variant='negative' UNSAFE_className={className}>Blocked for sales</StatusLight>
+  }
+  if (salesStatus === 'discontinued') {
+    return <StatusLight variant='neutral' UNSAFE_className={className}>Discontinued</StatusLight>
+  }
   const [variant, text] = TINTS[stockStatus(available !== undefined ? available : quantity)]
-  return <StatusLight variant={variant}>{text}</StatusLight>
+  return <StatusLight variant={variant} UNSAFE_className={className}>{text}</StatusLight>
 }

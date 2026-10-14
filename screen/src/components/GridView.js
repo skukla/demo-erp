@@ -7,7 +7,7 @@
  * an object literal is a new reference every render, and the memo below would be
  * rebuilt each time.
  */
-import React, { useMemo, useState } from 'react'
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Flex, SearchField, Text } from '@adobe/react-spectrum'
 import { applyView } from '../gridView'
 
@@ -35,17 +35,46 @@ export function useGridView (rows, grid) {
 }
 
 /**
+ * The width a search field needs to show its whole placeholder: the text, measured in
+ * the input's own font, plus whatever the field spends around it (the search icon,
+ * the clear button, padding). Measured once the field is on screen.
+ *
+ * @param {string} placeholder the text to fit
+ * @returns {{ ref: object, style: object|undefined }} for the field's wrapper
+ */
+function usePlaceholderFit (placeholder) {
+  const ref = useRef(null)
+  const [width, setWidth] = useState()
+  useLayoutEffect(() => {
+    const input = ref.current?.querySelector('input')
+    if (!input) return
+    const css = getComputedStyle(input)
+    const context = document.createElement('canvas').getContext('2d')
+    if (!context) return
+    context.font = `${css.fontStyle} ${css.fontWeight} ${css.fontSize} ${css.fontFamily}`
+    const text = context.measureText(placeholder).width
+    const room = input.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight)
+    const around = ref.current.offsetWidth - room
+    // A few pixels over the measure: italics lean past their advance width.
+    setWidth(Math.ceil(text + around + 4))
+  }, [placeholder])
+  return { ref, style: width ? { minWidth: width } : undefined }
+}
+
+/**
  * The line above a grid: the search box, anything else the page puts beside it, and
  * how many rows the search left — shown only while it is hiding some, so a grid
  * nobody has searched carries no count to read past.
  */
 export function GridSearch ({ placeholder, view, children }) {
+  const fit = usePlaceholderFit(placeholder)
   return (
     <Flex alignItems='end' gap='size-200' marginTop='size-200' wrap>
-      {/* The width is set in theme.css, not here: the field has to be wide enough for
-          its placeholder AND able to shrink on a narrow screen, and the second half is
-          a flex rule rather than a number. */}
-      <div className='erp-search'>
+      {/* The field is as wide as its placeholder needs, measured in the browser's own
+          font (`usePlaceholderFit`), and no narrower than the base width in app.css.
+          A fixed width cut long placeholders off ("Shipment, order, customer or
+          wareho…", 2026-10-13), and shrinking beside the Pickers cut more. */}
+      <div className='erp-search' ref={fit.ref} style={fit.style}>
         <SearchField label='Search' placeholder={placeholder} width='100%' {...view.searchProps} />
       </div>
       {children}

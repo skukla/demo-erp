@@ -239,6 +239,11 @@ body,
   background: var(--surface-canvas);
 }
 
+.erp-page-back {
+  /* Its own line above the title: Back, then the title and its actions. */
+  flex-basis: 100%;
+}
+
 .erp-page-actions {
   display: flex;
   flex-wrap: wrap;
@@ -321,8 +326,12 @@ body,
   min-height: var(--row-height);
 }
 
+/* No rule under a row. One was drawn here, but the cells paint over it and a cell
+   covers its whole row only when the row is one line high, so the rule showed under
+   the two-line rows alone, reading as a separator around a configurable product or a
+   wrapped badge (2026-10-13). Every grid already read without rules; now all do. */
 [class*="spectrum-Table-row"]::after {
-  box-shadow: inset 0 -1px 0 0 var(--line) !important;
+  box-shadow: none !important;
 }
 
 [class*="spectrum-Table-row"]:hover [class*="spectrum-Table-cell"] {
@@ -403,7 +412,9 @@ body,
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line);
   border-radius: var(--radius-surface);
-  background: var(--surface-canvas);
+  /* The card, not the canvas: on the canvas grey, a status badge's light tint had no
+     edge and its word was hard to read (2026-10-13). The border still marks the box. */
+  background: var(--surface-card);
   color: var(--ink);
   font: inherit;
   text-align: start;
@@ -627,6 +638,20 @@ body,
   border-radius: var(--radius-badge);
 }
 
+/* In a document card the badge is a column item, which stretches to the card's width
+   and reads as a band rather than a badge. As wide as its word. */
+.erp-doc [class*="spectrum-StatusLight"] {
+  align-self: flex-start;
+}
+
+/* A record's own status, beside its title: the body size, so it reads with the title
+   rather than as a footnote far from it (the product page, 2026-10-13). */
+[class*="spectrum-StatusLight"].erp-status-title {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-section-weight);
+}
+
 [class*="spectrum-StatusLight"]::before {
   display: none !important;
 }
@@ -639,11 +664,10 @@ body,
 
 /* ---- Forms -------------------------------------------------------------------- */
 .erp-search {
-  /* Wide enough that a placeholder is never cut off. Measured: at 240px the field gave
-     177px for text, because Spectrum spends 35px on the search icon and 28px on the
-     clear button, and the longest placeholder needs 180. */
-  flex: 0 1 320px;
-  min-width: 0;
+  /* The base width. A longer placeholder widens the field to fit (GridSearch measures
+     it), and the field never shrinks below what its placeholder needs: it wraps onto
+     its own line on a narrow screen instead. */
+  flex: 0 0 320px;
   max-width: 100%;
 }
 

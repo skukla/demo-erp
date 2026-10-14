@@ -53,7 +53,7 @@ export default function Returns ({ api, query = {}, onChanged, onNavigate }) {
 
   return (
     <Frame title='Returns' error={error} loading={!rows}>
-      <GridSearch placeholder='Return, order, customer return reference or customer' view={view}>
+      <GridSearch placeholder='Return, order, reference or customer' view={view}>
         <Picker aria-label='Status' label='Show' selectedKey={show} onSelectionChange={(k) => setShow(String(k))} items={SHOW}>
           {(x) => <Item key={x.key}>{x.label}</Item>}
         </Picker>
