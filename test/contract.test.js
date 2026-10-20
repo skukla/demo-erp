@@ -373,3 +373,10 @@ test('from version 21: quantity on an open shipment is reserved for it, and the 
   assert.ok(contract.routes.orders.includes('POST /:number/shipments'))
   assert.ok(contract.routes.orders.includes('POST /:number/shipments/:shipment/post'))
 })
+
+test('from version 22: a product change says what each changed field was', () => {
+  assert.ok(contract.contractVersion >= 22)
+  const productChanged = contract.events.types['Product.Changed']
+  for (const field of ['PrevProductName', 'PrevListPrice', 'PrevSalesStatus']) assert.ok(productChanged.data.includes(field), field)
+  assert.match(productChanged.note, /version 22/)
+})

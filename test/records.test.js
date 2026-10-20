@@ -228,10 +228,14 @@ test('a name and price edit raises one Product.Changed carrying the whole produc
   assert.equal(edited.name, 'Aurora Tote')
   const entries = await pending(cols)
   assert.equal(entries.length, 1)
-  assert.deepEqual(entries[0].data, { Product: 'T1', ProductName: 'Aurora Tote', ProductType: 'simple', ParentProduct: null, BaseUnit: 'EA', ListPrice: 199, SalesStatus: 'sellable', ChangedFields: ['ProductName', 'ListPrice'] })
-  // A name alone is not a price change.
+  // Contract version 22: what the fields were before the edit.
+  assert.deepEqual(entries[0].data, { Product: 'T1', ProductName: 'Aurora Tote', ProductType: 'simple', ParentProduct: null, BaseUnit: 'EA', ListPrice: 199, SalesStatus: 'sellable', ChangedFields: ['ProductName', 'ListPrice'], PrevProductName: 'Tote', PrevListPrice: 189, PrevSalesStatus: 'sellable' })
+  // A name alone is not a price change: the price is the same before and after.
   await patchProduct(cols, 'T1', { name: 'Aurora Tote II' })
-  assert.deepEqual((await pending(cols))[1].data.ChangedFields, ['ProductName'])
+  const nameOnly = (await pending(cols))[1].data
+  assert.deepEqual(nameOnly.ChangedFields, ['ProductName'])
+  assert.equal(nameOnly.PrevProductName, 'Aurora Tote')
+  assert.equal(nameOnly.PrevListPrice, nameOnly.ListPrice)
 })
 
 test('the SKU, a single stock number, an unknown warehouse, an empty name and unknown fields are refused', async () => {
