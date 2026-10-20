@@ -8,7 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/*.test.js",
     "deploy": "aio app deploy",
     "undeploy": "aio app undeploy",
     "build:screen": "node scripts/build-screen.js",
