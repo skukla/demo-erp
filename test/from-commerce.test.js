@@ -211,7 +211,10 @@ test('a web shop shipment of more than the ERP has on hand is still recorded (th
   const next = await receiveExternalShipment(cols, order.number, { externalReference: '77', lines: [{ customerLineReference: '1', qty: 5 }], warehouse: 'default', ...origin(SHIPMENT) })
   assert.equal(next.lines[0].shippedQty, 5)
   assert.deepEqual(await onHand('C3'), { default: 0 })
-  const [entry] = await recent(cols)
+  // The inbound entry, found rather than taken first: the outbound event is journaled in the
+  // same millisecond, and `recent` sorts by time alone, so which came first was a coin toss
+  // (it failed on CI's first run on main, 2026-10-20).
+  const entry = (await recent(cols)).find((e) => e.direction === 'in')
   assert.equal(entry.summary, `Goods issue posted from ${SYSTEM}: shipment ${next.shipments[0].number} for sales order ${order.number} (5 shipped from default). On hand was short: C3 had 3 EA in default, 2 fewer than shipped.`)
 })
 
