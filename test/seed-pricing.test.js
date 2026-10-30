@@ -79,3 +79,67 @@ test('a contract for a group that was not seeded is refused', async () => {
     /is not a price group of this ERP/
   )
 })
+
+/*
+ * The seed on top of data it seeded before (2026-10-30, found live on Justrite: price lists grew
+ * 6 to 9 after a store wipe refilled the ERP). Demo Builder's fill now runs over an ERP that keeps
+ * its other demos' records, so the seed is idempotent per price group: the list it seeded
+ * (`source: 'seed'`) is updated in place, and a list made by hand is never touched.
+ */
+const { createContract, activateContract } = require('../lib/contracts')
+
+const seededLists = async () => (await listContracts(cols, { priceGroup: 'RETAIL' })).filter((l) => l.source === 'seed')
+const withPrice = (price) => seed({ contracts: [{ priceGroup: 'RETAIL', description: 'Retail', startingDate: '2026-02-01', lines: [{ sku: 'A1', kind: 'price', price }] }] })
+
+test('seeding twice keeps one list per price group, with the same number and created time, and the new lines and term', async () => {
+  await seedPricing(cols, withPrice(80))
+  const [first] = await seededLists()
+  const counter = await cols.counters.findOne({ _id: 'contract' })
+  await seedPricing(cols, withPrice(70))
+  const lists = await seededLists()
+  assert.equal(lists.length, 1)
+  assert.equal(lists[0].number, first.number)
+  assert.equal(lists[0].createdAt, first.createdAt)
+  assert.equal(lists[0].lines[0].price, 70)
+  assert.equal(lists[0].startingDate, '2026-02-01')
+  assert.deepEqual(await cols.counters.findOne({ _id: 'contract' }), counter, 'no number is taken')
+  assert.equal((await pending(cols)).filter((e) => e.type === 'PriceList.Changed').length, 0, 'still silent')
+})
+
+test('a price list made by hand for the same price group survives both seeds untouched', async () => {
+  await seedPricing(cols, seed())
+  const made = await createContract(cols, { appliesTo: 'priceGroup', priceGroup: 'RETAIL', startingDate: '2026-01-01', lines: [{ sku: 'B2', kind: 'price', price: 40 }] })
+  const active = await activateContract(cols, made.number)
+  await seedPricing(cols, withPrice(80))
+  await seedPricing(cols, withPrice(70))
+  const lists = await listContracts(cols, { priceGroup: 'RETAIL' })
+  assert.equal(lists.length, 2)
+  assert.deepEqual(lists.find((l) => l.number === made.number), active)
+})
+
+test('lists seeded before the flag existed, several for one group, collapse to the newest; an edited or hand-made one stays', async () => {
+  // As the old seed stored them: active, for the group, written once (created and updated
+  // together), described by the group's name, as Demo Builder's fill sends it.
+  const legacy = (number, at, price) => ({ _id: number, number, appliesTo: 'priceGroup', partnerId: null, priceGroup: 'RETAIL', description: 'Retail shops', startingDate: '2026-01-01', endingDate: null, status: 'active', lines: [{ sku: 'A1', kind: 'price', price, minQty: 1, startingDate: null, endingDate: null }], createdAt: at, updatedAt: at })
+  await seedPricing(cols, { priceGroups: [{ code: 'RETAIL', name: 'Retail shops' }] })
+  for (const list of [legacy('4000000001', '2026-10-01T10:00:00.000Z', 80), legacy('4000000002', '2026-10-09T10:00:00.000Z', 80), legacy('4000000003', '2026-10-30T10:00:00.000Z', 80)]) {
+    await cols.contracts.replaceOne({ _id: list._id }, list, { upsert: true })
+  }
+  // An old seeded list someone then edited on the screen: saved after it was created.
+  const edited = { ...legacy('4000000004', '2026-10-02T10:00:00.000Z', 75), updatedAt: '2026-10-03T09:00:00.000Z' }
+  await cols.contracts.replaceOne({ _id: edited._id }, edited, { upsert: true })
+  // Made by a script in one go, with a name of its own: written once too, but not the seed's.
+  const scripted = { ...legacy('4000000005', '2026-10-04T10:00:00.000Z', 60), description: 'Spring promo' }
+  await cols.contracts.replaceOne({ _id: scripted._id }, scripted, { upsert: true })
+
+  await seedPricing(cols, withPrice(70))
+
+  const lists = await listContracts(cols, { priceGroup: 'RETAIL' })
+  assert.deepEqual(lists.map((l) => l.number).sort(), ['4000000003', '4000000004', '4000000005'])
+  assert.deepEqual(lists.find((l) => l.number === '4000000005'), scripted)
+  const kept = lists.find((l) => l.number === '4000000003')
+  assert.equal(kept.source, 'seed')
+  assert.equal(kept.createdAt, '2026-10-30T10:00:00.000Z')
+  assert.equal(kept.lines[0].price, 70)
+  assert.deepEqual(lists.find((l) => l.number === '4000000004'), edited)
+})

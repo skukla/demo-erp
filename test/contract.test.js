@@ -142,7 +142,8 @@ test('from version 7: price groups, lists for a customer or a group, dated lines
   assert.ok(contract.contractVersion >= 7)
   for (const route of ['GET /price-groups', 'POST /price-groups', 'DELETE /price-groups/:code']) assert.ok(contract.routes.contracts.includes(route), route)
   assert.deepEqual(contract.contracts.appliesTo, ['customer', 'priceGroup'])
-  assert.deepEqual(contract.contracts.contract, ['number', 'appliesTo', 'partnerId', 'priceGroup', 'description', 'startingDate', 'endingDate', 'status', 'lines', 'createdAt', 'updatedAt'])
+  // Version 24 adds `source` (a list the seed wrote); the rest is version 7's.
+  assert.deepEqual(contract.contracts.contract.filter((key) => key !== 'source'), ['number', 'appliesTo', 'partnerId', 'priceGroup', 'description', 'startingDate', 'endingDate', 'status', 'lines', 'createdAt', 'updatedAt'])
   assert.deepEqual(contract.contracts.line, ['sku', 'kind', 'price', 'percent', 'minQty', 'startingDate', 'endingDate'])
   assert.deepEqual(contract.contracts.priceGroup, ['code', 'name'])
   // A discount line carries percent and no price; a price line price and no percent. Every
@@ -380,3 +381,24 @@ test('from version 22: a product change says what each changed field was', () =>
   for (const field of ['PrevProductName', 'PrevListPrice', 'PrevSalesStatus']) assert.ok(productChanged.data.includes(field), field)
   assert.match(productChanged.note, /version 22/)
 })
+
+test('from version 24: the seed marks the lists it writes and updates them in place, one per price group', async () => {
+  assert.ok(contract.contractVersion >= 24)
+  assert.ok(contract.contracts.contract.includes('source'))
+  assert.match(contract.import.seedNote, /version 24: .*idempotent per price group/)
+  const { importProducts: products } = require('../lib/products')
+  const { seedPricing } = require('../lib/seed-pricing')
+  await products(cols, [{ sku: 'A1', name: 'A', listPrice: 10 }])
+  const seed = { priceGroups: [{ code: 'G', name: 'Group' }], contracts: [{ priceGroup: 'G', description: 'Group', startingDate: '2026-01-01', lines: [{ sku: 'A1', kind: 'price', price: 8 }] }] }
+  await seedPricing(cols, seed)
+  await seedPricing(cols, seed)
+  const lists = await findAllLists()
+  assert.equal(lists.length, 1)
+  assert.equal(lists[0].source, 'seed')
+  assert.deepEqual(Object.keys(lists[0]).filter((k) => k !== '_id').sort(), [...contract.contracts.contract].sort())
+})
+
+async function findAllLists () {
+  const { findAll } = require('../lib/db')
+  return findAll(cols.contracts, {}, { limit: 100 })
+}
