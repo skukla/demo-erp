@@ -4,6 +4,9 @@
  *      Demo Builder fills the ERP through it, and the integration sends each change made in the
  *      web shop; `origin: { system, document? }` names who sent it, and journals it; `stock`
  *      is quantities per warehouse for products the ERP already has
+ * POST admin/remove-orders { references }  remove the sales orders these web shop order numbers
+ *      name, with every document on them or pointing at them; everything else stays (contract
+ *      version 23)
  *
  * "Last import" moves only with a products import (Demo Builder's fill). A partners-only
  * or stock-only import (one change in the web shop) leaves it alone.
@@ -11,7 +14,7 @@
 const { run } = require('../../lib/action')
 const { ok } = require('../../lib/http')
 const { badRequest } = require('../../lib/errors')
-const { wipe } = require('../../lib/admin')
+const { wipe, removeOrders } = require('../../lib/admin')
 const { importProducts, importStock } = require('../../lib/products')
 const { importPartners, ensureDefaultPartner } = require('../../lib/partners')
 const { seedPricing } = require('../../lib/seed-pricing')
@@ -22,6 +25,13 @@ const { seedSalesOrganizations } = require('../../lib/sales-organizations')
 async function handler ({ cols, method, segments, body }) {
   if (method !== 'POST') return
   if (segments[0] === 'wipe') return ok({ wiped: await wipe(cols) })
+  if (segments[0] === 'remove-orders') {
+    const references = body.references
+    if (!Array.isArray(references) || references.length === 0 || !references.every((r) => typeof r === 'string' && r.trim())) {
+      throw badRequest('remove-orders needs references: the web shop order numbers of the orders to remove')
+    }
+    return ok(await removeOrders(cols, references.map((r) => r.trim())))
+  }
   if (segments[0] === 'import') {
     const mirror = Array.isArray(body.products) || Array.isArray(body.partners) || Array.isArray(body.stock)
     if (!mirror && !body.seed) {
