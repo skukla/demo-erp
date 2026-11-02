@@ -314,3 +314,5 @@ most 1 MB per result, so the build refuses a script or stylesheet near that size
 ## License
 
 Apache-2.0. See `NOTICE` for the pieces adapted from elsewhere.
+
+**Releasing:** a push to `main` reaches nobody; a published release does. See [RELEASING.md](RELEASING.md).
