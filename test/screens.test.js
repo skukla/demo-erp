@@ -25,6 +25,12 @@ const { chromium } = require('playwright')
 const { startPreview } = require('../scripts/preview')
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'screen-fingerprints.json')
+/**
+ * Every page sees this moment, so a screen looks the same on any day. The stand-in records carry
+ * real dates: a price starting 2026-11-01 stopped reading as upcoming that morning, and Pricing
+ * failed with no code changed.
+ */
+const NOW = new Date('2026-10-13T12:00:00Z')
 const UPDATE = process.env.UPDATE_SCREEN_FINGERPRINTS === '1'
 const VIEWPORT = { width: 1440, height: 900 }
 
@@ -84,6 +90,7 @@ after(async () => {
 async function open (hash, search = '', viewport = VIEWPORT) {
   const context = await browser.newContext({ viewport, locale: 'en-US', timezoneId: 'UTC' })
   const page = await context.newPage()
+  await page.clock.setFixedTime(NOW)
   const problems = []
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console.error: ${m.text()}`) })
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
